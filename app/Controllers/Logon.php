@@ -1,8 +1,9 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-declare(strict_types=1);
+#declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -12,7 +13,11 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
-use \Config\Services;
+use Config\Services;
+use League\OAuth2\Client;
+use Foxworth42\OAuth2\Client\Provider\Okta;
+
+#[\AllowDynamicProperties]
 
 /**
  * PHP version 7.4
@@ -22,7 +27,7 @@ use \Config\Services;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -41,10 +46,104 @@ class Logon extends Controller
     public function createForm()
     {
         $session = session();
+        $config =  new \Config\OpenAudit();
         if (!empty($session->get('user_id'))) {
-            return redirect()->to(site_url('summaries'));
+            if ($config->device_count === 0) {
+                return redirect()->to(url_to('welcome'));
+            } else {
+                return redirect()->to(url_to('home'));
+            }
         }
-        return view('logon', ['config' => new \Config\OpenAudit()]);
+        $db = db_connect();
+        $sql = "SELECT * FROM discoveries WHERE id = 1";
+        $result = $db->query($sql)->getResult();
+        if (empty($result[0]->subnet)) {
+            helper('network');
+            $ips = server_ip();
+            $ips = explode(',', $ips);
+            $subnet = '';
+            foreach ($ips as $ip) {
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) and !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE)) {
+                    $ip = explode('.', $ip);
+                    $ip[3] = 0;
+                    $ip = implode('.', $ip);
+                    $subnet = $ip . '/24';
+                    break;
+                }
+            }
+            $sql = "UPDATE `discoveries` SET `subnet` = ?, `description` = 'Subnet - $subnet', `edited_by` = 'system', `edited_date` = NOW() WHERE id = 1";
+            $db->query($sql, [$subnet]);
+            log_message('info', 'Default discovery subnet auto-populated with ' . $subnet . '.');
+        }
+
+        // get the server OS
+        $server_os = php_uname('s');
+
+        if ($server_os === 'Windows NT') {
+            $command = 'wmic os get name';
+            exec($command, $output);
+            if (!empty($output[1])) {
+                $os = explode('|', $output[1]);
+                $server_platform = $os[0];
+            }
+        } elseif ($server_os === 'Darwin') {
+            $server_platform = 'MacOS';
+            $command = "sw_vers | grep \"ProductVersion:\" | cut -d: -f2 | xargs";
+            exec($command, $output);
+            if (!empty($output[0])) {
+                $server_platform .= ' ' . $output[0];
+                unset($output);
+            }
+            $command = "awk '/SOFTWARE LICENSE AGREEMENT FOR macOS/' '/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/en.lproj/OSXSoftwareLicense.rtf' | awk -F 'macOS ' '{print \$NF}' | awk '{print substr(\$0, 0, length(\$0)-1)}'";
+            exec($command, $output);
+            if (!empty($output[0])) {
+                $server_platform .= ' ' . $output[0];
+            }
+        } else {
+            $command = 'cat /etc/os-release 2>/dev/null | grep -i ^PRETTY_NAME | cut -d= -f2 | cut -d\" -f2';
+            exec($command, $output);
+            if (!empty($output[0])) {
+                $server_platform = $output[0];
+            }
+        }
+        $sql = 'UPDATE configuration SET value = ? WHERE name = "server_os"';
+        $db->query($sql, [$server_os]);
+        log_message('info', 'Config auto-populated with ServerOS ' . $server_os . '.');
+        $sql = 'UPDATE configuration SET value = ? WHERE name = "server_platform"';
+        $db->query($sql, [$server_platform]);
+        log_message('info', 'Config auto-populated with ServerPlatform ' . $server_platform . '.');
+
+        // if (!empty($config->feature_news) and $config->feature_news === 'y') {
+        //     $request_days = (!empty($config->feature_news_request_days)) ? intval($config->feature_news_request_days) : 7;
+        //     $last_request_date = (!empty($config->feature_news_last_request_date)) ? strtotime("+" . $request_days . " days", strtotime($config->feature_news_last_request_date)) : strtotime('2001-01-01');
+        //     $today = strtotime(date('Y-m-d'));
+        //     if ($last_request_date < $today) {
+        //         // Request a news item
+        //         log_message('info', 'Requesting news articles.');
+        //         $newsModel = model('NewsModel');
+        //         $newsModel->executeAll();
+        //         $sql = 'UPDATE configuration SET value = ? WHERE name = "feature_news_last_request_date"';
+        //         $db->query($sql, [date('Y-m-d')]);
+        //     }
+        // }
+
+        $methods = array();
+        if ($db->tableExists('auth')) {
+            $authModel = model('AuthModel');
+            $authMethods = $authModel->listAll();
+            foreach ($authMethods as $auth) {
+                if (!empty($auth->type) and $auth->type !== 'openldap' and $auth->type !== 'active directory') {
+                    if ($auth->use_authentication === 'y') {
+                        $methods[] = $auth->type;
+                    }
+                }
+            }
+        }
+        $alert = '';
+        if (!$db->tableExists('auth') and intval($config->internal_version) < 20240822) {
+            $alert = 'Active Directory and openLDAP logins will not work until the database has been upgraded.<br>Please logon with a <i>local</i> \'admin\' user, to upgrade the database.';
+        }
+        return view('logon', ['config' =>$config, 'methods' => $methods, 'alert' => $alert]);
     }
 
     public function create()
@@ -153,6 +252,9 @@ class Logon extends Controller
                 pclose(popen($command, 'r'));
             } else {
                 $command = $enterprise_binary . " --license";
+                if (!empty($config->enterprise_env) and strpos($command, 'enterprise.bin') !== false) {
+                    $command = 'export PAR_GLOBAL_TMPDIR=' . $config->enterprise_env . '; ' . $command;
+                }
                 exec($command, $output);
             }
             if (!empty($output)) {
@@ -160,5 +262,80 @@ class Logon extends Controller
             }
         }
         echo $json;
+    }
+
+    public function redirect(string $type = '')
+    {
+        if (empty($type)) {
+            return redirect()->to(site_url('logon'));
+        }
+        helper('auth');
+        $this->session = \Config\Services::session();
+        $authModel = model('App\Models\AuthModel');
+        $authEntries = $authModel->listAll();
+        $auth = '';
+        foreach ($authEntries as $item) {
+            if ($item->type === $type) {
+                $auth = $item;
+                break;
+            }
+        }
+        if (empty($auth)) {
+            return redirect()->to(site_url('logon'));
+        }
+        if ($type === 'entra' and $auth->type === 'entra') {
+            $authUrl = entra_redirect($auth);
+            if (empty($authUrl)) {
+                return redirect()->to(site_url('logon'));
+            }
+            $this->response->setStatusCode(302);
+            $this->response->setHeader('Location', $authUrl);
+            return;
+        }
+        if ($type === 'github' and $auth->type === 'github') {
+            $authUrl = github_redirect($auth);
+            if (empty($authUrl)) {
+                return redirect()->to(site_url('logon'));
+            }
+            $this->response->setStatusCode(302);
+            $this->response->setHeader('Location', $authUrl);
+            return;
+        }
+        if ($type === 'okta' and $auth->type === 'okta') {
+            $authUrl = okta_redirect($auth);
+            if (empty($authUrl)) {
+                return redirect()->to(site_url('logon'));
+            }
+            $this->response->setStatusCode(302);
+            $this->response->setHeader('Location', $authUrl);
+            return;
+        }
+        return redirect()->to(site_url('logon'));
+    }
+
+    public function auth(string $type = '')
+    {
+        helper('auth');
+        $this->session = \Config\Services::session();
+        $authModel = model('App\Models\AuthModel');
+        $authEntries = $authModel->listAll();
+        foreach ($authEntries as $item) {
+            if ($item->type === $type) {
+                $auth = $item;
+                break;
+            }
+        }
+        if (empty($auth)) {
+            return redirect()->to(site_url('logon'));
+        }
+        if (!empty($auth) and $type === 'entra') {
+            return redirect()->to(entra_auth($auth, @$this->request->getIPAddress()));
+        }
+        if (!empty($auth) and $type === 'github') {
+            return redirect()->to(github_auth($auth, @$this->request->getIPAddress()));
+        }
+        if (!empty($auth) and $type === 'okta') {
+            return redirect()->to(okta_auth($auth, @$this->request->getIPAddress()));
+        }
     }
 }

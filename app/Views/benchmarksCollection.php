@@ -24,9 +24,7 @@ include 'shared/collection_functions.php';
                             <a href="<?= url_to('queriesExecute', $included['devices_not_in_benchmarks']) ?>" type="button" class="btn btn-danger" style="min-width: 70px; margin-right:12px;"><?= ($included['potential_devices'] - $included['actual_devices']) ?></a>&nbsp;<?= __('Devices are not being benchmarked.') ?><br><br>
                             <a href="<?= url_to('queriesExecute', $included['devices_could_be_benchmarked']) ?>" type="button" class="btn btn-warning" style="min-width: 70px; margin-right:12px;"><?= $included['potential_devices'] ?></a>&nbsp;<?= __('Devices could be benchmarked.') ?><br><br>
                             <a href="<?= url_to('queriesExecute', $included['devices_in_benchmarks']) ?>"  type="button" class="btn btn-success" style="min-width: 70px; margin-right:12px;"><?= $included['actual_devices'] ?></a>&nbsp;<?= __('Devices are being benchmarked.') ?><br><br>
-                            <?php if (!empty($included['exceptions'])) { ?>
-                                <a href="<?= url_to('benchmarks_exceptionsCollection') ?>"  type="button" class="btn btn-primary" style="min-width: 70px; margin-right:12px;"><?= $included['exceptions'] ?></a>&nbsp;<?= __('Policies have exceptions.') ?><br><br>
-                            <?php } ?>
+                            <a href="<?= url_to('benchmarks_exceptionsCollection') ?>"  type="button" class="btn btn-primary" style="min-width: 70px; margin-right:12px;"><?= $included['exceptions'] ?></a>&nbsp;<?= __('Policies have exceptions.') ?><br><br>
                         </div>
                         <div class="col-8">
                             Devices Not Being Benchmarked<br><br>
@@ -47,7 +45,7 @@ include 'shared/collection_functions.php';
                                         </div>
                                         <?php
                                         if ($i === 6 or $i === 12 or $i === 18 or $i === 24) {
-                                            echo "</div><br /><div class=\"row\">";
+                                            echo "</div><br><div class=\"row\">";
                                         }
                                     }
                                 }
@@ -64,7 +62,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[2,"asc"]]'>
                             <thead>
@@ -92,12 +90,12 @@ include 'shared/collection_functions.php';
                                             continue;
                                         }
                                         if ($key === 'orgs.name' and !empty($item->attributes->{'orgs.id'})) {
-                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'orgs.id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
-                                        } else if ($key === 'os') {
-                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".os=" . $item->attributes->{$key} . "\">" . $item->attributes->{$key} . "</a></td>\n";
-                                        } else if ($key === 'type') {
-                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".type=" . $item->attributes->{$key} . "\">" . $item->attributes->{$key} . "</a></td>\n";
-                                        } else if ($key === 'last_run') {
+                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'orgs.id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                        } elseif ($key === 'os') {
+                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".os=" . $item->attributes->{$key} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                        } elseif ($key === 'type') {
+                                            echo "<td style=\"white-space: nowrap;\"><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".type=" . $item->attributes->{$key} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                        } elseif ($key === 'last_run') {
                                             echo "<td style=\"white-space: nowrap;\">" . $item->attributes->{$key} . "</td>\n";
                                         } else {
                                             echo "<td>" . $item->attributes->{$key} . "</td>\n";

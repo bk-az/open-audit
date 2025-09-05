@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -453,7 +454,7 @@ if (! function_exists('ip_scan')) {
                 $discoveryLogModel->create($log);
                 // Log end of audit for this IP
                 $log->command = 'Peak Memory';
-                $log->command_output = round((memory_get_peak_usage(false)/1024/1024), 3) . ' MiB';
+                $log->command_output = round((memory_get_peak_usage(false) / 1024 / 1024), 3) . ' MiB';
                 $log->command_status = 'device complete';
                 $log->command_time_to_execute = microtime(true)  - $start;
                 $log->message = 'IP scan finish on device ' . ip_address_from_db($ip);
@@ -546,7 +547,10 @@ if (! function_exists('ip_scan')) {
             $discoveryLogModel->create($log);
             $command_output = '';
             echo $log->message . ' took ' . $log->command_time_to_execute . "seconds.\n";
-            $device = array_merge($device, check_nmap_output($discovery, $output, $ip, $command));
+            $temp = check_nmap_output($discovery, $output, $ip, $command);
+            if (!empty($temp)) {
+                $device = array_merge($device, $temp);
+            }
             unset($output);
         }
 
@@ -565,7 +569,10 @@ if (! function_exists('ip_scan')) {
             $command_output = '';
             echo $log->message . ' took ' . $log->command_time_to_execute . "seconds.\n";
             $ports = @$device['nmap_ports'];
-            $device = array_merge($device, check_nmap_output($discovery, $output, $ip, $command));
+            $temp = check_nmap_output($discovery, $output, $ip, $command);
+            if (!empty($temp)) {
+                $device = array_merge($device, $temp);
+            }
             if (!empty($ports)) {
                 $device['nmap_ports'] = $ports . ',' . $device['nmap_ports'];
             }
@@ -736,7 +743,7 @@ if (! function_exists('check_nmap_output')) {
                             }
                             $ssh_ports = explode(',', $discovery->scan_options->ssh_ports);
                             foreach ($ssh_ports as $ssh_port) {
-                                if ($keywords[0] === $ssh_port.'/tcp') {
+                                if ($keywords[0] === $ssh_port . '/tcp') {
                                     $device['ssh_status'] = 'true';
                                     $log->message = 'Host ' . $ip . ' is up, received custom ssh port ' . $keywords[0] . ' ' . $status . ') response';
                                 }
@@ -853,11 +860,7 @@ if (! function_exists('ip_audit')) {
         $log->command_output = '';
         $log->command = '';
 
-        if (php_uname('s') !== 'Windows NT') {
-            $filepath = APPPATH . '../other';
-        } else {
-            $filepath = APPPATH . '..\\other';
-        }
+        $filepath = ROOTPATH . 'other';
 
         $device = new \StdClass();
         $device->audits_ip = $ip_scan->ip;
@@ -973,7 +976,7 @@ if (! function_exists('ip_audit')) {
             // if collection == credentials, not an individual device acssociated credential
             if (!empty($credentials_snmp)) {
                 $ip_discovered_count = 1;
-                if ($credentials_snmp->foreign === 'credentials') {
+                if (!empty($credentials_snmp->foreign) and $credentials_snmp->foreign === 'credentials') {
                     $device->credentials[] = intval($credentials_snmp->id);
                 }
             }
@@ -997,6 +1000,9 @@ if (! function_exists('ip_audit')) {
                 $device->last_seen_by = 'snmp';
                 $device->audits_ip = '127.0.0.1';
             }
+            if (!empty($temp_array['arp'])) {
+                $arp = $temp_array['arp'];
+            }
             if (!empty($temp_array['interfaces'])) {
                 $network_interfaces = $temp_array['interfaces'];
             }
@@ -1018,6 +1024,9 @@ if (! function_exists('ip_audit')) {
             if (!empty($temp_array['ips_found'])) {
                 $ips_found = $temp_array['ips_found'];
             }
+            if (!empty($temp_array['access_points'])) {
+                $access_points = $temp_array['access_points'];
+            }
         }
 
         // Set these here before testing them below
@@ -1028,13 +1037,24 @@ if (! function_exists('ip_audit')) {
             $device->manufacturer = '';
         }
         if (!empty($device->type)
-                and $device->type !== 'computer'
-                and $device->type !== 'unknown'
-                and $device->type !== 'unclassified'
-                and stripos($device->os_name, 'dd-wrt') === false
-                and stripos($device->manufacturer, 'Ubiquiti') === false
-                and stripos($device->manufacturer, 'Synology') === false) {
-            $log->message = 'Not a computer and not a DD-WRT or Ubiquiti or Synology device setting SSH status to false for ' . $device->ip;
+            and $device->type !== 'computer'
+            and $device->type !== 'unknown'
+            and $device->type !== 'unclassified'
+            and stripos($device->os_name, 'dd-wrt') === false
+            and stripos($device->manufacturer, 'Ubiquiti') === false
+            and stripos($device->manufacturer, 'Synology') === false
+            and stripos($device->manufacturer, 'Palo Alto') === false
+            and stripos($device->manufacturer, 'Cisco') === false
+        ) {
+            $log->message = 'Not a computer, setting SSH status to false for ' . $device->ip;
+            $log->severity = 5;
+            $discoveryLogModel->create($log);
+            $log->severity = 7;
+            $ip_scan->ssh_status = 'false';
+        }
+
+        if (stripos($device->os_name, 'extreme networks') !== false or stripos($device->os_group, 'extreme networks') !== false) {
+            $log->message = 'Extreme Networks device setting SSH status to false for ' . $device->ip;
             $log->severity = 5;
             $discoveryLogModel->create($log);
             $log->severity = 7;
@@ -1043,6 +1063,63 @@ if (! function_exists('ip_audit')) {
 
         // SSH Audit
         $credentials_ssh = false;
+
+        if (stripos($device->manufacturer, 'Palo Alto') !== false and $device->os_group === 'Pan-OS' and $ip_scan->ssh_status === 'true') {
+            $log->severity = 7;
+            $log->message = 'CLI Config for Palo Alto for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            helper('ssh_palo_alto');
+            $ssh_device = ssh_palo_alto_audit($device->ip, intval($discovery->id), $credentials);
+            log_message('debug', json_encode($ssh_device));
+            foreach ($ssh_device as $key => $value) {
+                if (!empty($value) and $key !== 'cli_config') {
+                    $device->{$key} = $value;
+                }
+            }
+            if (!empty($ssh_device->cli_config) and is_array($ssh_device->cli_config)) {
+                $cli_config = $ssh_device->cli_config;
+            }
+            $ip_scan->ssh_status = 'false';
+            unset($ssh_device);
+        }
+
+        if (stripos($device->manufacturer, 'Cisco') !== false and $device->os_family === 'Cisco IOS' and $ip_scan->ssh_status === 'true') {
+            $log->severity = 7;
+            $log->message = 'CLI Config for Cisco for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            helper('ssh_cisco');
+            $ssh_device = ssh_cisco_audit($device->ip, intval($discovery->id), $credentials);
+            log_message('debug', json_encode($ssh_device));
+            foreach ($ssh_device as $key => $value) {
+                if (!empty($value) and $key !== 'cli_config') {
+                    $device->{$key} = $value;
+                }
+            }
+            if (!empty($ssh_device->cli_config) and is_array($ssh_device->cli_config)) {
+                $cli_config = $ssh_device->cli_config;
+            }
+            $ip_scan->ssh_status = 'false';
+            unset($ssh_device);
+        }
+
+        if (stripos($device->manufacturer, 'Ubiquiti') !== false and $ip_scan->ssh_status === 'true') {
+            $log->severity = 7;
+            $log->message = 'CLI Config for Ubiquiti for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            helper('ssh_ubiquiti');
+            $ssh_device = ssh_ubiquiti_audit($device->ip, intval($discovery->id), $credentials);
+            log_message('debug', json_encode($ssh_device));
+            foreach ($ssh_device as $key => $value) {
+                if (!empty($value) and $key !== 'cli_config') {
+                    $device->{$key} = $value;
+                }
+            }
+            if (!empty($ssh_device->cli_config) and is_array($ssh_device->cli_config)) {
+                $cli_config = $ssh_device->cli_config;
+            }
+            $ip_scan->ssh_status = 'false';
+            unset($ssh_device);
+        }
 
         // Run SSH audit
         if ($ip_scan->ssh_status === 'true') {
@@ -1065,7 +1142,7 @@ if (! function_exists('ip_audit')) {
                     // Add this credential sets ID to device->credentials
                     // if collection == credentials, not an individual device acssociated credential
                     $credentials_ssh = $ssh_details->credentials;
-                    if ($credentials_ssh->foreign === 'credentials') {
+                    if (!empty($credentials_ssh->foreign) and $credentials_ssh->foreign === 'credentials') {
                         $device->credentials[] = intval($credentials_ssh->id);
                     }
                 }
@@ -1074,7 +1151,7 @@ if (! function_exists('ip_audit')) {
                 $device->audits_ip = '127.0.0.1';
                 if (!empty($ssh_details->ips_found)) {
                     $ips_found = array_merge($ips_found, $ssh_details->ips_found);
-                    $log->message = 'Adding detected ARP ip addresses from ' . $device->ip;
+                    $log->message = 'Adding detected Seed ARP ip addresses from ' . $device->ip;
                     $log->command_output = json_encode($ips_found);
                     $discoveryLogModel->create($log);
                 }
@@ -1110,7 +1187,7 @@ if (! function_exists('ip_audit')) {
             $ip_discovered_count = 1;
             // Add this credential sets ID to device->credentials
             // if collection == credentials, not an individual device acssociated credential
-            if ($credentials_windows->foreign === 'credentials') {
+            if (!empty($credentials_windows->foreign) and $credentials_windows->foreign === 'credentials') {
                 $device->credentials[] = intval($credentials_windows->id);
             }
         }
@@ -1130,7 +1207,7 @@ if (! function_exists('ip_audit')) {
                 $temp = windows_ips_found($device->ip, $credentials_windows, $discovery->id);
                 if (!empty($temp)) {
                     $ips_found = array_merge($ips_found, $temp);
-                    $log->message = 'Adding detected ARP ip addresses from ' . $device->ip;
+                    $log->message = 'Adding detected Seed ARP ip addresses from ' . $device->ip;
                     $log->command_output = json_encode($ips_found);
                     $discoveryLogModel->create($log);
                 }
@@ -1144,6 +1221,33 @@ if (! function_exists('ip_audit')) {
         // Now run our rules to update the device if any match
         // TODO
         # $device = $instance->rulesModel->execute($device, intval($discovery->id), 'return');
+
+        if (empty($device->mac_address)) {
+            // Check the arp table
+            $log->message = 'Check for a MAC address for this IP in the arp table.';
+            $log->command_status = 'notice';
+            $command_start = microtime(true);
+            $sql = "SELECT arp.* FROM `arp` LEFT JOIN `devices` ON (arp.device_id = devices.id) WHERE arp.ip = ? AND arp.last_seen > DATE_SUB(CURDATE(), INTERVAL 2 DAY) AND devices.org_id = ? AND devices.discovery_id = ? LIMIT 1";
+            $result = $db->query($sql, [$ip_scan->ip, intval($discovery->org_id), intval($discovery->id)])->getResult();
+            $log->command_time_to_execute = microtime(true) - $command_start;
+            $log->command = str_replace("\n", " ", (string)$db->getLastQuery());
+            if (!empty($result[0]->mac)) {
+                $device->mac_address = $result[0]->mac;
+                $log->command_output = json_encode($result[0]);
+            }
+            $discoveryLogModel->create($log);
+            $log->command_output = '';
+        }
+
+        // See if we have a Mac Address for the device's IP
+        if (!empty($network_interfaces) and empty($device->mac_address)) {
+            foreach ($network_interfaces as $interface) {
+                if (!empty($interface->ip) and !empty($device->ip) and $interface->ip === $device->ip) {
+                    $device->mac_address = $interface->mac;
+                    $device->subnet = $interface->subnet;
+                }
+            }
+        }
 
         // If we don't have a device.id, check with our updated device attributes (if any)
         if (empty($device->id)) {
@@ -1164,16 +1268,6 @@ if (! function_exists('ip_audit')) {
         }
         unset($log->message, $log->command, $log->command_time_to_execute, $log->command_error_message);
 
-        // See if we have a Mac Address for the device's IP
-        if (!empty($network_interfaces) and empty($device->mac_address)) {
-            foreach ($network_interfaces as $interface) {
-                if ($interface->ip === $device->ip) {
-                    $device->mac_address = $interface->mac;
-                    $device->subnet = $interface->subnet;
-                }
-            }
-        }
-
         $log->command_status = 'notice';
         if (!empty($device->id)) {
             // UPDATE
@@ -1189,6 +1283,10 @@ if (! function_exists('ip_audit')) {
             unset($log->command_time_to_execute, $log->command_error_message);
         } else {
             // INSERT
+            if (empty($device->type)) {
+                // Just a precaution
+                $device->type = 'unknown';
+            }
             $log->message = 'Start of ' . strtoupper($device->last_seen_by) . ' insert for ' . $device->ip;
             $discoveryLogModel->create($log);
             $command_start = microtime(true);
@@ -1270,6 +1368,14 @@ if (! function_exists('ip_audit')) {
         // finish off with updating any network IPs that don't have a matching interface
         $componentsModel->updateMissingInterfaces($device->id);
 
+        // insert any arp from SNMP
+        if (isset($arp) and is_array($arp) and count($arp) > 0) {
+            $log->command_status = 'notice';
+            $log->message = 'Processing found arp for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            $componentsModel->upsert('arp', $device, $arp);
+        }
+
         // insert any modules from SNMP
         if (isset($modules) and is_array($modules) and count($modules) > 0) {
             $log->command_status = 'notice';
@@ -1302,6 +1408,22 @@ if (! function_exists('ip_audit')) {
             $componentsModel->upsert('radio', $device, $radio);
         }
 
+        // insert any found access points from SNMP
+        if (isset($access_points) and is_array($access_points) and count($access_points) > 0) {
+            $log->command_status = 'notice';
+            $log->message = 'Processing found access_points for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            $componentsModel->upsert('access_point', $device, $access_points);
+        }
+
+        // insert any found cli config from SSH
+        if (isset($cli_config) and is_array($cli_config) and count($cli_config) > 0) {
+            $log->command_status = 'notice';
+            $log->message = 'Processing found cli_config for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            $componentsModel->upsert('cli_config', $device, $cli_config);
+        }
+
         // process and store the Nmap data
         $nmap_result = array();
         if (!empty($ip_scan->nmap_ports)) {
@@ -1323,6 +1445,21 @@ if (! function_exists('ip_audit')) {
                 $log->message = 'Processing Nmap ports for ' . $device->ip;
                 $discoveryLogModel->create($log);
                 $componentsModel->upsert('nmap', $device, $nmap_result);
+            }
+        }
+
+        if ($device->type !== 'computer' and !empty($device->os_version) and !empty($device->os_name)) {
+            $sql = "SELECT COUNT(*) AS `count` FROM software WHERE device_id = ?";
+            $result = $db->query($sql, [$device->id])->getResult();
+            if (intval($result[0]->count) < 2) {
+                // We have one or no entries in software - insert this
+                $software = new stdCLass();
+                $software->name = $device->os_name;
+                $software->version = $device->os_version;
+                $log->command_status = 'notice';
+                $log->message = 'Processing Software OS for ' . $device->ip;
+                $discoveryLogModel->create($log);
+                $componentsModel->upsert('software', $device, [$software]);
             }
         }
 
@@ -1375,7 +1512,11 @@ if (! function_exists('ip_audit')) {
 
         $script_name = '';
         if (!empty($credentials_windows) or ! empty($credentials_ssh)) {
-            $temp = $instance->scriptsModel->build(strtolower($device->os_group));
+            $os_group = strtolower($device->os_group);
+            if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and $os_group === 'windows') {
+                $os_group = 'windows-ps1';
+            }
+            $temp = $instance->scriptsModel->build(strtolower($os_group));
             if (empty($temp)) {
                 $log->command_output = 'Could not retrieve audit script for ' . strtolower($device->os_group) . ', check ' . ROOTPATH . 'other/scripts is writable.';
                 $log->command_status = 'issue';
@@ -1396,11 +1537,13 @@ if (! function_exists('ip_audit')) {
 
         // Audit Windows using script
         if ($ip_scan->wmi_status === 'true' and ! empty($credentials_windows) and ! empty($audit_script)) {
-            // We do not support auditing windows using the script over SSH at this time
             $ip_scan->ssh_status = 'false';
             $log->message = 'Starting windows script audit for ' . $device->ip;
             $discoveryLogModel->create($log);
             $destination = 'audit_windows.vbs';
+            if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                $destination = 'audit_windows.ps1';
+            }
             $output = false;
             if (php_uname('s') === 'Windows NT' and ! empty($instance->config->discovery_use_vintage_service) and $instance->config->discovery_use_vintage_service === 'y') {
                 // Windows Server (likely) running on the LocalSystem account.
@@ -1456,10 +1599,18 @@ if (! function_exists('ip_audit')) {
                 // Unix or Windows default - Remotely run script on target device
                 // Copy the audit script to admin$
                 $copy = false;
-                $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.vbs', $discovery->id);
+                if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                    $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.ps1', $discovery->id);
+                } else {
+                    $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.vbs', $discovery->id);
+                }
                 $output = false;
                 if ($copy) {
-                    $command = 'cscript ' . $device->install_dir . '\\audit_windows.vbs submit_online=n create_file=w debugging=0 self_delete=y last_seen_by=audit_wmi system_id=' . $device->id . ' discovery_id=' . $discovery->id;
+                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                        $command = 'powershell  -executionpolicy bypass -file ' . $device->install_dir . '\\audit_windows.ps1 -submit_online n -create_file y -debugging 1 -last_seen_by audit_wmi -system_id ' . $device->id . ' -discovery_id ' . $discovery->id;
+                    } else {
+                        $command = 'cscript ' . $device->install_dir . '\\audit_windows.vbs submit_online=n create_file=w debugging=0 self_delete=y last_seen_by=audit_wmi system_id=' . $device->id . ' discovery_id=' . $discovery->id;
+                    }
                     $output = execute_windows($device->ip, $credentials_windows, $command, $discovery->id);
                     if (empty($output)) {
                         $log->severity = 3;
@@ -1483,22 +1634,47 @@ if (! function_exists('ip_audit')) {
                 foreach ($output as $line) {
                     if (strpos($line, 'File ') !== false) {
                         $audit_file = trim(str_replace('File ', '', $line));
+                        break;
                     }
                 }
             }
-            if (!empty($audit_file) and ! empty($output)) {
+            if (!empty($audit_file) and !empty($output)) {
                 $copy = false;
-                $temp = explode('\\', $audit_file);
-                $destination = $filepath . '/scripts/' . end($temp);
+                if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                    $destination = $filepath . '/scripts/' . $audit_file;
+                } else {
+                    $temp = explode('\\', $audit_file);
+                    unset($audit_file);
+                    $audit_file = end($temp);
+                    $destination = $filepath . '/scripts/' . $audit_file;
+                }
                 if (php_uname('s') === 'Windows NT') {
-                    $destination = $filepath . '\\scripts\\' . end($temp);
+                    $destination = $filepath . '\\scripts\\' . $audit_file;
                 }
                 if (php_uname('s') === 'Windows NT' and exec('whoami') === 'nt authority\system' and ! empty($instance->config->discovery_use_vintage_service) and $instance->config->discovery_use_vintage_service === 'y') {
                     if (rename($audit_file, $destination)) {
                         $copy = true;
                     }
                 } else {
-                    $copy = copy_from_windows($device->ip, $credentials_windows, end($temp), $destination, $discovery->id);
+                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                        if (stripos($device->os_name, 'server') !== false) {
+                            // Servers tend to use c:\windows\syswow64
+                            $copy = copy_from_windows($device->ip, $credentials_windows, 'SysWOW64\\' . $audit_file, $destination, $discovery->id);
+                        } else {
+                            // Clients tend to use c:\windows\system32
+                            $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
+                        }
+                        if (empty($copy)) {
+                            // For some reason the copy didn't work, so try the reverse location
+                            if (stripos($device->os_name, 'server') !== false) {
+                                $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
+                            } else {
+                                $copy = copy_from_windows($device->ip, $credentials_windows, 'SysWOW64\\' . $audit_file, $destination, $discovery->id);
+                            }
+                        }
+                    } else {
+                        $copy = copy_from_windows($device->ip, $credentials_windows, $audit_file, $destination, $discovery->id);
+                    }
                 }
                 if ($copy === true) {
                     $audit_result = file_get_contents($destination);
@@ -1506,7 +1682,7 @@ if (! function_exists('ip_audit')) {
                     if (empty($audit_result)) {
                         $log->severity = 3;
                         $log->command_time_to_execute = '';
-                        $log->message = 'Could not open audit result on localhost for ' . $device->ip . '. Cannot process audit result.';
+                        $log->message = 'Could not open audit result (empty file) on localhost for ' . $device->ip . '. Cannot process audit result.';
                         $log->command_output = $destination;
                         $log->command_status = 'fail';
                         $discoveryLogModel->create($log);
@@ -1526,7 +1702,12 @@ if (! function_exists('ip_audit')) {
                     // no need to delete the remote file
                 } else {
                     // delete the remote audit result
-                    delete_windows_result($device->ip, $credentials_windows, 'admin$', end($temp), $discovery->id);
+                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                        delete_windows_result($device->ip, $credentials_windows, 'admin$', 'System32\\' . $audit_file, $discovery->id);
+                        delete_windows_result($device->ip, $credentials_windows, 'admin$', 'SysWOW64\\' . $audit_file, $discovery->id);
+                    } else {
+                        delete_windows_result($device->ip, $credentials_windows, 'admin$', end($temp), $discovery->id);
+                    }
                 }
             } else {
                 $log->severity = 3;
@@ -1557,9 +1738,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'Starting SSH audit script for ' . $device->ip;
             $discoveryLogModel->create($log);
             // copy the audit script to the target ip
-            $destination = $instance->config->discovery_linux_script_directory;
-            if (substr($destination, -1) !== '/') {
+            $destination = !empty($instance->config->discovery_linux_script_directory) ? $instance->config->discovery_linux_script_directory : '/tmp/';
+            if (!empty($destination) and substr($destination, -1) !== '/') {
                 $destination .= '/';
+            }
+            if ($device->os_group === 'Windows') {
+                $destination = '';
             }
             $destination .= $script_name;
             $parameters = new \StdClass();
@@ -1569,7 +1753,7 @@ if (! function_exists('ip_audit')) {
             $parameters->destination = $destination;
             $parameters->discovery_id = $discovery->id;
             $parameters->ssh_port = $ip_scan->ssh_port;
-            $temp = scp($parameters);
+            $temp = @scp($parameters);
             if (! $temp) {
                 $audit_script = '';
                 $log->severity = 3;
@@ -1580,25 +1764,27 @@ if (! function_exists('ip_audit')) {
                 $log->message = '';
                 $log->command_status = 'notice';
             } else {
-                // Successfully copied the audit script, now chmod it
-                $command = 'chmod ' . $instance->config->discovery_linux_script_permissions . ' ' . $destination;
-                // No use testing for a result as a chmod produces no output
-                $parameters = new \StdClass();
-                $parameters->discovery_id = $discovery->id;
-                $parameters->ip = $device->ip;
-                $parameters->credentials = $credentials_ssh;
-                $parameters->command = $command;
-                $parameters->ssh_port = $ip_scan->ssh_port;
-                $test = ssh_command($parameters);
-                if ($test === false) {
-                    $log->severity = 3;
-                    $log->message = 'Could not chmod script on ' . $device->ip;
-                    $log->command_status = 'fail';
-                    $discoveryLogModel->create($log);
-                    $log->severity = 7;
-                    $log->message = '';
-                    $log->command_status = 'notice';
-                    $audit_script = '';
+                if ($device->os_group !== 'Windows') {
+                    // Successfully copied the audit script, now chmod it
+                    $command = 'chmod ' . $instance->config->discovery_linux_script_permissions . ' ' . $destination;
+                    // No use testing for a result as a chmod produces no output
+                    $parameters = new \StdClass();
+                    $parameters->discovery_id = $discovery->id;
+                    $parameters->ip = $device->ip;
+                    $parameters->credentials = $credentials_ssh;
+                    $parameters->command = $command;
+                    $parameters->ssh_port = $ip_scan->ssh_port;
+                    $test = ssh_command($parameters);
+                    if ($test === false) {
+                        $log->severity = 3;
+                        $log->message = 'Could not chmod script on ' . $device->ip;
+                        $log->command_status = 'fail';
+                        $discoveryLogModel->create($log);
+                        $log->severity = 7;
+                        $log->message = '';
+                        $log->command_status = 'notice';
+                        $audit_script = '';
+                    }
                 }
             }
             unset($destination);
@@ -1616,6 +1802,13 @@ if (! function_exists('ip_audit')) {
                     $log->message = 'Running audit using ' .  $credentials_ssh->credentials->username . ' without sudo, as sudo attempt failed.';
                 } elseif (empty($device->which_sudo)) {
                     $log->message = 'Running audit using ' . $credentials_ssh->credentials->username . ' as sudo not present.';
+                }
+                if ($device->os_group === 'Windows') {
+                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                        $command = 'powershell -executionpolicy bypass -file ' . $script_name . ' -submit_online n -create_file y -debugging 1 -system_id ' . $device->id . ' -last_seen_by audit_ssh -discovery_id ' . $discovery->id;
+                    } else {
+                        $command = 'cscript ' . $script_name . ' submit_online=n create_file=y debugging=1 self_delete=y system_id=' . $device->id . ' last_seen_by=audit_ssh discovery_id=' . $discovery->id;
+                    }
                 }
                 $log->command = $command;
                 $discoveryLogModel->create($log);
@@ -1636,7 +1829,7 @@ if (! function_exists('ip_audit')) {
                 // $log->command_status = 'notice';
             }
             $audit_result = '';
-            if ($audit_script !== '' and ! empty($result) and gettype($result) === 'array') {
+            if ($audit_script !== '' and !empty($result) and gettype($result) === 'array') {
                 $audit_file = '';
                 foreach ($result as $line) {
                     if (strpos($line, 'File  ') !== false) {
@@ -1700,6 +1893,9 @@ if (! function_exists('ip_audit')) {
                     }
                     // Delete the remote file
                     $command = 'rm ' . $audit_file;
+                    if ($device->os_group === 'Windows') {
+                        $command = 'del ' . $audit_file;
+                    }
                     $temp = 0;
                     if (!empty($device->which_sudo) and ! empty($device->use_sudo) and $credentials_ssh->credentials->username !== 'root') {
                         // add sudo, we need this if we have run the audit using sudo
@@ -1728,14 +1924,29 @@ if (! function_exists('ip_audit')) {
             $log->severity = 7;
             $log->message = 'Attempt to delete temp audit script succeeded';
             $log->command_status = 'notice';
-            $log->command = "unlink('" . $temp_audit_script ."')";
-            try {
-                unlink($temp_audit_script);
-            } catch (Exception $error) {
-                $log->severity = 4;
-                $log->message = 'Could not delete temp audit script';
-                $log->command_status = 'fail';
-                $log->command_output = json_encode($error);
+            $log->command = "unlink('" . $temp_audit_script . "')";
+            $test = false;
+            if ($instance->config->server_os === 'Windows NT') {
+                $temp = explode(DIRECTORY_SEPARATOR, $temp_audit_script);
+                $filename = end($temp);
+                try {
+                    unlink(ROOTPATH . 'other' . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . $filename);
+                } catch (Exception $error) {
+                    $log->severity = 4;
+                    $log->message = 'Could not delete temp audit script';
+                    $log->command_status = 'fail';
+                    $log->command_output = json_encode($error);
+                }
+            }
+            if ($instance->config->server_os !== 'Windows NT') {
+                try {
+                    unlink($temp_audit_script);
+                } catch (Exception $error) {
+                    $log->severity = 4;
+                    $log->message = 'Could not delete temp audit script';
+                    $log->command_status = 'fail';
+                    $log->command_output = json_encode($error);
+                }
             }
             $discoveryLogModel->create($log);
             $log->severity = 7;
@@ -1769,16 +1980,15 @@ if (! function_exists('ip_audit')) {
                     $log->command_status = 'success';
                     $log->command = "unlink('" . $destination . "')";
                     $log->command_output = '';
-                    if (is_file($destination) and is_writable($destination) and @unlink($destination)) {
-                        // delete success
-                    } elseif (is_file($destination)) {
-                        $log->severity = 4;
-                        $log->command_status = 'fail';
-                        $log->message = 'Could not delete audit result - likely permissions.';
-                    } else {
-                        $log->severity = 4;
-                        $log->command_status = 'fail';
-                        $log->message = 'Could not delete audit result - reason unknown.';
+                    if (is_file($destination) and is_writable($destination)) {
+                        try {
+                            unlink($destination);
+                        } catch (Exception $error) {
+                            $log->severity = 4;
+                            $log->message = 'Could not delete audit result - ' . $destination;
+                            $log->command_status = 'fail';
+                            $log->command_output = json_encode($error);
+                        }
                     }
                     $discoveryLogModel->create($log);
                 }
@@ -1818,8 +2028,7 @@ if (! function_exists('ip_audit')) {
             $instance->rulesModel->execute($audit->system, intval($discovery->id), 'return', intval($audit->system->id));
         } else {
             log_message('debug', 'rulesModel::execute::update because audit script result does not exist for ' . $device->ip);
-            # $instance->rulesModel->execute(null, intval($discovery->id), 'update', intval($device->id));
-            $instance->rulesModel->execute($device, intval($discovery->id), 'update', intval($device->id));
+            $instance->rulesModel->execute($device, intval($discovery->id), 'update');
         }
 
         if (!empty($audit)) {
@@ -1946,6 +2155,9 @@ if (! function_exists('ip_audit')) {
                     $device_json->system->{$key} = $value;
                 }
             }
+            if (!empty($device_json->system->ip)) {
+                $device_json->system->ip = ip_address_from_db($device_json->system->ip);
+            }
             $device_json->system->collector_uuid = $instance->config->uuid;
             if (count($nmap_result) > 0) {
                 $device_json->nmap = array();
@@ -1982,6 +2194,10 @@ if (! function_exists('ip_audit')) {
                     $device_json->network[] = $item;
                 }
             }
+            if (!empty($software)) {
+                $device_json->software = array();
+                $device_json->software[] = $software;
+            }
             if (!empty($audit)) {
                 foreach ($audit as $key => $value) {
                     if ($key !== 'system' and is_countable($value) and count($value) > 0) {
@@ -2004,6 +2220,9 @@ if (! function_exists('ip_audit')) {
             unset($device_json->system->id);
             unset($device_json->system->first_seen);
             $device_json->system->discovery_id = $discovery->id;
+            if (!empty($instance->config->servers->type) and $instance->config->servers->type === 'stand-alone') {
+                unset($device_json->system->discovery_id);
+            }
             $device_json = json_encode($device_json);
 
             $url = $server->host . $server->community . '/index.php/input/devices';
@@ -2050,7 +2269,7 @@ if (! function_exists('ip_audit')) {
         $instance->devicesModel->setIdentification($device->id);
 
         $log->command = 'Peak Memory';
-        $log->command_output = round((memory_get_peak_usage(false)/1024/1024), 3) . ' MiB';
+        $log->command_output = round((memory_get_peak_usage(false) / 1024 / 1024), 3) . ' MiB';
         $log->command_status = 'device complete';
         $log->command_time_to_execute = microtime(true)  - $start;
         $log->message = 'IP Audit finish on device ' . ip_address_from_db($device->ip);
@@ -2113,6 +2332,12 @@ if (! function_exists('ip_audit')) {
                             $log->severity = 7;
                             $log->message = 'IP ' . $value . ' detected, but not adding to device list as this is not in the discovery subnet.';
                             $log->command_output = 'IP ' . $value . ' found on device ' . $device->ip;
+                            $log->function = 'ip_audit';
+                            $discoveryLogModel->create($log);
+                        } elseif (strpos($instance->config->discovery_ip_exclude, $value) !== false or strpos($discovery->scan_options->exclude_ip, $value) !== false) {
+                            $log->severity = 7;
+                            $log->message = 'IP ' . $value . ' detected, but not adding to device list as this is on the exclude list.';
+                            $log->command_output = 'IP ' . $value . ' detected but excluded.';
                             $log->function = 'ip_audit';
                             $discoveryLogModel->create($log);
                         } else {
@@ -2266,21 +2491,20 @@ if (! function_exists('discover_ad')) {
         $db->query($sql, [$discovery_id]);
 
         // We need to get the Org Children of this particular discovery run
-        $orgs = $instance->orgsModel->getChildren(intval($discovery->org_id));
+        $orgs = $instance->orgsModel->getDescendants(intval($discovery->org_id));
         $orgs[] = $discovery->org_id;
         $orgs = implode(',', $orgs);
 
         // Stored credential sets
         $credentials = $instance->credentialsModel->listUser([], explode(',', $orgs));
         // get the list of subnets from AD
-        // TODO - make the below able to use LDAPS as well as LDAP
-        $ldapuri = 'ldap://' . $discovery->ad_server;
-        $error_reporting = error_reporting();
-        error_reporting(0);
+        if (strpos($discovery->ad_server, 'ldap') !== 0) {
+            $ldapuri = 'ldap://' . $discovery->ad_server;
+        } else {
+            $ldapuri = $discovery->ad_server;
+        }
         $ldapconn = @ldap_connect($ldapuri);
-        error_reporting($error_reporting);
-        unset($error_reporting);
-        if (! $ldapconn) {
+        if (!$ldapconn) {
             // log the failed attempt to connect to AD
             $log->severity = 4;
             $log->details = 'Could not connect to AD ' . $discovery->ad_domain . ' at ' . $discovery->ad_server;
@@ -2294,35 +2518,48 @@ if (! function_exists('discover_ad')) {
         $bind = false;
         foreach ($credentials as $credential) {
             if ($credential->attributes->type === 'windows') {
-                if ($bind = @ldap_bind($ldapconn, $credential->attributes->credentials->username, $credential->attributes->credentials->password)) {
-                    $log->severity = 7;
-                    $log->message = 'Successful bind to AD using ' . $credential->attributes->name;
-                    $log->command_status = 'success';
-                    $discoveryLogModel->create($log);
-                    $base_dn = 'CN=Subnets,CN=Sites,CN=Configuration,dc=' . implode(', dc=', explode('.', $discovery->ad_domain));
-                    $filter = '(&(objectclass=*))';
-                    $justthese = array('distinguishedName', 'name', 'siteobject');
-                    $search_result = ldap_search($ldapconn, $base_dn, $filter, $justthese);
-                    $info = ldap_get_entries($ldapconn, $search_result);
-                    if (empty($info)) {
-                        $log->message = 'Could not Retrieve subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server . ' using ' . $credential->attributes->name;
-                        $log->severity = 6;
-                        $log->command_output = '';
-                        $log->command_status = 'fail';
-                        $discoveryLogModel->create($log);
-                    } else {
-                        $log->severity = 7;
-                        $log->message = 'Retrieved subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server;
-                        $log->command_status = 'success';
-                        $discoveryLogModel->create($log);
-                        break;
-                    }
-                } else {
+                if (!empty($credential->attributes->credentials) and is_string($credential->attributes->credentials)) {
+                    $credential->attributes->credentials = json_decode(simpleDecrypt($credential->attributes->credentials, config('Encryption')->key));
+                }
+                try {
+                    $bind = ldap_bind($ldapconn, $credential->attributes->credentials->username, $credential->attributes->credentials->password);
+                } catch (Exception $e) {
                     $log->severity = 7;
                     $log->message = 'Could not bind to AD using ' . $credential->attributes->name;
                     $log->command_status = 'warning';
                     $discoveryLogModel->create($log);
                     $bind = false;
+                    continue;
+                }
+                $log->severity = 7;
+                $log->message = 'Successful bind to AD using ' . $credential->attributes->name;
+                $log->command_status = 'success';
+                $discoveryLogModel->create($log);
+                $base_dn = 'CN=Subnets,CN=Sites,CN=Configuration,dc=' . implode(', dc=', explode('.', $discovery->ad_domain));
+                $filter = '(&(objectclass=*))';
+                $justthese = array('distinguishedName', 'name', 'siteobject');
+                $search_result = @ldap_search($ldapconn, $base_dn, $filter, $justthese);
+                if (empty($search_result)) {
+                    $log->message = 'Could not perform ldap search ' . $discovery->ad_domain . ' on ' . $discovery->ad_server . ' using ' . $credential->attributes->name;
+                    $log->severity = 6;
+                    $log->command_output = '';
+                    $log->command_status = 'fail';
+                    $discoveryLogModel->create($log);
+                    continue;
+                }
+                $info = ldap_get_entries($ldapconn, $search_result);
+                if (empty($info)) {
+                    $log->message = 'Could not Retrieve subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server . ' using ' . $credential->attributes->name;
+                    $log->severity = 6;
+                    $log->command_output = '';
+                    $log->command_status = 'fail';
+                    $discoveryLogModel->create($log);
+                } else {
+                    $log->severity = 7;
+                    $log->message = 'Retrieved subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server;
+                    $log->command_status = 'success';
+                    $discoveryLogModel->create($log);
+                    break;
                 }
             }
         }

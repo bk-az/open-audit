@@ -11,7 +11,7 @@ include 'shared/create_functions.php';
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                                 <input type="hidden" value="<?= $meta->access_token ?>" id="data[access_token]" name="data[access_token]" />
 
                                 <?= create_text_field('data[attributes][name]', __('Name'), $dictionary->attributes->create) ?>
@@ -69,6 +69,7 @@ include 'shared/create_functions.php';
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#data\\[attributes\\]\\[name\\]").focus();
         $("#data\\[attributes\\]\\[values\\]").prop('disabled', true);
 
         $(document).on('change', "#data\\[attributes\\]\\[type\\]", function () {
@@ -78,6 +79,26 @@ window.onload = function () {
                 $("#data\\[attributes\\]\\[values\\]").prop('disabled', true);
             }
         });
+
+        // Prevent any characters except alphanumeric, dash and underscore
+        $("#data\\[attributes\\]\\[name\\]").keydown(function (e){
+            var k = e.keyCode || e.which;
+            var ok = k >= 65 && k <= 90 || // A-Z
+                k >= 96 && k <= 105 || // a-z
+                k >= 35 && k <= 40 || // arrows
+                k == 9 || //tab
+                k == 46 || //del
+                k == 8 || // backspaces
+                k == 173 || // dash
+                k == 109 || // numpad minus
+                (e.shiftKey && k == 173) || // underscore
+                (!e.shiftKey && k >= 48 && k <= 57); // only 0-9
+
+            if(!ok || (e.ctrlKey && e.altKey)){
+                e.preventDefault();
+            }
+        });
+
     });
 }
 </script>

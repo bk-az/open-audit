@@ -16,15 +16,15 @@ $id = (!empty($meta->id)) ? $meta->id : '';
                             <div class="row">
                                 <span class="offset-2 col-8">
                                     <?= __('Copy and paste the below to the forums, another instance of Open-AudIT or anywhere else you need to provide this item.') ?>
-                                    <br /><br />
-                                    <?= __('NOTE - You can prevent credentials being displayed below by setting the configuration item for \'decrypt_credentials\' to \'n\'.') ?>
-                                    <br /><br />
+                                    <br><br>
+                                    <?= __('NOTE - You can prevent plain text credentials being displayed below by setting the configuration item for \'decrypt_credentials\' to \'n\'.') ?>
+                                    <br><br>
                                 </span>
                             </div>
                             <div class="offset-2 col-8" style="position:relative;">
                                 <label for="resource" class="form-label">JSON</label>
                                 <div class="input-group">
-                                    <textarea rows="20" class="form-control" id="resource" name="resource"><?= json_encode($data, JSON_PRETTY_PRINT) ?></textarea>
+                                    <textarea rows="20" class="form-control" id="resource" name="resource"><?= html_entity_decode(json_encode($data, JSON_PRETTY_PRINT)) ?></textarea>
                                 </div>
                                 <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="resource" data-dictionary=""></div>
                             </div>

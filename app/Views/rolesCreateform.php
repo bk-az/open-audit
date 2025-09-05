@@ -2,7 +2,7 @@
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 include 'shared/create_functions.php';
-$endpoints = array('agents','applications','attributes','baselines','benchmarks','benchmarks_exceptions','benchmarks_policies','charts','clouds','clusters','collectors','components','configuration','connections','credentials','dashboards','database','devices','discoveries','discovery_scan_options','executables','fields','files','groups','integrations','ldap_servers','licenses','locations','networks','orgs','queries','racks','reports','roles','rules','scripts','search','summaries','tasks','users','widgets');
+$endpoints = array('agents','applications','attributes','auth','baselines','benchmarks','benchmarks_exceptions','benchmarks_policies','charts','clouds','clusters','collectors','components','configuration','connections','credentials','dashboards','database','devices','discoveries','discovery_scan_options','executables','fields','files','groups','integrations','licenses','locations','networks','orgs','packages','queries','racks','reports','roles','rules','scripts','search','summaries','tasks','users','widgets');
 $permissions = array('c', 'r', 'u', 'd');
 ?>
         <main class="container-fluid">
@@ -13,12 +13,12 @@ $permissions = array('c', 'r', 'u', 'd');
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                                 <input type="hidden" value="<?= $meta->access_token ?>" id="data[access_token]" name="data[access_token]" />
 
                                 <?= create_text_field('data[attributes][name]', __('Name'), $dictionary->attributes->create) ?>
                                 <?= create_text_field('data[attributes][description]', __('Description'), $dictionary->attributes->create) ?>
-                                <br />
+                                <br>
                                 <div class="row">
                                     <div class="offset-2 col-8">
                                         <label for="submit" class="form-label">&nbsp;</label>
@@ -27,9 +27,9 @@ $permissions = array('c', 'r', 'u', 'd');
                                 </div>
 
 
-                                <br />
-                                <br />
-                                <br />
+                                <br>
+                                <br>
+                                <br>
                                 <div class="row">
                                     <div class="offset-2 col-8">
                                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable">
@@ -74,16 +74,16 @@ $permissions = array('c', 'r', 'u', 'd');
                         <div class="col-md-6">
                             <div class="offset-2 col-8">
                                 <?php if (! empty($dictionary->about)) {
-                                    echo "<h4 class=\"text-center\">About</h4><br />";
+                                    echo "<h4 class=\"text-center\">About</h4><br>";
                                     echo html_entity_decode($dictionary->about);
                                 } ?>
                                 <?php if (! empty($dictionary->notes)) {
-                                    echo "<h4 class=\"text-center\">Notes</h4><br />";
+                                    echo "<h4 class=\"text-center\">Notes</h4><br>";
                                     echo html_entity_decode($dictionary->notes);
                                 } ?>
-                                <h4 class="text-center">Fields</h4><br />
+                                <h4 class="text-center">Fields</h4><br>
                                 <?php foreach ($dictionary->columns as $key => $value) {
-                                    echo "<code>$key:</code> " . html_entity_decode($value) . "<br /><br />";
+                                    echo "<code>$key:</code> " . html_entity_decode($value) . "<br><br>";
                                 } ?>
                             </div>
                         </div>
@@ -95,6 +95,7 @@ $permissions = array('c', 'r', 'u', 'd');
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#data\\[attributes\\]\\[name\\]").focus();
         function select_all_click($permission) {
             $(':checkbox').each(
                 function () {

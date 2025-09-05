@@ -9,7 +9,7 @@ include 'shared/create_functions.php';
                     <?= create_card_header($meta->collection, $meta->icon, $user); ?>
                 </div>
                 <div class="card-body">
-                    <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                    <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                         <div class="row">
                             <div class="col-md-6">
                                 <input type="hidden" value="<?= $meta->access_token ?>" id="data[access_token]" name="data[access_token]" />
@@ -49,7 +49,7 @@ include 'shared/create_functions.php';
 
                                 <div class="row" style="padding-top:16px;">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][day_of_week][]" class="form-label"><?= __('Day Of Week') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][day_of_week][]" class="form-label"><?= __('Day Of Week') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][day_of_week][]" id="data[attributes][day_of_week][]">
                                             <option value="*">*</option>
                                             <option value="0"><?= __('Sunday') ?></option>
@@ -65,11 +65,11 @@ include 'shared/create_functions.php';
 
                                 <div class="row" style="padding-top:16px;">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][hour][]" class="form-label"><?= __('Hour') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][hour][]" class="form-label"><?= __('Hour') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" name="data[attributes][hour][]" id="data[attributes][hour][]">
                                             <option value="0">0</option>
                                             <option value="1" selected>1</option>
-                                            <?php for ($i=2; $i <= 23; $i++) { ?>
+                                            <?php for ($i = 2; $i <= 23; $i++) { ?>
                                             <option value="<?= $i ?>" ><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -128,6 +128,7 @@ include 'shared/create_functions.php';
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#data\\[attributes\\]\\[name\\]").focus();
         $('#data\\[attributes\\]\\[install\\]').val('y');
         <?php
         $oss = [];

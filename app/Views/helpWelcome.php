@@ -33,7 +33,7 @@ foreach ($ips as $ip) {
                             <div class="row">
                                 <div class="col-12 text-center align-self-center">
                                     <h2><?= __('Want to know more?') ?></h2>
-                                    <p><?= __('Follow any of the links below and discover how to use Open-AudIT to find out "What\'s On Your Network?"') ?><br /><br /></p>
+                                    <p><?= __('Follow any of the links below and discover how to use Open-AudIT to find out "What\'s On Your Network?"') ?><br><br></p>
                                 </div>
                             </div>
                             <div class="row">
@@ -47,9 +47,9 @@ foreach ($ips as $ip) {
                                         </div>
                                     </div>
                                 </div>
-                                <br />
+                                <br>
                             </div>
-                            <br />
+                            <br>
                             <div class="row">
                                 <div class="col-3">
                                     <div class="card text-center">
@@ -77,7 +77,7 @@ foreach ($ips as $ip) {
                                             <?= __('Read our online documentation on the Open-AudIT Wiki.') ?>
                                         </div>
                                         <div class="card-footer">
-                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://community.opmantek.com/display/OA/Home"><?= __('Online Documentation') ?></a>
+                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://docs.community.firstwave.com/wiki/spaces/OA"><?= __('Online Documentation') ?></a>
                                         </div>
                                     </div>
                                 </div>
@@ -87,7 +87,7 @@ foreach ($ips as $ip) {
                                             <?= __('Ask the Community for help or contribute answers for others.') ?>
                                         </div>
                                         <div class="card-footer">
-                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://community.opmantek.com/questions"><?= __('Community Questions') ?></a>
+                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://docs.community.firstwave.com/wiki/display/OA/customcontent/list/ac%3Acom.atlassian.confluence.plugins.confluence-questions%3Aquestion?ac.com.atlassian.confluence.plugins.confluence-questions.path=/questions-bootstrap"><?= __('Community Questions') ?></a>
                                         </div>
                                     </div>
                                 </div>
@@ -131,7 +131,7 @@ foreach ($ips as $ip) {
                                     <img class="img-fluid" alt="debian" src="<?= base_url() ?>logos/debian.svg" style="width:4rem;" />
                                 </div>
                                 <div class="col-1">
-                                    <span class="text-center"><a target="_blank" href="https://community.opmantek.com/display/OA/Home">And so much more.</a></span>
+                                    <span class="text-center"><a target="_blank" href="https://docs.community.firstwave.com/wiki/spaces/OA">And so much more.</a></span>
                                 </div>
                             </div>
                         </div>
@@ -148,7 +148,7 @@ foreach ($ips as $ip) {
                     </div>
                     <div class="modal-body">
                         <p>This form provides a quick and simple way to get started discovering the devices on your network. For more (much more) detailed options, you can individually create <a href="#">credentials</a>, <a href="#">locations</a> and <a href="#">discoveries</a> using the main menu items.</p>
-                        <hr />
+                        <hr>
                         <h3>Credentials</h3>
                         <p>We need some credentials to be able to effectively talk to the devices on your network.</p><br>
                         <div class="row">
@@ -176,8 +176,8 @@ foreach ($ips as $ip) {
                                 <input type="password" class="form-control" placeholder="" value="public" aria-label="snmp_community" id="snmp_community" name="snmp_community">
                             </div>
                         </div>
-                        <hr />
-                        <br />
+                        <hr>
+                        <br>
                         <div class="row">
                             <div class="col">
                                 <h2>Location</h2>
@@ -194,11 +194,11 @@ foreach ($ips as $ip) {
                             <div class="col">
                                 <h2>Execute</h2>
                                 <p>And finally, click Submit to execute this discovery.</p>
-                                <label for="submit" class="form-label">Click Submit to Execute</label><br />
+                                <label for="submit" class="form-label">Click Submit to Execute</label><br>
                                 <button type="submit" class="btn btn-primary" id="submit" name="submit" >Submit</button>
                             </div>
                         </div>
-                        <br />
+                        <br>
                     </div>
                 </div>
             </div>
@@ -207,6 +207,12 @@ foreach ($ips as $ip) {
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function() {
+
+        <?php
+        if ($config->device_count === 0) {
+            echo "\n            $('#modalCompareLicense').modal('show');\n";
+        } ?>
+
         $('#submit').click(function (e) {
             e.preventDefault();
             if ($("#subnet").val() !== "") {

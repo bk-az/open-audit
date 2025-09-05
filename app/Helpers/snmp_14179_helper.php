@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -9,7 +10,7 @@ declare(strict_types=1);
 $get_oid_details = function ($ip, $credentials, $oid) {
     $details = new \StdClass();
     $test = my_snmp_get($ip, $credentials, "1.3.6.1.4.1.9.9.23.1.2.1.1.5.29.2");
-    if ($test != '') {
+    if (!empty($test)) {
         if (stripos($test, 'Cisco IOS Software') !== false) {
             $details->manufacturer = 'Cisco Systems';
             $temp2 = explode(',', $test);
@@ -20,7 +21,7 @@ $get_oid_details = function ($ip, $credentials, $oid) {
                 }
             }
             if ($version != '') {
-                $details->os_name = 'Cisco IOS '.$version;
+                $details->os_name = 'Cisco IOS ' . $version;
             } else {
                 $details->os_name = 'Cisco IOS (unknown verison)';
             }
@@ -43,5 +44,16 @@ $get_oid_details = function ($ip, $credentials, $oid) {
     if (!empty($details->serial)) {
         $details->manufacturer = 'Cisco Systems';
     }
+
+    $details->description = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.1.1.0");
+    if (!empty($details->description) and stripos($details->description, "Cisco Controller") !== false) {
+        $details->os_group = 'Cisco';
+        $details->os_family = 'Cisco IOS-XE';
+        $temp = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.47.1.1.1.1.10.1");
+        $details->os_version = (!empty($temp)) ? $temp : '';
+        $details->os_name = (!empty($temp)) ? "Cisco IOS-XE " . $temp : 'Cisco IOS-XE';
+        $details->os_cpe_name = 'ios_xe';
+    }
+
     return($details);
 };

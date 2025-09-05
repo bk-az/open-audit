@@ -9,9 +9,9 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
-                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"],[2,"asc"],[3,"asc"]]'>
+                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[2,"asc"]]'>
                             <thead>
                                 <tr>
                                     <th data-orderable="false" class="text-center"><?= __('Details') ?></th>
@@ -41,7 +41,7 @@ include 'shared/collection_functions.php';
                                         ?>
                                     <?php } ?>
                                     <?php if (strpos($user->permissions[$meta->collection], 'd') !== false) {
-                                        if ($item->id < 8) {
+                                        if ($item->id < 9) {
                                             echo "<td></td>\n";
                                         } else {
                                             echo collection_button_delete(intval($item->id)) . "\n";

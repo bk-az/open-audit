@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -14,7 +15,7 @@ namespace App\Controllers;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -52,7 +53,7 @@ class BaselinesResults extends BaseController
         foreach ($result->policy as $key) {
             $policyname = $key->name;
             foreach ($key->result as $r) {
-                $id = (!empty($r->id)) ? str_replace("\r", "\\r", str_replace("\n", "\\n", str_replace('"', '""', $r->id))) : '';
+                $id = (!empty($r->id)) ? str_replace("\r", "\\r", str_replace("\n", "\\n", str_replace('"', '""', (string)$r->id))) : '';
                 $devicename = (!empty($r->name)) ? str_replace("\r", "\\r", str_replace("\n", "\\n", str_replace('"', '""', $r->name))) : '';
                 $status = (!empty($r->status)) ? str_replace("\r", "\\r", str_replace("\n", "\\n", str_replace('"', '""', $r->status))) : '';
                 $test1 = (!empty($r->test1)) ? str_replace("\r", "\\r", str_replace("\n", "\\n", str_replace('"', '""', $r->test1))) : '';

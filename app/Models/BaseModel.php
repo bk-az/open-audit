@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,15 +7,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
-
+use stdClass;
 use CodeIgniter\Model;
 
 class BaseModel extends Model
 {
     public function __construct()
     {
-        #$this->sql_file = APPPATH . '../other/open-audit.sql';
+        #$this->sql_file = ROOTPATH . 'other/open-audit.sql';
     }
 
     /**
@@ -32,7 +32,7 @@ class BaseModel extends Model
         $insert_data = new stdClass();
         $instance = & get_instance();
 
-        $dictionary = $instance->{strtolower($table).'Model'}->dictionary();
+        $dictionary = $instance->{strtolower($table) . 'Model'}->dictionary();
 
         # Our MUST have attributes
         foreach ($dictionary->attributes->create as $field) {
@@ -167,9 +167,9 @@ class BaseModel extends Model
             return false;
         }
 
-        $sql_file = file(APPPATH . '../other/open-audit.sql');
+        $sql_file = file(ROOTPATH . 'other/open-audit.sql');
         $count = count($sql_file);
-        for ($i=0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; $i++) {
             if (stripos($sql_file[$i], "INSERT INTO `{$table}` VALUES") !== false) {
                 $db->query($sql_file[$i]);
                 log_message('info', 'SQL: ' . str_replace("\n", " ", (string)$this->db->getLastQuery()));
@@ -196,9 +196,9 @@ class BaseModel extends Model
     public function tableDefaults(string $table = ''): array
     {
         $result = array();
-        $sql_file = file(APPPATH . '../other/open-audit.sql');
+        $sql_file = file(ROOTPATH . 'other/open-audit.sql');
         $count = count($sql_file);
-        for ($i=0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; $i++) {
             if (stripos($sql_file[$i], "INSERT INTO `{$table}` VALUES") !== false) {
                 $result[] = $sql_file[$i];
             }

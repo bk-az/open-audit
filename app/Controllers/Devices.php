@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,7 +7,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use \stdClass;
+use stdClass;
 
 /**
  * PHP version 7.4
@@ -16,7 +17,7 @@ use \stdClass;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -73,6 +74,7 @@ class Devices extends BaseController
                     $componentsModel->upsert('ip', $device, $input);
                 }
             }
+            unset($input);
         }
 
         if (!empty($_POST['input_type']) && $_POST['input_type'] === 'audit_input') {
@@ -209,8 +211,7 @@ class Devices extends BaseController
         set_time_limit(300);
         $db = db_connect();
         $count = 0;
-        #$files = glob(APPPATH . '/../other/example_devices/*.{xml,json}', GLOB_BRACE);
-        $files = glob('/Users/mark/audits/*.{xml,json}', GLOB_BRACE);
+        $files = glob(ROOTPATH . 'other/example_devices/*.{xml,json}', GLOB_BRACE);
         $this->config->discovery_use_dns = 'n';
         foreach ($files as $file) {
             $device = file_get_contents($file);
@@ -219,13 +220,17 @@ class Devices extends BaseController
             }
             $device = audit_convert($device);
             $logname = (!empty($device->system->hostname)) ? $device->system->hostname : ((!empty($device->system->ip)) ? $device->system->ip : $file);
-            log_message('info', 'Importing device ' . $logname);
+            log_message('info', 'Importing device ' . $logname . ' - ' . @$device->system->ip);
             unset($logname);
             if (!$device) {
                 log_message('error', 'Could not convert example result file ' . $file . '.');
                 \Config\Services::session()->setFlashdata('fail', 'Could not convert example result file ' . $file . '.');
                 return redirect()->to(site_url() . '/devices?devices.domain=open-audit.local');
             }
+            $device->system->domain = 'open-audit.local';
+            unset($device->system->oae_manage);
+            unset($device->system->nmis_manage);
+            unset($device->system->credentials);
             include "include_process_device.php";
             $count += 1;
         }
@@ -283,7 +288,7 @@ class Devices extends BaseController
         unset($string);
         unset($command);
         unset($return_var);
-        for ($i=0; $i < count($nodes); $i++) {
+        for ($i = 0; $i < count($nodes); $i++) {
             $nodes[$i]['org_id'] = intval($this->resp->meta->received_data->attributes->org_id);
             $nodes[$i]['location_id'] = intval($this->resp->meta->received_data->attributes->location_id);
         }

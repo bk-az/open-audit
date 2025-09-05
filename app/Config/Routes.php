@@ -16,8 +16,24 @@ if (file_exists(SYSTEMPATH . 'Config/Routes.php')) {
 
 $config_collections = new \Config\Collections();
 $collections = array();
+// @phpstan-ignore foreach.nonIterable
 foreach ($config_collections as $col => $value) {
     $collections[] = (string)$col;
+}
+
+if (!isset($routes)) {
+    $routes = [
+        '*'       => [],
+        'options' => [],
+        'get'     => [],
+        'head'    => [],
+        'post'    => [],
+        'put'     => [],
+        'delete'  => [],
+        'trace'   => [],
+        'connect' => [],
+        'cli'     => [],
+    ];
 }
 
 # The default route
@@ -81,6 +97,9 @@ $routes->get('discoveries/(:any)/download', 'Discoveries::download/$1', ['filter
 $routes->get('discoveries/(:num)/executeForm', 'Discoveries::executeForm/$1', ['filter' => \App\Filters\Session::class, 'as' => 'discoveriesExecuteForm']);
 $routes->post('discoveries/(:num)/executeForm', 'Discoveries::executeCollector/$1', ['filter' => \App\Filters\Session::class, 'as' => 'discoveriesExecuteCollector']);
 
+$routes->get('news/execute', 'News::executeAll', ['as' => 'newsExecuteAll']);
+$routes->cli('news/execute', 'Cli::executeNews', ['as' => 'executeNewssAll']);
+
 $routes->post('graph/reset', 'Collections::reset', ['filter' => \App\Filters\Session::class, 'as' => 'graphReset']);
 
 $routes->get('about', 'Help::about', ['filter' => \App\Filters\Session::class, 'as' => 'about']);
@@ -108,6 +127,8 @@ $routes->post('integrations_log/reset', 'Collections::reset', ['filter' => \App\
 $routes->get('license', 'Logon::license');
 
 $routes->get('logon', 'Logon::createForm', ['as' => 'logon']);
+$routes->get('logon/(:any)/auth', 'Logon::auth/$1', ['as' => 'logonAuth']);
+$routes->get('logon/(:any)', 'Logon::redirect/$1', ['as' => 'logonRedirect']);
 $routes->get('logoff', 'Logon::delete', ['as' => 'logoff']);
 $routes->get('login', 'Logon::createForm');
 $routes->post('logon', 'Logon::create');
@@ -142,7 +163,9 @@ foreach ($collections as $collection) {
     # Below functions are all generic enough to be handled by the Collections controller
 
     # collection
-    $routes->get($collection, 'Collections::collection', ['filter' => \App\Filters\Session::class, 'as' => $collection . 'Collection']);
+    if ($collection !== 'discovery_log') {
+        $routes->get($collection, 'Collections::collection', ['filter' => \App\Filters\Session::class, 'as' => $collection . 'Collection']);
+    }
 
     # export all
     $routes->get($collection . '/export', 'Collections::collection/export', ['filter' => \App\Filters\Session::class, 'as' => $collection . 'CollectionExport']);
@@ -196,6 +219,7 @@ foreach ($collections as $collection) {
     $routes->patch($collection, 'Collections::bulkUpdate/$1', ['filter' => \App\Filters\Session::class, 'as' => $collection . 'BulkUpdate']);
 }
 
+$routes->get('discovery_log', 'DiscoveryLog::collection', ['filter' => \App\Filters\Session::class, 'as' => 'discovery_logCollection']);
 
 /*
  * --------------------------------------------------------------------

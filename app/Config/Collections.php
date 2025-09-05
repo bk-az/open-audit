@@ -3,13 +3,64 @@
 namespace Config;
 
 use CodeIgniter\Config\BaseConfig;
-
 use Config\Database;
 
 #[\AllowDynamicProperties]
 
 class Collections extends BaseConfig
 {
+    public $agents;
+    public $applications;
+    public $widgets;
+    public $attributes;
+    public $auth;
+    public $baselines;
+    public $baselines_policies;
+    public $baselines_results;
+    public $benchmarks;
+    public $benchmarks_exceptions;
+    public $benchmarks_policies;
+    public $clouds;
+    public $clusters;
+    public $collectors;
+    public $components;
+    public $configuration;
+    public $connections;
+    public $credentials;
+    public $dashboards;
+    public $database;
+    public $devices;
+    public $discoveries;
+    public $discovery_log;
+    public $discovery_scan_options;
+    public $executables;
+    public $fields;
+    public $files;
+    public $groups;
+    public $help;
+    public $integrations;
+    public $integrations_log;
+    public $integrations_rules;
+    public $licenses;
+    public $locations;
+    public $maps;
+    public $networks;
+    public $news;
+    public $orgs;
+    public $packages;
+    public $queries;
+    public $rack_devices;
+    public $racks;
+    public $reports;
+    public $roles;
+    public $rules;
+    public $scripts;
+    public $search;
+    public $summaries;
+    public $support;
+    public $tasks;
+    public $users;
+
     public function __construct()
     {
         parent::__construct();
@@ -43,6 +94,16 @@ class Collections extends BaseConfig
         $this->attributes->actions->enterprise = 'crud';
         $this->attributes->actions->professional = 'crud';
         $this->attributes->actions->community = 'crud';
+
+        $this->auth = new \StdClass();
+        $this->auth->icon = 'fa fa-key';
+        $this->auth->name = 'Auth';
+        $this->auth->edition = 'Community';
+        $this->auth->orgs = 'd';
+        $this->auth->actions = new \stdClass();
+        $this->auth->actions->enterprise = 'crud';
+        $this->auth->actions->professional = 'crud';
+        $this->auth->actions->community = 'crud';
 
         $this->baselines = new \StdClass();
         $this->baselines->icon = 'fa fa-line-chart';
@@ -314,16 +375,6 @@ class Collections extends BaseConfig
         $this->integrations_rules->actions->professional = '';
         $this->integrations_rules->actions->community = '';
 
-        $this->ldap_servers = new \StdClass();
-        $this->ldap_servers->icon = 'fa fa-key';
-        $this->ldap_servers->name = 'LDAP Servers';
-        $this->ldap_servers->edition = 'Community';
-        $this->ldap_servers->orgs = 'd';
-        $this->ldap_servers->actions = new \stdClass();
-        $this->ldap_servers->actions->enterprise = 'crud';
-        $this->ldap_servers->actions->professional = 'crud';
-        $this->ldap_servers->actions->community = 'crud';
-
         $this->licenses = new \StdClass();
         $this->licenses->icon = 'fa fa-leanpub';
         $this->licenses->name = 'Licenses';
@@ -364,6 +415,16 @@ class Collections extends BaseConfig
         $this->networks->actions->professional = 'crud';
         $this->networks->actions->community = 'crud';
 
+        $this->news = new \StdClass();
+        $this->news->icon = 'fa-solid fa-rss';
+        $this->news->name = 'News';
+        $this->news->edition = 'Community';
+        $this->news->orgs = 'u';
+        $this->news->actions = new \stdClass();
+        $this->news->actions->enterprise = 'crud';
+        $this->news->actions->professional = 'crud';
+        $this->news->actions->community = 'crud';
+
         $this->orgs = new \StdClass();
         $this->orgs->icon = 'fa fa-bank';
         $this->orgs->name = 'Organisations';
@@ -373,6 +434,16 @@ class Collections extends BaseConfig
         $this->orgs->actions->enterprise = 'crud';
         $this->orgs->actions->professional = 'crud';
         $this->orgs->actions->community = 'crud';
+
+        $this->packages = new \StdClass();
+        $this->packages->icon = 'fa-solid fa-box-open';
+        $this->packages->name = 'Packages';
+        $this->packages->edition = 'Enterprise';
+        $this->packages->orgs = 'd';
+        $this->packages->actions = new \stdClass();
+        $this->packages->actions->enterprise = 'crud';
+        $this->packages->actions->professional = 'r';
+        $this->packages->actions->community = 'r';
 
         $this->queries = new \StdClass();
         $this->queries->icon = 'fa fa-table';
@@ -454,26 +525,6 @@ class Collections extends BaseConfig
         $this->search->actions->professional = 'crud';
         $this->search->actions->community = 'crud';
 
-        // $this->security = new \StdClass();
-        // $this->security->icon = 'fa-solid fa-shield-halved';
-        // $this->security->name = 'Security';
-        // $this->security->edition = 'Enterprise';
-        // $this->security->orgs = 'b';
-        // $this->security->actions = new \stdClass();
-        // $this->security->actions->enterprise = 'crud';
-        // $this->security->actions->professional = '';
-        // $this->security->actions->community = '';
-
-        // $this->security_policies = new \StdClass();
-        // $this->security_policies->icon = 'fa-solid fa-shield-halved';
-        // $this->security_policies->name = 'Security Policies';
-        // $this->security_policies->edition = 'Enterprise';
-        // $this->security_policies->orgs = 'b';
-        // $this->security_policies->actions = new \stdClass();
-        // $this->security_policies->actions->enterprise = 'crud';
-        // $this->security_policies->actions->professional = '';
-        // $this->security_policies->actions->community = '';
-
         $this->summaries = new \StdClass();
         $this->summaries->icon = 'fa fa-pie-chart';
         $this->summaries->name = 'Summaries';
@@ -487,7 +538,7 @@ class Collections extends BaseConfig
         $this->support = new \StdClass();
         $this->support->icon = 'fa-solid fa-headset';
         $this->support->name = 'Support';
-        $this->support->edition = 'Professional';
+        $this->support->edition = 'Community';
         $this->support->orgs = 'b';
         $this->support->actions = new \stdClass();
         $this->support->actions->enterprise = 'crud';

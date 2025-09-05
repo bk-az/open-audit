@@ -78,15 +78,17 @@ include 'shared/read_functions.php';
                             <?php } ?>
 
                             <div class="row text-center">
-                                <div class="offset-2 col-8">
+                                <div class="col-8 offset-2">
                                     <br><hr>
                                     <ul class="nav nav-pills nav-fill" id="myTab" role="tablist">
-                                    <?php if (!empty($resource->remediation)) {
-                                    foreach ($resource->remediation as $key => $value) {
-                                        $id = str_replace(' ', '', $key);
-                                        ?>
-                                    <a class="flex-sm-fill text-sm-center nav-link" href="#<?= $id ?>"  id="<?= $key ?>-tab"><?= $key ?></a>
-                                    <?php } } ?>
+                                    <?php
+                                    if (!empty($resource->remediation)) {
+                                        foreach ($resource->remediation as $key => $value) {
+                                            $id = str_replace(' ', '', $key);
+                                            echo '<a class="flex-sm-fill text-sm-center nav-link" href="#' . $id . '"  id="' . $key . '-tab">' . $key . "</a>\n";
+                                        }
+                                    }
+                                    ?>
                                     </ul>
                                 </div>
                             </div>
@@ -100,23 +102,24 @@ include 'shared/read_functions.php';
                                     <div class="row" style="padding-top:16px;">
                                         <div class="offset-2 col-8" style="background-color: rgba(var(--bs-body-color-rgb), 0.03);">
                                             <div class="input-group">
-                                                <span style="word-break: break-all;"><?= html_entity_decode(html_entity_decode($value)) ?></span>
+                                                <span style="word-break: break-all;"><?= urldecode(html_entity_decode(html_entity_decode($value))) ?></span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <?php } } ?>
+                                <?php }
+                            } ?>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
 
-
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#button_create").remove();
 
         var hash = window.location.hash;
         if (hash == "") {

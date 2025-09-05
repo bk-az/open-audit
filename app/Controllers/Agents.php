@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,8 +7,12 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use CodeIgniter\HTTP\RequestInterface;
+use CodeIgniter\HTTP\ResponseInterface;
+use Psr\Log\LoggerInterface;
 use App\Models\AgentsModel;
 use Config\Services;
+use Config\OpenAudit;
 use DateTime;
 use Exception;
 use stdClass;
@@ -20,7 +25,7 @@ use stdClass;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -36,21 +41,45 @@ use stdClass;
  */
 class Agents extends BaseController
 {
+    public $agentsModel;
+    public $devicesModel;
+    public $config;
+
+    /**
+     * Constructor.
+     */
+    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
+    {
+        parent::initController($request, $response, $logger);
+        if (empty($this->agentsModel)) {
+            $this->agentsModel = model('App\Models\AgentsModel');
+        }
+        if (empty($this->devicesModel)) {
+            $this->devicesModel = model('App\Models\DevicesModel');
+        }
+        if (empty($this->config)) {
+            $this->config = new Config\OpenAudit();
+        }
+    }
+
     /**
      * Download an agent by ID or OS
      *
      * @param $id Can be the numeric database ID or the OS name
      *
-     * @return void
+     * @access public
      */
     public function download($id = null)
     {
-        $request = Services::request();
+        $request = service('request');
         $ip = $request->getIPAddress();
         log_message('info', 'ACCESS:agents:download::' . $ip);
-        if (empty($this->agentsModel)) {
-            $this->agentsModel = model('App\Models\AgentsModel');
-        }
+
+        // NOTE - Below shouldn't be required because of initController
+        // if (empty($this->agentsModel)) {
+        //     $this->agentsModel = model('App\Models\AgentsModel');
+        // }
+
         // TODO - Implement the below when we activate Unix style OS's
         // if (!is_numeric($id)) {
         //     $id = $this->agentsModel->getByOs($id);
@@ -88,6 +117,7 @@ class Agents extends BaseController
         header('Content-Type: text');
         header('Content-Transfer-Encoding: binary');
         echo $file;
+        return;
     }
 
     /**
@@ -96,8 +126,6 @@ class Agents extends BaseController
      * @param $id NULL or a database ID
      *
      * @access public
-     * @return void
-     * @throws Exception
      */
     public function execute($id = null)
     {
@@ -105,10 +133,10 @@ class Agents extends BaseController
         $current_agent_version = 530;
 
         $id = (int)$id;
-        $request = Services::request();
+        $request = service('request');
         $ip = $request->getIPAddress();
         log_message('info', 'ACCESS:agents:execute:' . $id . ':' . $ip);
-        $this->agentsModel = new AgentsModel();
+        // $this->agentsModel = new AgentsModel();
         $agentResponse = new stdClass();
         $agentResponse->actions = new stdClass();
         $agentResponse->actions->commands = array();
@@ -124,7 +152,7 @@ class Agents extends BaseController
             exit(1);
         }
 
-        $this->devicesModel = model('App\Models\DevicesModel');
+        // $this->devicesModel = model('App\Models\DevicesModel');
         $device = new stdClass();
         if (!empty($input)) {
             $device_id = deviceMatch($input);

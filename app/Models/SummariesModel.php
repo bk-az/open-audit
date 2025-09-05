@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class SummariesModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -104,6 +104,11 @@ class SummariesModel extends BaseModel
         } else {
             $org_id = 'org_id';
         }
+        if (!$this->db->fieldExists($dashboard[0]->column, $dashboard[0]->table)) {
+            log_message('error', 'The field \'' . $dashboard[0]->column . '\' does not exist in the \'' . $dashboard[0]->table . '\' database table. Not attempting to run summary \'' . $dashboard[0]->name . '\'.');
+            $_SESSION['warning'] = 'The field \'' . $dashboard[0]->column . '\' does not exist in the \'' . $dashboard[0]->table . '\' database table. Not attempting to run summary \'' . $dashboard[0]->name . '\'.';
+            return array();
+        }
         $tables = ' field audit_log bios change_log credential disk dns edit_log file ip log memory module monitor motherboard netstat network nmap optical partition pagefile print_queue processor purchase route san scsi service server server_item share software software_key sound task user user_group variable video vm windows ';
         if (stripos($tables, $dashboard[0]->table) !== false) {
             $sql = "SELECT " . $dashboard[0]->id . " AS `id`, COUNT(*) AS `count`, " . $dashboard[0]->table . "." . $dashboard[0]->column . " AS `name` FROM devices LEFT JOIN `" . $dashboard[0]->table . "` ON (devices.id = " . $dashboard[0]->table . ".device_id and " . $dashboard[0]->table . ".current = 'y') WHERE " . $dashboard[0]->table . "." . $dashboard[0]->column . " IS NOT NULL AND " . $dashboard[0]->table . "." . $dashboard[0]->column . " != '' AND devices.org_id IN (" . $instance->user->org_list . ") GROUP BY " . $dashboard[0]->table . "." . $dashboard[0]->column;
@@ -127,7 +132,7 @@ class SummariesModel extends BaseModel
             case 'devices':
                 $collection = 'devices';
                 break;
-            
+
             default:
                 $collection = 'devices';
                 break;
@@ -137,9 +142,13 @@ class SummariesModel extends BaseModel
         } else {
             $properties = 'devices.id,devices.icon,devices.type,devices.name,devices.domain,devices.ip,devices.os_family,devices.status';
         }
-        $link = url_to($collection.'Collection') . '?' . $dashboard[0]->table . '.' . $dashboard[0]->column . '=';
-        for ($i=0; $i < count($result); $i++) {
-            $result[$i]->attributes->link = $link . urlencode($result[$i]->attributes->name) . '&properties=' . $properties;
+        $link = url_to($collection . 'Collection') . '?' . $dashboard[0]->table . '.' . $dashboard[0]->column . '=';
+        for ($i = 0; $i < count($result); $i++) {
+            if (strpos($result[$i]->attributes->name, '&') !== false) {
+                $result[$i]->attributes->link = $link . 'LIKE' . urlencode(str_replace('&', '%', $result[$i]->attributes->name)) . '&properties=' . $properties;
+            } else {
+                $result[$i]->attributes->link = $link . urlencode($result[$i]->attributes->name) . '&properties=' . $properties;
+            }
         }
         if (!empty($set_count)) {
             if ($limit_upper == 8888888888) {

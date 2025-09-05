@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -34,11 +35,18 @@ if (!function_exists('response_create')) {
         if (empty($config)) {
             $config = config('Openaudit');
         }
+        $db = db_connect();
 
         $response = new \StdClass();
         $response->meta = new \StdClass();
         $response->meta->action = strtolower($instance->method);
         $response->meta->collection = str_replace('\\app\\controllers\\', '', strtolower($instance->controller));
+        if ($response->meta->collection === 'baselinesresults') {
+            $response->meta->collection = 'baselines_results';
+        }
+        if ($response->meta->collection === 'discoverylog') {
+            $response->meta->collection = 'discovery_log';
+        }
         $response->meta->request_method = strtoupper(\Config\Services::request()->getMethod());
         if (is_cli()) {
             $response->meta->request_method = 'CLI';
@@ -65,8 +73,6 @@ if (!function_exists('response_create')) {
         if ($response->meta->request_method === 'CLI') {
             // Check if we've been passed a format on the CLI
             $getPath = $uri->getPath();
-            log_message('debug', gettype($getPath));
-            log_message('debug', json_encode($getPath));
             if (!empty($getPath)) {
                 foreach ($getPath as $segment) {
                     if (strpos($segment, 'format=') !== false) {
@@ -96,7 +102,21 @@ if (!function_exists('response_create')) {
             log_message('error', 'Invalid collection supplied (' . $response->meta->collection . '), removing.');
             $response->meta->collection = '';
         }
+
+
+        $instance->user->org_list = response_get_org_list($instance->user, $response->meta->collection);
+
         $response->meta->id = null;
+        // depends on collection - set in URI or POST
+        $response->meta->id = response_get_id(
+            html_entity_decode(urldecode($uri->getSegment(2))),
+            $response->meta->collection,
+            $instance->user->org_list
+        );
+        if (empty($response->meta->id) and ($response->meta->action === 'read' or $response->meta->action === 'update' or $response->meta->action === 'delete')) {
+            log_message('warning', 'Request to ' . $response->meta->action . ' ' . $response->meta->collection . ', but no ID supplied.');
+        }
+
 
         # We have what the user is trying to do and to what (if any) item - check permissions
         $permission_requested = response_valid_permissions($response->meta->collection);
@@ -111,11 +131,23 @@ if (!function_exists('response_create')) {
         if ($response->meta->collection === 'configuration' and $response->meta->action === 'executeemail') {
             $response->meta->action = 'create';
         }
+        if ($response->meta->collection === 'users' and $response->meta->action === 'update' and $response->meta->id === $instance->user->id) {
+            if (strpos($instance->user->permissions['users'], 'r') === false) {
+                // Allowed to read self
+                $instance->user->permissions['users'] .= 'r';
+            }
+            if (strpos($instance->user->permissions['users'], 'u') === false) {
+                // Allowed to update self
+                $instance->user->permissions['users'] .= 'u';
+            }
+        }
 
         // log_message('debug', 'Action: ' . $response->meta->action);
         // log_message('debug', 'Collection: ' . $response->meta->collection);
         // log_message('debug', 'Permission Requested: ' . $permission_requested[$response->meta->action]);
         // log_message('debug', 'UserPermission: ' . $instance->user->permissions[$response->meta->collection]);
+        // log_message('debug', 'ID: ' . $response->meta->id . ' is a ' . gettype($response->meta->id));
+        // log_message('debug', 'UserID: ' . $instance->user->id . ' is a ' . gettype($instance->user->id));
 
         if ($response->meta->collection !== 'help') {
             if (empty($instance->user->permissions[$response->meta->collection]) or strpos($instance->user->permissions[$response->meta->collection], $permission_requested[$response->meta->action]) === false) {
@@ -129,17 +161,14 @@ if (!function_exists('response_create')) {
                     exit();
                 } else {
                     \Config\Services::session()->setFlashdata('error', $message);
-                    header('Location: '. url_to('home'));
+                    header('Location: ' . url_to('home'));
                     exit();
                 }
             } else {
                 log_message('debug', 'User ' . $instance->user->full_name . ' requested to perform ' . $response->meta->action . ' on ' . $response->meta->collection . ', and has permission to do so.');
             }
         }
-        $instance->user->org_list = response_get_org_list($instance->user, $response->meta->collection);
         $response->meta->permission_requested = $permission_requested;
-
-
 
         $response->links = new \StdClass();
         $response->included = array();
@@ -150,7 +179,6 @@ if (!function_exists('response_create')) {
         if ($response->meta->collection === 'components') {
             $response->meta->current = 'y';
         }
-        $response->meta->debug = false;
         $response->meta->filtered = '';
         $response->meta->groupby = '';
         $response->meta->header = 200;
@@ -162,35 +190,23 @@ if (!function_exists('response_create')) {
         $response->meta->offset = 0;
         $response->meta->properties = '';
         // NOTE see response_get_query_filter for why we do the below with the query string
-        $response->meta->query_string = urldecode($_SERVER['QUERY_STRING']);
-        $response->meta->query_string = str_replace('&amp;', '&', $response->meta->query_string);
+        $query_string = $_SERVER['QUERY_STRING'];
+        $replace_like = false;
+        if (stripos($query_string, 'like%') !== false) {
+            $query_string = str_replace('like%', 'like', $query_string);
+            $replace_like = true;
+        }
+        $response->meta->query_string = urldecode($query_string);
+        if ($replace_like) {
+            $response->meta->query_string = str_replace('like', 'like%', $response->meta->query_string);
+        }
+        $response->meta->query_string = html_entity_decode($response->meta->query_string);
         $response->meta->requestor = '';
         if (!empty($_SERVER['HTTP_REQUESTOR'])) {
             $response->meta->requestor = (string)$_SERVER['HTTP_REQUESTOR'];
         }
         $response->meta->server_app_version = $config->display_version;
-        $response->meta->server_platform = php_uname('s');
-        if ($response->meta->server_platform === 'Windows NT') {
-            $command = 'wmic os get name';
-            exec($command, $output);
-            if (!empty($output[1])) {
-                $os = explode('|', $output[1]);
-                $response->meta->server_platform = $os[0];
-            }
-            if (!stripos($response->meta->server_platform, 'server')) {
-                // Throw a warning, unsupported OS
-                $message = 'Open-AudIT requires Windows Server to run successfully. Please reinstall on a supported server operating system.';
-                log_message('error', $message);
-                $response->errors = $message;
-            }
-        } else {
-            $command = 'cat /etc/os-release 2>/dev/null | grep -i ^PRETTY_NAME | cut -d= -f2 | cut -d\" -f2';
-            exec($command, $output);
-            if (!empty($output[0])) {
-                $response->meta->server_platform = $output[0];
-            }
-        }
-
+        $response->meta->server_platform = $config->server_platform;
         $response->meta->sort = '';
         if (!empty($GLOBALS['timer_start'])) {
             $response->meta->time_start = $GLOBALS['timer_start'];
@@ -208,28 +224,17 @@ if (!function_exists('response_create')) {
         $response->meta->sql = array();
         $response->meta->user = $instance->user->name;
 
-        // no dependencies - set in GET or POST
-        $response->meta->debug = response_get_debug(
-            $request->getGet('debug'),
-            $request->getPost('debug'),
-            $request->header('debug')
-        );
+        // Set the GLOBALS for use in response_get_query_filter when we detect dataTables
+        if (!empty($_GET['draw'])) {
+            $GLOBALS['collection'] = $response->meta->collection;
+        }
 
         // Set the heading based on the collection
         $response->meta->heading = ucfirst($response->meta->collection);
 
-        // depends on collection - set in URI or POST
-        $response->meta->id = response_get_id(
-            html_entity_decode(urldecode($uri->getSegment(2))),
-            $response->meta->collection,
-            $instance->user->org_list
-        );
         if ($response->meta->collection === 'help') {
             $response->meta->action = 'about';
         }
-        // if ($response->meta->action === 'create') {
-        //     $response->meta->id = null;
-        // }
 
         // no dependencies - set in GET or POST
         $temp = response_get_ids($request->getGet('ids'), $request->getPost('ids'));
@@ -263,7 +268,7 @@ if (!function_exists('response_create')) {
                         exit();
                     } else {
                         \Config\Services::session()->setFlashdata('error', $message);
-                        header('Location: ' . url_to($response->meta->collection.'Collection'));
+                        header('Location: ' . url_to($response->meta->collection . 'Collection'));
                         exit();
                     }
                 # } else if (!in_array($response->meta->received_data->access_token, $instance->user->access_token)) {
@@ -279,7 +284,7 @@ if (!function_exists('response_create')) {
                         exit();
                     } else {
                         \Config\Services::session()->setFlashdata('error', $message);
-                        header('Location: ' . url_to($response->meta->collection.'Collection'));
+                        header('Location: ' . url_to($response->meta->collection . 'Collection'));
                         exit();
                     }
                 }
@@ -306,7 +311,7 @@ if (!function_exists('response_create')) {
         );
 
         // depends on version affecting URI, collection
-        $response->meta->groupby = response_get_groupby($request->getGet('groupby'), $request->getPost('groupby'));
+        $response->meta->groupby = response_get_groupby($request->getGet('groupby'), $request->getPost('groupby'), $response->meta->collection);
 
         // no dependencies - set in GET or POST
         $response->meta->offset = response_get_offset($request->getGet('offset'), $request->getPost('offset'));
@@ -417,7 +422,7 @@ if (!function_exists('response_create')) {
                 if (empty($_SESSION['error'])) {
                     \Config\Services::session()->setFlashdata('error', $message);
                 }
-                header('Location: ' . url_to($response->meta->collection.'Collection'));
+                header('Location: ' . url_to($response->meta->collection . 'Collection'));
                 exit();
             }
         }
@@ -425,15 +430,42 @@ if (!function_exists('response_create')) {
             $response->logs = $instance->response->logs;
         }
 
+        // if (!empty($config->feature_news) and $config->feature_news === 'n' and in_array($response->meta->action, ['collection', 'execute']) and $response->meta->format === 'html') {
+        //     $reminder_days = (!empty($config->feature_news_remind_days)) ? intval($config->feature_news_remind_days) : 30;
+        //     $last_request_date = (!empty($config->feature_news_last_request_date)) ? strtotime("+" . $reminder_days . " days", strtotime($config->feature_news_last_request_date)) : strtotime('2001-01-01');
+        //     $today = strtotime(date('Y-m-d'));
+        //     if ($last_request_date < $today) {
+        //         $conf = model('ConfigurationModel');
+        //         $conf_data = $conf->readName('feature_news');
+        //         $conf_id = (!empty($conf_data[0]->id)) ? intval($conf_data[0]->id) : 0;
+        //         $_SESSION['success'] = 'Why not enable \'news\'? Keep up-to-date with the latest fixes, announcements, query updates, software versions and more. Click <a href="' . url_to('configurationRead', $conf_id) . '">here</a> to enable.';
+        //         $db = db_connect();
+        //         $sql = "UPDATE `configuration` SET `value` = ? WHERE `name` = 'feature_news_last_request_date'";
+        //         $result = $db->query($sql, [date('Y-m-d')]);
+        //         unset($conf);
+        //         unset($conf_data);
+        //         unset($conf_id);
+        //     }
+        // }
+
         # Enterprise
-        $db = db_connect();
+        $license_config = false;
+        if ($response->meta->collection === 'configuration' and ($response->meta->id === $config->license_string_id or $response->meta->id === $config->license_string_collector_id)) {
+            $license_config = true;
+        }
+        if ($response->meta->collection === 'roles' and $response->meta->action === 'create') {
+            $license_config = true;
+        }
         $permission_requested = $response->meta->permission_requested;
-        if (!empty($config->enterprise_binary) and $db->tableExists('enterprise')) {
+        $collections = new \Config\Collections();
+        if (!empty($config->enterprise_binary) and ($db->tableExists('enterprise') and !empty($collections->{$response->meta->collection}->edition) and $collections->{$response->meta->collection}->edition !== 'Community') or $license_config === true) {
             $query_string = $response->meta->query_string;
             unset($response->meta->query_string);
             $function = $response->meta->collection . '_' . $response->meta->action;
-            if (!in_array($function, array("baselines_create", "baselines_execute", "benchmarks_create", "clusters_create", "collectors_create", "collectors_register", "configuration_update", "dashboards_create", "discovery_scan_options_create", "discovery_scan_options_update", "executables_create", "racks_create", "roles_create", "tasks_create", "widgets_create", "widgets_update")) and
-                !($function === 'configuration_update' and ($response->meta->id === $config->license_string_id or $response->meta->id === $config->license_string_collector_id))) {
+            if (
+                !in_array($function, array("baselines_create", "baselines_execute", "benchmarks_create", "clusters_create", "collectors_create", "collectors_register", "configuration_update", "dashboards_create", "discovery_scan_options_create", "discovery_scan_options_update", "executables_create", "racks_create", "roles_create", "tasks_create", "widgets_create", "widgets_update")) and
+                !($function === 'configuration_update' and ($response->meta->id === $config->license_string_id or $response->meta->id === $config->license_string_collector_id))
+            ) {
                 $received_data = $response->meta->received_data;
                 $response->meta->received_data = array();
             }
@@ -479,6 +511,9 @@ if (!function_exists('response_create')) {
                     $command = $config->enterprise_binary . " --debug $id 2>&1";
                     log_message('debug', $command);
                 }
+                if (!empty($config->enterprise_env) and strpos($command, 'enterprise.bin') !== false) {
+                    $command = 'export PAR_GLOBAL_TMPDIR=' . $config->enterprise_env . '; ' . $command;
+                }
                 @exec($command, $output);
             }
             if (!empty($output)) {
@@ -521,25 +556,25 @@ if (!function_exists('response_create')) {
                 $sql = "DELETE FROM enterprise WHERE DATE(timestamp) < SUBDATE(CURDATE(), 0)";
                 $db->query($sql);
             }
-            if (!in_array($function, array("baselines_create", "baselines_execute", "benchmarks_create", "clusters_create", "collectors_create", "collectors_register", "configuration_update", "dashboards_create", "discovery_scan_options_create", "discovery_scan_options_update", "executables_create", "racks_create", "roles_create", "tasks_create", "widgets_create", "widgets_update")) and
-                !($function === 'configuration_update' and ($response->meta->id === $config->license_string_id or $response->meta->id === $config->license_string_collector_id))) {
+            if (
+                !in_array($function, array("baselines_create", "baselines_execute", "benchmarks_create", "clusters_create", "collectors_create", "collectors_register", "configuration_update", "dashboards_create", "discovery_scan_options_create", "discovery_scan_options_update", "executables_create", "racks_create", "roles_create", "tasks_create", "widgets_create", "widgets_update")) and
+                !($function === 'configuration_update' and ($response->meta->id === $config->license_string_id or $response->meta->id === $config->license_string_collector_id))
+            ) {
                 $response->meta->received_data = $received_data;
             }
             if ($function === 'configuration_update' and $response->meta->id === $config->license_eula_id) {
                 $response->meta->received_data = $received_data;
             }
             // TODO - Why does enterprise return this as a string?
-            $response->meta->limit = intval($response->meta->limit);
+            if (isset($response->meta->limit) and !empty($response->meta->limit)) {
+                $response->meta->limit = intval($response->meta->limit);
+            }
             if (!empty($response->errors)) {
                 \Config\Services::session()->setFlashdata('error', $response->errors);
             }
             unset($response->meta->user_details);
             unset($response->meta->config);
             $response->meta->query_string = $query_string;
-        } else {
-            $config->license = 'none';
-            $config->product = 'community';
-            $response->meta->license_string = '';
         }
         return $response;
     }
@@ -587,6 +622,10 @@ if (!function_exists('response_get_data')) {
         }
         if ($request_method === 'PATCH') {
             #$data_json = urldecode(str_replace('data=', '', file_get_contents('php://input')));
+            if (empty($patch)) {
+                log_message('warning', 'Patch request, but no data.');
+                return $received_data;
+            }
             $data_json = $patch;
             try {
                 $data_object = json_decode($data_json, false, 512, JSON_THROW_ON_ERROR);
@@ -616,29 +655,6 @@ if (!function_exists('response_get_data')) {
     }
 }
 
-function response_get_debug($get = '', $post = '', $header = '')
-{
-    # We cannot change the log threshold after creation.
-    # Leaving the below, but it won't have much effect.
-    $debug = false;
-    if (!empty($get) && strtolower($get) === 'true') {
-        $summary = 'Set debug TRUE according to GET.';
-        $debug = true;
-    }
-    if (!empty($post) && strtolower($post) === 'true') {
-        $summary = 'Set debug TRUE according to POST.';
-        $debug = true;
-    }
-    if (!empty($header) && strtolower($header) === 'true') {
-        $summary = 'Set debug TRUE according to HEADER.';
-        $debug = true;
-    }
-    if ($debug) {
-        log_message('debug', $summary);
-    }
-    return $debug;
-}
-
 if (!function_exists('response_get_query_filter')) {
     /**
      * [response_get_filter description]
@@ -663,14 +679,57 @@ if (!function_exists('response_get_query_filter')) {
             return array();
         }
 
+        $dataTables = false;
+        if (!empty($GLOBALS['collection'])) {
+            $dataTables = true;
+            $collection = $GLOBALS['collection'];
+            $db = db_connect();
+        }
+
         if (!empty($query_string)) {
             foreach (explode('&', $query_string) as $item) {
+                if (empty($item)) {
+                    continue;
+                }
+                if (strpos($item, '=') === false) {
+                    continue;
+                }
+                $name = substr($item, 0, strpos($item, '='));
+                unset($value);
+
+                if ($dataTables) {
+                    $value = str_replace($name . '=', '', $item);
+                    if ($value === '') {
+                        continue;
+                    }
+                    if (in_array($name, ['draw', '_', 'search[regex]']) or strpos($name, 'column') !== false) {
+                        continue;
+                    }
+                    if ($name === 'search[value]') {
+                        $name = 'search';
+                    }
+                    if ($collection === 'discovery_log' and ($name === 'status' or $name === 'discovery_log.status')) {
+                        // Hack because GUI has a column heading of Status and we don't expect users to realise we actually show the command_status column
+                        $name = 'discovery_log.command_status';
+                    }
+
+                    if (strpos($name, '.') === false and $name !== 'search') {
+                        if ($db->tableExists($collection) and $db->fieldExists($name, $collection)) {
+                            $name = $collection . '.' . $name;
+                        }
+                        if ($collection === 'discovery_log' and $db->fieldExists($name, 'devices')) {
+                            $name = 'devices.' . $name;
+                        }
+                    }
+                }
+
                 $query = new \StdClass();
-                $query->name = substr($item, 0, strpos($item, '='));
-                $query->name = preg_replace('/[^A-Za-z0-9\.\_]/', '', $query->name);
+                $query->name = preg_replace('/[^A-Za-z0-9\.\_]/', '', $name);
                 $query->function = 'where';
                 $query->operator = '';
-                $query->value = str_replace($query->name.'=', '', $item);
+                $query->value = str_replace($name . '=', '', $item);
+                $query->value = (isset($value)) ? $value : $query->value;
+                unset($value);
 
                 if (strtolower(substr($query->value, 0, 8)) === 'not like') {
                     $query->value = substr($query->value, 8);
@@ -717,9 +776,12 @@ if (!function_exists('response_get_query_filter')) {
                 if (empty($query->operator)) {
                     $query->function = 'where';
                     $query->operator = '=';
+                    if ($dataTables) {
+                        $query->operator = '';
+                    }
                 }
 
-                if (substr($query->value, 0, 3) === 'in(' && strpos($query->value, ')') === strlen($query->value)-1) {
+                if (is_string($query->value) and substr($query->value, 0, 3) === 'in(' && strpos($query->value, ')') === strlen($query->value) - 1) {
                     $query->value = substr($query->value, 2);
                     $query->function = 'whereIn';
                     $query->operator = 'in';
@@ -737,10 +799,11 @@ if (!function_exists('response_get_query_filter')) {
                     }
                 }
 
-                if (is_string($query->value) and substr($query->value, 0, 6) === 'notin(' && strpos($query->value, ')') === strlen($query->value)-1) {
+                if (is_string($query->value) and substr($query->value, 0, 6) === 'notin(' && strpos($query->value, ')') === strlen($query->value) - 1) {
                     $query->value = substr($query->value, 5);
                     $query->function = 'whereNotIn';
-                    $query->operator = 'not in';
+                    // $query->operator = 'not in'; // NOTE - changed to notin below so we can use it in the dataTables URL creation
+                    $query->operator = 'notin';
                     $values = explode(',', trim((string)$query->value, '()'));
                     $query->value = array();
                     foreach ($values as $key => $value) {
@@ -757,7 +820,7 @@ if (!function_exists('response_get_query_filter')) {
 
                 // Accept first_seen, last_seen, edited_date and timestamp as numeric unix_timestamp's and convert them to a local timestamp string
                 // TODO - what if we have one of these attributes and our value is in a LIKE array, ie, not a string
-                $item = substr($query->name, strpos($query->name, '.')+1);
+                $item = substr($query->name, strpos($query->name, '.') + 1);
                 if (($item === 'first_seen' or $item === 'last_seen' or $item === 'when' or $item === 'edited_date' or $item === 'timestamp') && is_numeric($query->value)) {
                     if ($query->operator === 'like' or $query->operator === 'not like') {
                         $query->value = str_replace('%', '', $query->value);
@@ -768,17 +831,44 @@ if (!function_exists('response_get_query_filter')) {
                     }
                 }
 
-                if (!empty($query->name) && ! in_array($query->name, $reserved_words) && $type === 'filter') {
+                if (!empty($query->name) and !in_array($query->name, $reserved_words) and $type === 'filter') {
+                    $filter[] = $query;
+                }
+
+                if ($query->name === 'search' and $dataTables === true) {
                     $filter[] = $query;
                 }
 
                 if ($type === 'query') {
                     $filter[] = $query;
                 }
+                unset($query);
+            }
+
+            if ($dataTables) {
+                foreach ($filter as $query) {
+                    if ($query->operator === '' and strpos($query->name, 'id') !== (strlen($query->name) - 2) and gettype($query->value) === 'string') {
+                        // We default to a LIKE clause for dataTables filtering
+                        // To use an EQUALS clause, specify =value in the search field,
+                        // this will translate to column==value and hence be covered above
+                        // Additionally, if we have 'id' on the end of the name, skip this block and use the next block below to set =
+                        if (strpos($query->name, '.ip') === (strlen($query->name) - 3) or $query->name === 'ip') {
+                            $query->value = ip_address_to_db($query->value);
+                        }
+                        if (strpos($query->value, '%') === false) {
+                            $query->value = '%' . $query->value . '%';
+                        }
+                        $query->function = 'where';
+                        $query->operator = 'like';
+                    }
+                    if ($query->operator === '' and strpos($query->name, 'id') === (strlen($query->name) - 2) and gettype($query->value) === 'string') {
+                        $query->operator = '=';
+                    }
+                }
             }
         }
         if (!empty($filter)) {
-            log_message('debug', strtoupper($type) .': ' . json_encode($filter));
+            log_message('debug', strtoupper($type) . ': ' . json_encode($filter, JSON_PRETTY_PRINT));
         }
         return $filter;
     }
@@ -823,7 +913,7 @@ if (!function_exists('response_get_format')) {
             $format = 'json';
             log_message('warning', $summary);
         } else {
-            log_message('debug', $summary);
+            // log_message('debug', $summary);
         }
         return $format;
     }
@@ -835,7 +925,7 @@ if (!function_exists('response_get_groupby')) {
      * @param  string $get  The groupby=table.column name from $_GET
      * @return string $post The groupby=table.column name from $_POST
      */
-    function response_get_groupby($get = '', $post = '')
+    function response_get_groupby($get = '', $post = '', $collection = '')
     {
         $db = db_connect();
         $groupby = '';
@@ -862,12 +952,12 @@ if (!function_exists('response_get_groupby')) {
                     $groupby = $temp[0] . '.' . $temp[1];
                 }
             } else {
-                if (!$db->fieldExists($groupby, $temp)) {
+                if (!$db->fieldExists($groupby, $collection)) {
                     $summary = "Invalid groupby supplied ({$groupby}), removed.";
                     log_message('warning', 'GroupBy: ' . $summary);
                     $groupby = '';
                 } else {
-                    $groupby = $temp . '.' . $groupby;
+                    $groupby = $collection . '.' . $groupby;
                 }
             }
         }
@@ -889,15 +979,15 @@ if (!function_exists('response_get_id')) {
     function response_get_id($id = '', $collection = '', $org_list = '')
     {
         if (empty($id)) {
-            log_message('debug', 'No ID provided, returning NULL.');
+            // log_message('debug', 'No ID provided, returning NULL.');
             return null;
         }
         if (is_numeric($id)) {
-            if (is_integer($id)) {
-                log_message('debug', "Integer ID supplied (Provided ID: $id).");
-            } else {
-                log_message('debug', "Numeric ID supplied (Provided ID: $id).");
-            }
+            // if (is_integer($id)) {
+            //     log_message('debug', "Integer ID supplied (Provided ID: $id).");
+            // } else {
+            //     log_message('debug', "Numeric ID supplied (Provided ID: $id).");
+            // }
             return intval($id);
         } else {
             if ($collection === 'components') {
@@ -1037,7 +1127,7 @@ if (!function_exists('response_get_ids')) {
         if (!empty($post)) {
             $device_ids = $post;
         }
-        if (isset($device_ids)) {
+        if (isset($device_ids) and $device_ids !== '') {
             if (is_string($device_ids)) {
                 // Remove a trailing comma if we have one
                 if (substr($device_ids, -1) === ',') {
@@ -1045,7 +1135,7 @@ if (!function_exists('response_get_ids')) {
                 }
                 // Set all values to int's
                 $temp = explode(',', $device_ids);
-                for ($i=0; $i < count($temp); $i++) {
+                for ($i = 0; $i < count($temp); $i++) {
                     $temp[$i] = intval($temp[$i]);
                 }
             } else if (is_array($device_ids)) {
@@ -1120,19 +1210,19 @@ if (!function_exists('response_get_limit')) {
         $limit = $default_limit;
         if (!empty($get)) {
             $limit = intval($get);
-            log_message('debug', 'Set include according to GET (' . $limit . ').');
+            log_message('debug', 'Set limit according to GET (' . $limit . ').');
         }
         if (!empty($post)) {
             $limit = intval($post);
-            log_message('debug', 'Set include according to POST (' . $limit . ').');
+            log_message('debug', 'Set limit according to POST (' . $limit . ').');
         }
         if ($format === 'html' && empty($limit)) {
             $limit = intval($default_limit);
-            log_message('debug', 'Set include according to SCREEN DEFAULT (' . $limit . ').');
+            log_message('debug', 'Set limit according to SCREEN DEFAULT (' . $limit . ').');
         }
         if ($format === 'json' && empty($limit)) {
             $limit = intval($default_limit);
-            log_message('debug', 'Set include according to JSON DEFAULT (' . $limit . ').');
+            log_message('debug', 'Set limit according to JSON DEFAULT (' . $limit . ').');
         }
         return $limit;
     }
@@ -1179,18 +1269,18 @@ if (!function_exists('response_get_org_list')) {
         $collections = new \Config\Collections();
         if (!empty($collections->{$collection}->orgs) and $collections->{$collection}->orgs === 'd') {
             $org_list = array_unique(array_merge($user->orgs, $orgsModel->getUserDescendants($user->orgs, $orgs)));
-            log_message('debug', 'Set org_list according to ' . $collection . ' for DESCENDANTS (' . implode(', ', $org_list) . ').');
+            // log_message('debug', 'Set org_list according to ' . $collection . ' for DESCENDANTS (' . implode(', ', $org_list) . ').');
         }
         if (!empty($collections->{$collection}->orgs) and $collections->{$collection}->orgs === 'u') {
             $org_list = $user->orgs;
-            log_message('debug', 'Set org_list according to ' . $collection . ' for USER (' . implode(', ', $org_list) . ').');
+            // log_message('debug', 'Set org_list according to ' . $collection . ' for USER (' . implode(', ', $org_list) . ').');
         }
         if (!empty($collections->{$collection}->orgs) and $collections->{$collection}->orgs === 'b') {
             $org_list = array_unique(array_merge($user->orgs, $orgsModel->getUserDescendants($user->orgs, $orgs)));
             $org_list = array_unique(array_merge($org_list, $orgsModel->getUserAscendants($user->orgs, $orgs)));
             $org_list[] = 1;
             $org_list = array_unique($org_list);
-            log_message('debug', 'Set org_list according to ' . $collection . ' for PARENTS and DESCENDANTS (' . implode(', ', $org_list) . ').');
+            // log_message('debug', 'Set org_list according to ' . $collection . ' for PARENTS and DESCENDANTS (' . implode(', ', $org_list) . ').');
             asort($org_list);
         }
         if (empty($org_list)) {
@@ -1213,10 +1303,10 @@ if (!function_exists('response_get_permission_id')) {
     function response_get_permission_id($user, $collection, $action, $received_data, $id)
     {
         $db = db_connect();
-        $collections = array('charts', 'configuration', 'database', 'errors', 'help', 'ldap_servers', 'logs', 'nmis', 'queue', 'reports', 'roles');
+        $collections = array('auth', 'charts', 'configuration', 'database', 'errors', 'help', 'logs', 'news', 'nmis', 'queue', 'reports', 'roles');
 
         if (empty($id) or in_array($collection, $collections)) {
-            log_message('debug', 'User permitted to access ' . $collection);
+            log_message('debug', 'User permitted to access ' . $action . '::' . $collection);
             return true;
         }
 
@@ -1266,6 +1356,11 @@ if (!function_exists('response_get_permission_id')) {
         }
 
         if ($collection === 'discovery_log') {
+            $sql = "SELECT * FROM discovery_log WHERE id = ?";
+            $result = $db->query($sql, [$id])->getResult();
+            if (is_null($result[0]->discovery_id) and $action === 'read') {
+                return true;
+            }
             $sql = "SELECT discoveries.org_id FROM discoveries LEFT JOIN discovery_log ON (discoveries.id = discovery_log.discovery_id) WHERE discovery_log.id = ?";
             $result = $db->query($sql, [$id])->getResult();
         } else if (in_array($collection, response_valid_collections())) {
@@ -1355,6 +1450,10 @@ if (!function_exists('response_get_properties')) {
                 $summary = "Set properties according to GET JSON.";
                 $properties = implode(',', $temp);
             }
+            if ($collection === 'devices' and $action === 'collection') {
+                // Special case this and populate the users columns so they'll apply on the devicesCollection template
+                $user->devices_default_display_columns = $properties;
+            }
         }
         if (!empty($post)) {
             $properties = $post;
@@ -1389,13 +1488,13 @@ if (!function_exists('response_get_properties')) {
             // }
         }
         if ($properties === 'all' or $properties === '*') {
-            $properties = $collection . '.' . implode(','.$collection.'.', $db->getFieldNames($collection));
+            $properties = $collection . '.' . implode(',' . $collection . '.', $db->getFieldNames($collection));
             $summary = 'Set properties to TABLE ALL.';
         }
         if (!empty($properties)) {
             // Validate the properties are database columns
             $properties = explode(',', $properties);
-            for ($i=0; $i < count($properties); $i++) {
+            for ($i = 0; $i < count($properties); $i++) {
                 if (strpos($properties[$i], '.') !== false) {
                     $temp = explode('.', $properties[$i]);
                     if (!$db->tableExists($temp[0])) {
@@ -1435,9 +1534,9 @@ if (!function_exists('response_get_properties')) {
             // something was filtered
             $summary = 'Set properties according to FILTERING.';
         }
-        if (!empty($properties)) {
-            log_message('debug', $summary . ' (' . $properties . ')');
-        }
+        // if (!empty($properties)) {
+        //     log_message('debug', $summary . ' (' . $properties . ')');
+        // }
         return $properties;
     }
 }
@@ -1466,7 +1565,7 @@ if (!function_exists('response_get_sort')) {
         $sort = str_replace('+', '', $sort);
         if (!empty($sort)) {
             $properties = explode(',', $sort);
-            for ($i=0; $i < count($properties); $i++) {
+            for ($i = 0; $i < count($properties); $i++) {
                 $field = $properties[$i];
                 if (substr($field, 0, 1) === '-') {
                     $field = substr($field, 1);

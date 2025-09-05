@@ -9,7 +9,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user); ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
                             <thead>
@@ -22,7 +22,8 @@ include 'shared/collection_functions.php';
                             </thead>
                             <tbody>
                             <?php if (!empty($data)) { ?>
-                                <?php foreach ($data as $item) { ?><tr>
+                                <?php foreach ($data as $item) {
+                                    ?><tr>
                                     <?= collection_button_read($meta->collection, $item->id) . "\n" ?>
                                     <td><?= $item->id ?></td>
                                     <td><?= $item->attributes->count ?></td>

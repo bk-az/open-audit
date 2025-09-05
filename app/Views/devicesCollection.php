@@ -4,34 +4,76 @@
 include 'shared/collection_functions.php';
 $instance = & get_instance();
 
-$display_columns = array();
-if ($config->devices_default_retrieve_columns === implode(',', $meta->properties)) {
-    // We have a default request. No specific columns requested
-    if (!empty($config->devices_default_display_columns)) {
-        $display_columns = explode(',', $config->devices_default_display_columns);
+$columns = array();
+if (!empty($user->devices_default_display_columns)) {
+    if (is_string($user->devices_default_display_columns)) {
+        $user->devices_default_display_columns = explode(',', $user->devices_default_display_columns);
     }
-    if (!empty($user->devices_default_display_columns)) {
-        $display_columns = explode(',', $user->devices_default_display_columns);
-    }
+    $columns = $user->devices_default_display_columns;
 }
-if (empty($display_columns)) {
-    $display_columns = $meta->properties;
-}
-$count = count($display_columns);
-for ($i=0; $i < $count; $i++) {
-    $display_columns[$i] = str_replace('devices.', '', $display_columns[$i]);
-}
-$audit_status = false;
-if (isset($data[0]->attributes->audit_class) and isset($data[0]->attributes->audit_text)) {
-    $audit_status = true;
-}
-$query_string = url_to('devicesCollection') . '?';
-if (!empty($meta->query_string)) {
-    $query_string .= $meta->query_string . '&';
+if (empty($columns) and !empty($dictionary->attributes->collection)) {
+    // NOTE - this is populated in devicesModel from instance->config->devices_default_display_columns
+    $columns = $dictionary->attributes->collection;
 }
 
+if (!in_array('audit_status', $columns) and !empty($config->product) and $config->product !== 'community') {
+    array_unshift($columns, 'audit_status');
+}
+if (!empty($meta->data_order)) {
+    for ($i = 0; $i < count($meta->data_order); $i++) {
+        if (strpos($meta->data_order[$i], '.') !== false) {
+            $meta->data_order[$i] = str_replace('.', '__', $meta->data_order[$i]);
+        }
+    }
+}
+$sort_column_index = 4;
+$sort_column_name = (!empty($config->devices_default_sort)) ? $config->devices_default_sort : 'name';
+
+for ($i = 0; $i < count($columns); $i++) {
+    $columns[$i] = str_replace('devices.', '', $columns[$i]);
+    $columns[$i] = str_replace('.', '__', $columns[$i]);
+}
+for ($i = 0; $i < count($meta->data_order); $i++) {
+    if ($meta->data_order[$i] === $sort_column_name) {
+        $sort_column_index = $i;
+    }
+}
+
+if (strpos($user->permissions[$meta->collection], 'd') !== false or strpos($user->permissions[$meta->collection], 'u') !== false) {
+    $meta->data_order[] = 'delete';
+    $meta->data_order[] = 'update';
+    $columns[] = 'delete';
+    $columns[] = 'update';
+}
+
+if (empty($user->toolbar_style) or $user->toolbar_style === 'icontext') {
+    $columns_button = '<span class="fa fa-list text-primary" aria-hidden="true" title="' . __('Columns') . '"></span>&nbsp;Columns';
+} elseif ($user->toolbar_style === 'icon') {
+    $columns_button = '<span class="fa fa-list text-primary" aria-hidden="true" title="' . __('Columns') . '"></span>';
+} else {
+    $columns_button = 'Columns';
+}
+
+$url = base_url() . 'index.php/devices?format=json';
+foreach ($meta->filter as $filter) {
+    if (is_string($filter->value)) {
+        $url .= '&' . $filter->name . '=' . $filter->operator . $filter->value;
+    }
+    if (!is_string($filter->value)){
+        $url .= '&' . $filter->name . '=' . $filter->operator . '("' . implode('","', $filter->value) . '")';
+    }
+}
+if (!empty($meta->properties) and is_array($meta->properties)) {
+    $url .= '&properties=' . implode(',', $meta->properties);
+}
 ?>
-        <main class="container-fluid">
+       <main class="container-fluid">
+
+            <div id="notice" class="container-fluid" style="display:none;">
+                <div id="alert" class="alert alert-warning alert-dismissible fade show" role="alert">
+                </div>
+            </div>
+
             <?php if (!empty($config->license) and $config->license !== 'none') { ?>
             <div class="card">
                 <div class="card-header" style="height:57px;">
@@ -112,83 +154,32 @@ if (!empty($meta->query_string)) {
                 </div>
                 <div class="card-body">
                     <br>
-                    <form action="devices?action=update" method="post" id="bulk_edit" name="bulk_edit">
+                    <form action="<?= base_url() ?>index.php/devices?action=update" method="post" id="bulk_edit" name="bulk_edit">
                         <div class="table-responsive">
-                            <?php if (!empty($audit_status)) {
-                                echo '<table class="table ' . $GLOBALS['table'] . ' table-striped table-hover MyDataTable display" id="table_result" data-order=\'[[4,"asc"]]\' style="width:100%">';
-                            } else {
-                                echo '<table class="table ' . $GLOBALS['table'] . ' table-striped table-hover MyDataTable display" id="table_result" data-order=\'[[3,"asc"]]\' style="width:100%">';
-                            }
-                            echo "\n"; ?>
+                            <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTableDevices">
                                 <thead>
                                     <tr>
-                                        <?php if (!empty($audit_status)) { ?>
-                                            <th style="white-space: nowrap;" class="text-center" id="audit_status"><?= __('Audit Status') ?></th>
-                                        <?php } ?>
-                                        <th id="id" data-orderable="false" class="text-center"><?= __('Details') ?></th>
-                                        <?php foreach ($meta->data_order as $key) {
-                                            echo "\n";
-                                            if ($key === 'id' or $key === 'orgs.id') {
-                                                continue;
-                                            }
-                                            echo "                                        <th id=\"" . str_replace('.', '_', $key) . "\">" . collection_column_name($key) . "</th>";
-                                        }
-                                        if (strpos($user->permissions[$meta->collection], 'u') !== false) {
-                                            if (!empty($data[0]->id)) {
-                                                    echo "\n                                        <th data-orderable=\"false\" class=\"text-center\">\n";
-                                                    echo "                                            <button type=\"button\" class=\"btn btn-light mb2 bulk_edit_button\" style=\"--bs-btn-padding-y: .2rem; --bs-btn-padding-x: .2rem; --bs-btn-font-size: .5rem;\" title=\"" . __('Bulk Edit') . "\"><span style=\"font-size: 1.2rem;\" class=\"fa fa-pencil\"></span></button>\n";
-                                                    echo "                                            <input aria-label='" . __('Select All') . "' type=\"checkbox\" name=\"select_all\" id=\"select_all\">\n";
-                                                    echo "                                        </th>";
-                                            }
-                                        }
-                                        if (strpos($user->permissions[$meta->collection], 'd') !== false) {
-                                            echo "\n                                        <th data-orderable=\"false\" class=\"text-center\">" . __('Delete') . "</th>\n";
+                                    <?php foreach ($meta->data_order as $key) {
+                                        $align = '';
+                                        if ($key === 'audit_status' or $key === 'icon' or $key === 'id' or strpos($key, '_id') !== false or $key === 'delete' or $key === 'update') {
+                                            $align = 'text-center dt-body-center';
                                         } ?>
+                                        <th class="<?= $align ?>"><?= collection_column_name(str_replace('ip__', '', $key)) ?>
+                                        <?php
+                                        if ($key !== 'audit_status' and $key !== 'icon' and $key !== 'id' and $key !== 'delete' and $key !== 'update') {
+                                            echo'<hr><input id="search_' . $key . '" type="search" class="form-control form-control-sm dataTableSearchField" placeholder="Search ' . collection_column_name(str_replace('ip__', '', $key)) . '" />';
+                                        } else if ($key === 'update') {
+                                            echo "<hr><button type=\"button\" class=\"btn btn-light mb2 bulk_edit_button\" style=\"margin-left:5em; --bs-btn-padding-y: .2rem; --bs-btn-padding-x: .2rem; --bs-btn-font-size: .5rem;\" title=\"" . __('Bulk Edit') . "\"><span style=\"font-size: 1.2rem;\" class=\"fa fa-pencil\"></span></button>\n";
+                                            echo "<input aria-label='" . __('Select All') . "' type=\"checkbox\" name=\"select_all\" id=\"select_all\">\n";
+                                        } else {
+                                            echo '<hr style="padding-bottom:31px;">';
+                                        } ?>
+                                        </th>
+                                    <?php } ?>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                <?php if (!empty($data)) {
-                                    foreach ($data as $item) {
-                                        echo "\n                                <tr>\n";
-                                        if (!empty($audit_status)) { ?>
-                                            <td class="text-center">
-                                                <span class="<?= $item->attributes->audit_class ?>" title="<?= $item->attributes->audit_text ?>"></span>
-                                            </td>
-                                        <?php }
-                                        echo "                                    " . collection_button_read($meta->collection, $item->id) . "\n";
-                                        foreach ($meta->data_order as $key) {
-                                            $key = str_replace('devices.', '', $key);
-                                            if ($key === 'id' or $key === 'orgs.id') {
-                                                continue;
-                                            }
-                                            if ($key === 'icon') {
-                                                if (!empty($user->list_table_format) and $user->list_table_format === 'compact') {
-                                                    echo "                                    <td><img src=\"" . base_url() . "device_images/" . $item->attributes->icon . ".svg\" style=\"width:20px\" alt=\"" . $item->attributes->icon . "\"></td>\n";
-                                                } else {
-                                                    echo "                                    <td><img src=\"" . base_url() . "device_images/" . $item->attributes->icon . ".svg\" style=\"width:40px\" alt=\"" . $item->attributes->icon . "\"></td>\n";
-                                                }
-                                            } elseif ($key === 'ip' and !empty($item->attributes->ip_padded)) {
-                                                echo "                                    <td><span style=\"display:none;\">" . $item->attributes->ip_padded . "</span> " . $item->attributes->{$key} . " </td>\n";
-                                            } elseif ($key === 'tags') {
-                                                echo "<td>";
-                                                foreach ($item->attributes->tags as $tag) {
-                                                    echo '                                    <button type="button" class="btn btn-xs btn-primary rounded-pill" style="margin-right:20px;">&nbsp;&nbsp;<strong><a style="color:white;" href="' . url_to('devicesCollection') . '?devices.tags=' . $tag . '">' . $tag . '</a>&nbsp;&nbsp;</button>';
-                                                }
-                                                echo "</td>";
-                                            } else {
-                                                echo "                                    <td><span class=\"float-start\"><button type=\"button\" class=\"btn btn-xs btn-light\" data-bs-container=\"body\" data-bs-toggle=\"popover\" data-bs-html=\"true\" data-bs-placement=\"right\" data-bs-content=\"<a href='" . $query_string . "devices." . $key . "=" . $item->attributes->{$key} . "'>" . __('Include') . "</a><br><a href='" . $query_string . "devices." . $key . "=!=" . $item->attributes->{$key} . "'>" . __('Exclude') . "</a>\"><span class=\"fa fa-filter fa-xs\"></span></button></span>&nbsp;" . $item->attributes->{$key} . "</td>\n";
-                                            }
-                                        }
-                                        if (strpos($user->permissions[$meta->collection], 'u') !== false and !empty($item->id)) {
-                                            echo "                                    <td style=\"text-align: center;\"><input aria-label='" . __('Select') . "' type='checkbox' id='ids[" . $item->id . "]' value='" . $item->id . "' name='ids[" . $item->id . "]' ></td>\n";
-                                        }
-                                        if (strpos($user->permissions[$meta->collection], 'd') !== false) {
-                                            echo "                                    " . collection_button_delete(intval($item->id)) . "\n";
-                                        }
-                                        echo "                                </tr>\n";
-                                    }
-                                }
-                                echo "                                </tbody>\n"; ?>
+                                </tbody>
                             </table>
                         </div>
                     </form>
@@ -196,22 +187,9 @@ if (!empty($meta->query_string)) {
             </div>
         </main>
 
-<?php
-if (empty($user->toolbar_style) or $user->toolbar_style === 'icontext') {
-    $columns_button = '<span class="fa fa-list text-primary" aria-hidden="true" title="' . __('Columns') . '"></span>&nbsp;Columns';
-} elseif ($user->toolbar_style === 'icon') {
-    $columns_button = '<span class="fa fa-list text-primary" aria-hidden="true" title="' . __('Columns') . '"></span>';
-} else {
-    $columns_button = 'Columns';
-}
-?>
-
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
-
-        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
-        const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
 
         $("#oa_panel_buttons").prepend('<div class="dropdown">\
             <button style="margin-right:6px;" class="btn btn-light mb-2 panel-button dropdown-toggle" type="button" id="columnSelectButton" data-bs-toggle="dropdown" aria-expanded="false">\
@@ -220,109 +198,56 @@ window.onload = function () {
             <ul class="dropdown-menu" aria-labelledby="columnSelectButton">\
                 <li><a role="button" class="btn btn-sm btn-default disabled text-center" id="make_my_devices_default_display_columns" style="margin:10px; display:block;"><?= __('Save as Default') ?></a></li>\
                 <li><a role="button" class="btn btn-sm btn-default disabled text-center" id="reset_my_devices_default_display_columns" style="margin:10px; display:block;"><?= __('Reset to Default') ?></a></li>\
-                <?php foreach ($meta->data_order as $attribute) {
+                <?php
+                for ($i = 0; $i < count($meta->data_order); $i++) {
+                    $attribute = $meta->data_order[$i];
                     $attribute_escaped = str_replace('.', '_', $attribute);
-                    if (in_array($attribute, $display_columns)) {
+                    if (in_array($attribute, $columns)) {
                         ?>\
-                <li data-sort=""><a style="font-weight: bold;" href="#" id="<?= $attribute_escaped ?>" class="dropdown-item toggle-vis" data-table-column="<?= $attribute_escaped ?>" data-db_column="<?= $attribute ?>"><?= collection_column_name($attribute) ?></a></li>\
+                <li data-sort=""><a style="font-weight: bold;" href="#" id="<?= $attribute_escaped ?>" class="dropdown-item toggle-vis" data-column="<?= $i ?>" data-db_column="<?= $attribute ?>"><?= collection_column_name($attribute) ?></a></li>\
                     <?php } ?>\
                 <?php } ?>\
                 <li data-sort=""><hr class="dropdown-divider"></li>\
-                    <?php foreach ($meta->data_order as $attribute) {
-                        $attribute_escaped = str_replace('.', '_', $attribute);
-                        if (!in_array($attribute, $display_columns)) {
-                            ?>\
-                <li data-sort="<?= $attribute ?>"><a href="#" class="dropdown-item toggle-vis" data-table-column="<?= $attribute_escaped ?>" data-db_column="<?= $attribute ?>"><?= collection_column_name($attribute) ?></a></li>\
-                        <?php } ?>\
+                <?php
+                for ($i = 0; $i < count($meta->data_order); $i++) {
+                    $attribute = $meta->data_order[$i];
+                    $attribute_escaped = str_replace('.', '_', $attribute);
+                    if (!in_array($attribute, $columns)) {
+                        ?>\
+                <li data-sort="<?= $attribute ?>"><a href="#" class="dropdown-item toggle-vis" data-column="<?= $i ?>" data-db_column="<?= $attribute ?>"><?= collection_column_name($attribute) ?></a></li>\
                     <?php } ?>\
+                <?php } ?>\
             </ul>\
         </div>');
 
         var $my_columns = [];
-
-        <?php if (!empty($audit_status)) { ?>
-        $my_columns.push("audit_status");
-        <?php } ?>
-
-        <?php foreach ($display_columns as $attribute) {
-            if (in_array($attribute, $meta->data_order)) { ?>
+        <?php foreach ($columns as $attribute) {
+            if (in_array($attribute, $meta->data_order) and $attribute !== 'delete' and $attribute !== 'update') { ?>
         $my_columns.push("<?= $attribute ?>");
             <?php } ?>
         <?php } ?>
 
-        var table = $('.MyDataTable').DataTable( {
-            "pagingType": "full",
-            "pageLength": 50,
-            "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            "oSearch": {
-                "bSmart": false,
-                "bRegex": true,
-                "sSearch": ""
-            },
-            "columnDefs": [
-                <?php $i = 0;
-                if (!empty($audit_status)) {
-                    $i = 1;
+        document.querySelectorAll('a.toggle-vis').forEach((el) => {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                let columnIdx = e.target.getAttribute('data-column');
+                let column = myDataTable.column(columnIdx);
+                // Toggle the visibility
+                column.visible(!column.visible());
+                // Toggle the weight
+                if (column.visible() === true) {
+                    $(this).css("font-weight","bold");
+                    $my_columns.push($(this).attr('data-db_column'));
+                } else {
+                    $(this).css("font-weight","normal");
+                    var index = $my_columns.indexOf($(this).attr('data-db_column'));
+                    if (index !== -1) $my_columns.splice(index, 1);
                 }
-                foreach ($meta->data_order as $attribute) { ?>
-                    {
-                    // <?= $attribute . "\n" ?>
-                    "targets": [ <?= $i ?> ],
-                    "visible": <?= (in_array($attribute, $display_columns)) ? "true" : "false" ?>,
-                    "searchable": true
-                    },
-                    <?php $i = $i + 1;
-                } ?>
-                {
-                // Bulk Edit
-                "targets": [ <?= $i ?> ],
-                "visible": true,
-                "searchable": true
-                },
-                {
-                // Delete
-                "targets": [ <?= $i+1 ?> ],
-                "visible": true,
-                "searchable": false
-                }
-            ]
-        });
+                $('#make_my_devices_default_display_columns').removeClass("disabled");
+                $('#make_my_devices_default_display_columns').removeClass("btn-default");
+                $('#make_my_devices_default_display_columns').addClass("btn-success");
 
-        $('a.toggle-vis').on( 'click', function (e) {
-            e.preventDefault();
-
-            // Get the column API object
-            
-            // Below did work, however we could not sort the drop down as it used integer identifiers as the table headers
-            // I have now removed those integers, see an earlier commit to restore them if required.
-            // var column = table.column( $(this).attr('data-column') );
-
-            // var column = table.column( '#' + $(this).data('db_column') ); <- does not work because unescaped .'s in data (ie, devices.name)
-
-            // below also doesn't work :-(
-            // var column_name = '#' + $(this).data('db_column');
-            // column_name = column_name.replace(".", '\\\\.');
-            // console.log(column_name);
-            // var column = table.column(column_name);
-
-            // Below does work, as we replace .'s with _'s for the table columns only. We keep the .'s for the actual data (column list).'
-            var column = table.column( '#' + $(this).data('table-column') );
-
-            // Toggle the visibility
-            column.visible( ! column.visible() );
-            console.log("Visible: " + column.visible());
-            // Toggle the weight
-            if (column.visible() === true) {
-                $(this).css("font-weight","bold");
-                $my_columns.push($(this).attr('data-db_column'));
-            } else {
-                $(this).css("font-weight","normal");
-                var index = $my_columns.indexOf($(this).attr('data-db_column'));
-                if (index !== -1) $my_columns.splice(index, 1);
-            }
-            $('#make_my_devices_default_display_columns').removeClass("disabled");
-            $('#make_my_devices_default_display_columns').removeClass("btn-default");
-            $('#make_my_devices_default_display_columns').addClass("btn-success");
+            });
         });
 
         $("#make_my_devices_default_display_columns").on("click", function(e){
@@ -336,7 +261,7 @@ window.onload = function () {
             data = JSON.stringify(data);
             $.ajax({
                 type: "PATCH",
-                url: "<?= $meta->baseurl ?>index.php/users/<?= $user->id ?>",
+                url: "<?= base_url() ?>index.php/users/<?= $user->id ?>",
                 contentType: "application/json",
                 data: {data : data},
                 success: function (data) {
@@ -383,6 +308,223 @@ window.onload = function () {
                 }
             });
         });
+        <?php
+        $sort_order = 'asc';
+        if ($sort_column_name === 'ip') {
+            $sort_order = 'desc';
+        }
+        ?>
+        let logSort = {};
+        var myDataTable = new DataTable('.dataTableDevices', {
+            lengthChange: true,
+            lengthMenu: [ [25, 50, 100, <?= $config->page_size ?>], [25, 50, 100, '<?= $config->page_size ?>'] ],
+            order: [[ <?= $sort_column_index ?>, '<?= $sort_order ?>' ]],
+            pageLength: 25,
+            processing: true,
+            searching: true,
+            search: {
+                return: true
+            },
+            serverSide: true,
+            // dom: '<"dt-top-container"<l><"dt-center-in-div"f><"dt-btn-container"B>r>tip',
+            ajax: {
+                url: '<?= $url ?>',
+                dataSrc: 'data',
+                data: function (d) {
+                    d.limit = d.length;
+                    d.offset = d.start;
+                    <?php foreach ($meta->data_order as $key) {
+                        $key = str_replace('devices.', '', $key);
+                        echo "\n\t\t\t\t\tif ($(\"#search_" . $key . "\").val() != '') {\n";
+                        echo "\t\t\t\t\t\td[\"" . str_replace('__', '.', $key) . "\"] = $(\"#search_" . $key . "\").val();\n";
+                        echo "\t\t\t\t\t}\n";
+                    } ?>
+
+                    if (d.order[0]) {
+                    <?php
+                    foreach ($meta->data_order as $key) {
+                        $key = str_replace('devices.', '', $key);
+                        if ($key !== 'delete' and $key !== 'update') {
+                            $sort_key = $key;
+                            if (strpos($key, "__") !== false) {
+                                $sort_key = str_replace('__', '.', $key);
+                            } else {
+                                $sort_key = 'devices.' . $key;
+                            }
+                            echo "\n\t\t\t\t\t\tif (d.columns[d.order[0].column].data == 'attributes.$key') {
+                                logSort.column = 'devices.$key';
+                                logSort.direction = d.order[0].dir;
+                                if (d.order[0].dir == 'asc') {
+                                    d.sort = '$sort_key';
+                                } else {
+                                    d.sort = '-$sort_key';
+                                }
+                            }\n";
+                        }
+                    }
+                    ?>
+                    } else {
+                        if (logSort.direction == 'asc') {
+                            d.sort = '-' + logSort.column;
+                            logSort.direction = 'desc';
+                        } else {
+                            d.sort = logSort.column;
+                            logSort.direction = 'asc';
+                        }
+                    }
+                    delete d.start;
+                    delete d.length;
+                    delete d.order;
+                    delete d.columns;
+                }
+            },
+            autoWidth: false,
+            info: true,
+            language: {
+                infoFiltered: ""
+            },
+            layout: {
+                bottomStart: {
+                    info: {
+                        text: 'Showing _START_ to _END_ of _TOTAL_ entries'
+                    }
+                },
+                bottomEnd: {
+                    paging: {
+                        type: 'full_numbers'
+                    }
+                },
+                top2Start: {
+                    buttons: [
+                        { extend: 'copy', className: 'btn btn-light mb-2', text: 'Copy' },
+                        { extend: 'csv', className: 'btn btn-light mb-2', text: 'CSV' },
+                        { extend: 'excel', className: 'btn btn-light mb-2', text: 'Excel' },
+                        { extend: 'print', className: 'btn btn-light mb-2', text: 'Print' }
+                    ]
+                },
+                top2End: {
+                    div: {
+                        html: "<a href=\"<?= url_to('helpFAQ') ?>?name=Searching Using DataTables\" type=\"button\" class=\"btn btn-light mb-2\">HowTo Search</a>"
+                    }
+                }
+            },
+
+            columns: [
+                <?php foreach ($meta->data_order as $key) {
+                    $key = str_replace('devices.', '', $key);
+                    if ($key === 'id') {
+                        echo '{ data: \'attributes.id\',
+                            render: function (data, type, row, meta) {
+                                return "<a title=\"View\" role=\"button\" class=\"btn ' . $GLOBALS['button'] . ' btn-primary\" href=\"' . base_url() . 'index.php/devices/" + row.attributes.id + "\"><span style=\"width:1rem;\" title=\"View\" class=\"fa fa-eye\" aria-hidden=\"true\"></span></a>";
+                            }
+                        },';
+                        echo "\n";
+                    } else if ($key === 'icon') {
+                        $size = '40px';
+                        if ($GLOBALS['button'] === 'btn-xs') {
+                            $size = '30px';
+                        }
+                        echo '{ data: \'attributes.icon\',
+                            render: function (icon) {
+                                return icon
+                                    ? \'<img style="width:' . $size . ';" src="' . base_url() . 'device_images/\' + icon + \'.svg"/>\'
+                                    : \'\';
+                            }
+                        },';
+                        echo "\n";
+                    } else if ($key === 'ip') {
+                        echo '{ data: \'attributes.ip\',
+                        render: function (data, type, row, meta) {
+                            if (row.attributes.ip_padded) {
+                                data = \'<span style="display:none;">\' + row.attributes.ip_padded + \'</span>\' + data;
+                            }
+                            return data;
+                            }
+                        },';
+                        echo "\n";
+                    } else if ($key === 'delete') {
+                        echo '{ data: \'attributes.id\',
+                            render: function (data, type, row, meta) {
+                                return "<td class=\"text-center\"><button type=\"button\" class=\"btn btn-danger ' . $GLOBALS['button'] . ' delete_link\" data-id=\"" + row.attributes.id + "\"><span style=\"width:1rem;\" title=\"Delete\" class=\"fa fa-trash\"></span></button></td>";
+                            }
+                        },';
+                        echo "\n";
+                    } else if ($key === 'update') {
+                        echo '{ data: \'attributes.id\',
+                            render: function (data, type, row, meta) {
+                                return "<td style=\"text-align: center;\"><input aria-label=\'Select\' type=\'checkbox\' id=\'ids[" + row.attributes.id + "]\' value=\'" + row.attributes.id + "\' name=\'ids[" + row.attributes.id + "]\' ></td>";
+                            }
+                        },';
+                        echo "\n";
+                    } else {
+                        echo "{ data: 'attributes." .  $key . "' },\n";
+                    }
+                } ?>
+            ],
+            columnDefs: [
+                // We should implement this for IPs https://datatables.net/plug-ins/sorting/ip-address
+                <?php for ($i = 0; $i < count($meta->data_order); $i++) {
+                    $visible = 'false';
+                    if (in_array($meta->data_order[$i], $columns)) {
+                        $visible = 'true';
+                    }
+                    if ($meta->data_order[$i] !== 'audit_status' and $meta->data_order[$i] !== 'id' and $meta->data_order[$i] !== 'icon' and $meta->data_order[$i] !== 'delete' and $meta->data_order[$i] !== 'update') {
+                        echo "\n                {className: \"text-start\",  target: $i, width: \"12em\", visible: $visible, name:\"" . $meta->data_order[$i] . "\"},";
+                    } else {
+                        echo "\n                {className: \"text-center\", target: $i, width: \"12em\", visible: $visible, name:\"" . $meta->data_order[$i] . "\", sortable: false},";
+                    }
+                }
+                ?>
+            ],
+        });
+
+        /* This stops the sort when clicking in a search text box in the table header */
+        $('.dataTableSearchField').on('click', function(e) { e.stopPropagation() });
+
+        /* And don't automatically send the result - wait for the user to press <enter> / <return> */
+        $(".dataTableSearchField").on("keypress", function (evtObj) {
+            if (evtObj.keyCode == 13) {
+                myDataTable.ajax.reload();
+            }
+        });
+
+        /* Show a warning above the table if it's in the JSON response */
+        myDataTable.on('xhr', function (e, settings, json) {
+            if (json.warning) {
+                $("#notice").show();
+                $("#alert").html(json.warning + '<button id="button" type="button" class="btn-close" aria-label="Close"></button>');
+                $("#alert").show();
+            } else {
+                $("#alert").hide();
+            }
+        });
+        $(document).on('click', '#button', function() {
+            $(this).parent().hide();
+        });
+
+        /* Delete links */
+        $(document).on("click", ".delete_link", function () {
+            if (confirm("Are you sure?\nThis will permanently DELETE this entry for devices.") !== true) {
+                return;
+            }
+            redirect = baseurl + '/devices';
+            var $id = $(this).attr('data-id');
+            var $url = baseurl + '/devices/' + $id;
+            $.ajax({
+                type: 'DELETE',
+                url: $url,
+                dataType: 'json',
+                success: function(data, textStatus) { 
+                    window.location = redirect; },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.log("Status: " + textStatus);
+                    console.log("errorThrown: " + errorThrown);
+                    console.log(JSON.stringify(jqXHR));
+                    alert(jqXHR.responseJSON.errors[0].code + ": " + jqXHR.responseJSON.errors[0].detail);
+                    return false; }
+            });
+        });
+
     });
 }
 </script>

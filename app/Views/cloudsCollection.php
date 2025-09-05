@@ -38,7 +38,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
 
                             <div class="row">
@@ -51,7 +51,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
 
                             <div class="row">
@@ -64,7 +64,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
                         </div>
 
@@ -79,7 +79,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
                             <div class="row">
                                 <div class="offset-3 col-6">
@@ -91,7 +91,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
                         </div>
 
@@ -108,7 +108,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
                             <div class="row">
                                 <div class="offset-3 col-6">
@@ -120,7 +120,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                         </span>
                                     </div>
                                 </div>
-                                <span><br /></span>
+                                <span><br></span>
                             </div>
                         </div>
 
@@ -129,14 +129,14 @@ if (intval($included['devices_not_audited']) > 0 or
                     </div>
                 </div>
             </div>
-            <br />
+            <br>
 
             <div class="card">
                 <div class="card-header">
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"],[2,"asc"],[3,"asc"]]'>
                             <thead>
@@ -165,7 +165,7 @@ if (intval($included['devices_not_audited']) > 0 or
                                             continue;
                                         }
                                         if ($key === 'orgs.name' and !empty($item->attributes->{'orgs.id'})) {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'orgs.id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'orgs.id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
                                         } else {
                                             echo "<td>" . $item->attributes->{$key} . "</td>\n";
                                         }
@@ -182,4 +182,10 @@ if (intval($included['devices_not_audited']) > 0 or
                     </div>
                 </div>
             </div>
+            <?php
+            if (count($data) === 0) {
+                @include 'help/' . $meta->collection . '.php';
+                echo collection_intro_header('Introduction to ' . $meta->heading, $meta->collection, $meta->icon, @$intro, @$body);
+            }
+            ?>
         </main>

@@ -9,7 +9,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"],[2,"asc"],[3,"asc"]]'>
                             <thead>
@@ -29,7 +29,13 @@ include 'shared/collection_functions.php';
                             </thead>
                             <tbody>
                             <?php if (!empty($data)) { ?>
-                                <?php foreach ($data as $item) { ?>
+                                <?php foreach ($data as $item) {
+                                    if ($item->attributes->type === 'traffic') {
+                                        $item->attributes->primary = !empty($item->attributes->{'queries.primary_query_name'}) ? $item->attributes->{'queries.primary_query_name'} : $item->attributes->primary;
+                                        $item->attributes->secondary = !empty($item->attributes->{'queries.secondary_query_name'}) ? $item->attributes->{'queries.secondary_query_name'} : $item->attributes->secondary;
+                                        $item->attributes->ternary = !empty($item->attributes->{'queries.ternary_query_name'}) ? $item->attributes->{'queries.ternary_query_name'} : $item->attributes->ternary;
+                                    }
+                                    ?>
                                 <tr>
                                     <?= collection_button_read($meta->collection, $item->id) ?>
                                     <?= collection_button_execute($meta->collection, intval($item->id)) ?>
@@ -39,9 +45,9 @@ include 'shared/collection_functions.php';
                                             continue;
                                         }
                                         if ($key === 'orgs.name' and !empty($item->attributes->{'orgs.id'})) {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'org_id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".org_id=" . $item->attributes->{'org_id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
                                         } elseif (in_array($key, $links)) {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . "." . $key . "=" . urlencode($item->attributes->{$key}) . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . "." . $key . "=" . urlencode($item->attributes->{$key}) . "\">" . $item->attributes->{$key} . "</a></td>\n";
                                         } else {
                                             echo "<td>" . $item->attributes->{$key} . "</td>\n";
                                         }

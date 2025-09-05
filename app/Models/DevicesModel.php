@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class DevicesModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -27,23 +27,40 @@ class DevicesModel extends BaseModel
     public function collection(object $resp): array
     {
         $instance = & get_instance();
-        $properties = $resp->meta->properties;
-        $count = count($properties);
-        for ($i=0; $i < $count; $i++) {
-            if (strpos($properties[$i], 'devices.') === false) {
-                $properties[$i] = $properties[$i] . ' AS `' . $properties[$i] . '`';
-            }
+        // First run the requested query, but only retrieve count(*) and use that for recordsFiltered for dataTables (stored in GLOBAL)
+        // Second, rebuild the query including all properties and return that result as data
+        if (!empty($instance->config->license_limit) and $instance->config->device_known > intval($instance->config->license_limit * 1.1)) {
+            log_message('warning', 'Restricting Devices to the first ' . $instance->config->license_limit . ' devices as per license. There are actually ' . $instance->config->device_known . ' licensed devices in the database.');
+            $resp->warning = 'Restricting Devices to the first ' . $instance->config->license_limit . ' devices as per license. There are actually ' . $instance->config->device_known . ' licensed devices in the database.';
+
+            $subquery = $this->db->table('devices');
+            $subquery->orderBy('devices.id');
+            $subquery->limit(intval($instance->config->license_limit));
+            $this->builder = $this->db->newQuery()->fromSubquery($subquery, 'devices');
         }
-        $properties[] = "orgs.name as `orgs.name`";
-        $properties[] = "orgs.id as `orgs.id`";
+
+        // Get the row count
+        $this->builder->select('count(*) AS `count`', false);
         $this->builder->join('orgs', $resp->meta->collection . '.org_id = orgs.id', 'left');
-        $properties[] = "locations.name as `locations.name`";
-        $properties[] = "locations.id as `locations.id`";
-        $properties[] = "IF(devices.type IN ('unknown', 'unclassified'), 2, 1) AS mycount";
-        $this->builder->select($properties, false);
         $this->builder->join('locations', $resp->meta->collection . '.location_id = locations.id', 'left');
         $joined_tables = array();
         foreach ($resp->meta->filter as $filter) {
+            if ($filter->name === 'search') {
+                $this->builder->where('(devices.name LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.ip LIKE ' . $this->db->escape(ip_address_to_db($filter->value)) .
+                    ' OR devices.hostname LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.domain LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.dns_hostname LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.dns_domain LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.sysName LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.type LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.model LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.manufacturer LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.os_family LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.os_name LIKE ' . $this->db->escape($filter->value) .
+                    ')');
+                continue;
+            }
             if (in_array($filter->operator, ['!=', '>=', '<=', '=', '>', '<', 'like', 'not like'])) {
                 if ($filter->name === 'devices.tags' and $filter->operator === '=') {
                     $filter->function = 'like';
@@ -59,71 +76,178 @@ class DevicesModel extends BaseModel
                 $joined_tables[] = $joined_table[0];
             }
         }
-        // log_message('debug', json_encode($joined_tables));
         $joined_tables = array_unique($joined_tables);
         if (!empty($joined_tables)) {
             foreach ($joined_tables as $joined_table) {
                 $this->builder->join($joined_table, "devices.id = $joined_table.device_id", 'left');
             }
         }
-        $this->builder->orderBy('mycount');
-        $this->builder->orderBy($resp->meta->sort);
-        $this->builder->limit($resp->meta->limit, $resp->meta->offset);
+        // log_message('debug', str_replace("\n", " ", (string)$this->builder->getCompiledSelect(false)));
         $query = $this->builder->get();
-        # log_message('info', (string)str_replace("\n", " ", (string)$this->db->getLastQuery()));
+        $result = $query->getResult();
+        $GLOBALS['recordsFiltered'] = 0;
+        if (isset($result[0]->count)) {
+            $GLOBALS['recordsFiltered'] = intval($result[0]->count);
+        }
+
+        // Second - rebuild the query (including requested properties) and return the result as data
+        // Get the actual row data
+        $this->builder = $this->db->table('devices');
+        if (!empty($instance->config->license_limit) and $instance->config->device_known > intval($instance->config->license_limit * 1.1)) {
+            log_message('warning', 'Restricting Devices to the first ' . $instance->config->license_limit . ' devices as per license. There are actually ' . $instance->config->device_known . ' licensed devices in the database.');
+            $resp->warning = 'Restricting Devices to the first ' . $instance->config->license_limit . ' devices as per license. There are actually ' . $instance->config->device_known . ' licensed devices in the database.';
+
+            $subquery = $this->db->table('devices');
+            $subquery->orderBy('devices.id');
+            $subquery->limit(intval($instance->config->license_limit));
+            $this->builder = $this->db->newQuery()->fromSubquery($subquery, 'devices');
+        }
+        $properties = $resp->meta->properties;
+        $count = count($properties);
+        for ($i = 0; $i < $count; $i++) {
+            if (strpos($properties[$i], 'devices.') === false) {
+                $properties[$i] = $properties[$i] . ' AS `' . $properties[$i] . '`';
+            }
+        }
+        // Add these two properties so we can determine audit_status
+        $properties[] = "devices.type as `devices.type`";
+        $properties[] = "devices.last_seen_by as `devices.last_seen_by`";
+
+        $properties[] = "devices.id as `devices.id`";
+        if (!in_array('orgs.name', $properties)) {
+            $properties[] = "orgs.name as `orgs.name`";
+            $resp->meta->properties[] = 'orgs.name';
+        }
+        if (!in_array('orgs.id', $properties)) {
+            $properties[] = "orgs.id as `orgs.id`";
+            $resp->meta->properties[] = 'orgs.id';
+        }
+
+        if (!in_array('locations.name', $properties)) {
+            $properties[] = "locations.name as `locations.name`";
+            $resp->meta->properties[] = 'locations.name';
+        }
+        if (!in_array('locations.id', $properties)) {
+            $properties[] = "locations.id as `locations.id`";
+            $resp->meta->properties[] = 'locations.id';
+        }
+        $this->builder->select($properties, false);
+        $this->builder->join('orgs', $resp->meta->collection . '.org_id = orgs.id', 'left');
+        $this->builder->join('locations', $resp->meta->collection . '.location_id = locations.id', 'left');
+        $joined_tables = array();
+        foreach ($resp->meta->filter as $filter) {
+            if ($filter->name === 'search') {
+                $this->builder->where('(devices.name LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.ip LIKE ' . $this->db->escape(ip_address_to_db($filter->value)) .
+                    ' OR devices.hostname LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.domain LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.dns_hostname LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.dns_domain LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.sysName LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.type LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.model LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.manufacturer LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.os_family LIKE ' . $this->db->escape($filter->value) .
+                    ' OR devices.os_name LIKE ' . $this->db->escape($filter->value) .
+                    ')');
+                continue;
+            }
+            if (in_array($filter->operator, ['!=', '>=', '<=', '=', '>', '<', 'like', 'not like'])) {
+                if ($filter->name === 'devices.tags' and $filter->operator === '=') {
+                    $filter->function = 'like';
+                    $filter->operator = '';
+                    $filter->value = '"' . $filter->value . '"';
+                }
+                $this->builder->{$filter->function}($filter->name . ' ' . $filter->operator, $filter->value);
+            } else {
+                $this->builder->{$filter->function}($filter->name, $filter->value);
+            }
+            $joined_table = explode('.', $filter->name);
+            if (count($joined_table) === 2 and $joined_table[0] !== 'devices' and $joined_table[0] !== 'system' and $joined_table[0] !== 'orgs' and $joined_table[0] !== 'locations') {
+                $joined_tables[] = $joined_table[0];
+            }
+        }
+        $joined_tables = array_unique($joined_tables);
+        if (!empty($joined_tables)) {
+            foreach ($joined_tables as $joined_table) {
+                $this->builder->join($joined_table, "devices.id = $joined_table.device_id", 'left');
+            }
+        }
+        // Note that the below code uses lots of 'else' statements.
+        // This is because if we don't use else statements and set a default orderBy
+        // then change it based on the 'if', the orderBy's are chained, not replaced
+        if (!empty($instance->resp->meta->sort)) {
+            if (strpos($instance->resp->meta->sort, 'devices.ip') !== false) {
+                if (strpos($instance->resp->meta->sort, ' DESC') === false) {
+                    $this->builder->orderBy('INET_ATON(devices.ip) DESC');
+                } else {
+                    $this->builder->orderBy('INET_ATON(devices.ip)');
+                }
+            } else {
+                $this->builder->orderBy($resp->meta->sort);
+            }
+        } else {
+            $this->builder->orderBy('devices.id');
+        }
+        $this->builder->limit($resp->meta->limit, $resp->meta->offset);
+        log_message('debug', str_replace("\n", " ", (string)$this->builder->getCompiledSelect(false)));
+        $query = $this->builder->get();
         if ($this->sqlError($this->db->error())) {
             return array();
         }
         $result = $query->getResult();
+        $result = formatQuery($result);
         $count = count($result);
 
-        if (isset($result[0]->type) and isset($result[0]->last_seen_by) and $instance->config->product !== 'community') {
-            for ($i=0; $i < $count; $i++) {
+        if (isset($result[0]->{'devices.type'}) and isset($result[0]->{'devices.last_seen_by'})) {
+            for ($i = 0; $i < $count; $i++) {
+                $result[$i]->audit_status = '';
+                $result[$i]->audit_class = '';
+                $result[$i]->audit_text = '';
                 # BAD
-                if ($result[$i]->last_seen_by === 'nmap' and ($result[$i]->type === 'unclassified' or $result[$i]->type === 'unknown')) {
+                if ($result[$i]->{'devices.last_seen_by'} === 'nmap' and ($result[$i]->{'devices.type'} === 'unclassified' or $result[$i]->{'devices.type'} === 'unknown')) {
                     $result[$i]->audit_class = 'fa fa-times text-danger';
                     $result[$i]->audit_text = 'Nmap discovered, data retrieval will be very limited.';
                 # NOT GOOD
-                } elseif ($result[$i]->last_seen_by === 'nmap' and $result[$i]->type !== 'unclassified' and $result[$i]->type !== 'unknown') {
+                } elseif ($result[$i]->{'devices.last_seen_by'} === 'nmap' and $result[$i]->{'devices.type'} !== 'unclassified' and $result[$i]->{'devices.type'} !== 'unknown') {
                     $result[$i]->audit_class = 'fa fa-exclamation-triangle text-warning';
                     $result[$i]->audit_text = 'Last discovery only Nmap worked. This may be an issue, or it may be a device of a type we cannot audit.';
-                } elseif ($result[$i]->last_seen_by === 'cloud') {
-                    #$result[$i]->audit_class = 'fa fa-times text-info';
+                } elseif ($result[$i]->{'devices.last_seen_by'} === 'cloud') {
                     $result[$i]->audit_class = 'fa fa-exclamation-triangle text-warning';
                     $result[$i]->audit_text = 'Cloud import, data retrieval will be very limited.';
-                } elseif ($result[$i]->last_seen_by === 'integrations') {
-                    #$result[$i]->audit_class = 'fa fa-times text-info';
+                } elseif ($result[$i]->{'devices.last_seen_by'} === 'integrations') {
                     $result[$i]->audit_class = 'fa fa-exclamation-triangle text-warning';
                     $result[$i]->audit_text = 'Integration import, data retrieval will be very limited.';
-                } elseif ($result[$i]->type === 'computer' and ($result[$i]->last_seen_by === 'ssh' or $result[$i]->last_seen_by === 'windows' or $result[$i]->last_seen_by === 'wmi' or $result[$i]->last_seen_by === 'snmp')) {
+                } elseif ($result[$i]->{'devices.type'} === 'computer' and ($result[$i]->{'devices.last_seen_by'} === 'ssh' or $result[$i]->{'devices.last_seen_by'} === 'windows' or $result[$i]->{'devices.last_seen_by'} === 'wmi' or $result[$i]->{'devices.last_seen_by'} === 'snmp')) {
                     $result[$i]->audit_class = 'fa fa-exclamation-triangle text-warning';
                     $result[$i]->audit_text = 'Partially discovered computer. Data retrieval limited.';
-                } elseif ($result[$i]->last_seen_by === 'web form') {
+                } elseif ($result[$i]->{'devices.last_seen_by'} === 'web form') {
                     $result[$i]->audit_class = 'fa fa-exclamation-triangle text-warning';
-                    $result[$i]->audit_text = 'Manually created ' . $result[$i]->type . '. Data retrieval limited.';
+                    $result[$i]->audit_text = 'Manually created ' . $result[$i]->{'devices.type'} . '. Data retrieval limited.';
                 # GOOD
-                } elseif ($result[$i]->type === 'computer' and ($result[$i]->last_seen_by === 'audit_wmi' or $result[$i]->last_seen_by === 'audit_ssh')) {
+                } elseif ($result[$i]->{'devices.type'} === 'computer' and ($result[$i]->{'devices.last_seen_by'} === 'audit_wmi' or $result[$i]->{'devices.last_seen_by'} === 'audit_ssh')) {
                     $result[$i]->audit_class = 'fa fa-check text-success';
                     $result[$i]->audit_text = 'Discovered and audited computer.';
-                } elseif ($result[$i]->type === 'computer' and $result[$i]->last_seen_by === 'audit') {
+                } elseif ($result[$i]->{'devices.type'} === 'computer' and $result[$i]->{'devices.last_seen_by'} === 'audit') {
                     $result[$i]->audit_class = 'fa fa-check text-success';
                     $result[$i]->audit_text = 'Audited computer.';
-                } elseif ($result[$i]->type === 'san' and $result[$i]->last_seen_by === 'audit') {
+                } elseif ($result[$i]->{'devices.type'} === 'san' and $result[$i]->{'devices.last_seen_by'} === 'audit') {
                     $result[$i]->audit_class = 'fa fa-check text-success';
                     $result[$i]->audit_text = 'Audited SAN.';
-                } elseif ($result[$i]->type !== 'computer' and !empty($result[$i]->snmp_oid)) {
+                } elseif ($result[$i]->{'devices.type'} !== 'computer' and !empty($result[$i]->snmp_oid)) {
                     $result[$i]->audit_class = 'fa fa-check text-success';
-                    $result[$i]->audit_text = 'Discovered and audited ' . $result[$i]->type . '.';
+                    $result[$i]->audit_text = 'Discovered and audited ' . $result[$i]->{'devices.type'} . '.';
                 # BAD - FALLBACK
                 } else {
                     $result[$i]->audit_class = 'fa fa-question text-danger';
                     $result[$i]->audit_text = 'Limited information available.';
                 }
+                $result[$i]->audit_status = '<span class="' . $result[$i]->audit_class . '" title="' . $result[$i]->audit_text . '"></span>';
             }
         }
 
         if (isset($result[0]->tags)) {
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (!empty($result[$i]->tags)) {
                     try {
                         $result[$i]->tags = json_decode($result[$i]->tags, false, 512, JSON_THROW_ON_ERROR);
@@ -139,6 +263,40 @@ class DevicesModel extends BaseModel
         }
 
         return format_data($result, $resp->meta->collection);
+    }
+
+    /**
+     * Derive a name for this device from the hostname, sysName, dns hostname or IP
+     *
+     * @param  object   $device The device attributes
+     *
+     * @return string   The derived name or an empty string
+     */
+    public function deriveName(object $device = null): string
+    {
+        if (empty($device)) {
+            return '';
+        }
+        if (empty($device->hostname) and empty($device->sysName) and empty($device->dns_hostname) and empty($device->ip)) {
+            return '';
+        }
+        $name = '';
+        if (!empty($device->hostname)) {
+            $name = $device->hostname;
+        } elseif (!empty($device->sysName)) {
+            $name = $device->sysName;
+        } elseif (!empty($device->dns_hostname)) {
+            $name = $device->dns_hostname;
+        } elseif (!empty($data->ip)) {
+            $name = ip_address_from_db($device->ip);
+        }
+        $name = strtolower($name);
+        if (strpos($name, '.') !== false and filter_var($name, FILTER_VALIDATE_IP) === false) {
+            // We have a name, not an IP, that contains a 'dot'. Split it and use the first item as the name.
+            $temp = explode('.', $name);
+            $name = $temp[0];
+        }
+        return $name;
     }
 
     /**
@@ -163,35 +321,18 @@ class DevicesModel extends BaseModel
         $data = audit_format_system($parameters);
         // Ensure we have a name
         if (empty($data->name)) {
-            if (!empty($data->hostname)) {
-                $data->name = strtolower($data->hostname);
-                if (strpos($data->hostname, '.') !== false) {
-                    $temp = explode('.', $data->hostname);
-                    $data->name = $temp[0];
-                }
-            } elseif (!empty($data->sysName)) {
-                $data->name = strtolower($data->sysName);
-                if (strpos($data->sysName, '.') !== false) {
-                    $temp = explode('.', $data->sysName);
-                    $data->name = $temp[0];
-                }
-            } elseif (!empty($data->dns_hostname)) {
-                $data->name = strtolower($data->dns_hostname);
-                if (strpos($data->dns_hostname, '.') !== false) {
-                    $temp = explode('.', $data->dns_hostname);
-                    $data->name = $temp[0];
-                }
-            } elseif (!empty($data->ip)) {
-                $data->name = ip_address_from_db($data->ip);
-            } else {
-                $data->name = '';
+            $data->name = '';
+            $name = $this->deriveName($data);
+            if (!empty($name)) {
+                $data->name = $name;
             }
+            unset($name);
         }
-        if (strpos($data->name, '.') !== false and filter_var($data->name, FILTER_VALIDATE_IP) === false) {
-            // We have a name, not an IP, that contains a 'dot'. Split it and use the first item as the name.
-            $temp = explode('.', $data->name);
-            $data->name = $temp[0];
-            unset($temp);
+        if (empty($data->name) and !empty($data->ip)) {
+            $data->name = ip_address_from_db($data->ip);
+        }
+        if (empty($data->name)) {
+            $data->name = 'name unknown';
         }
         if (empty($data->org_id)) {
             $data->org_id = 1;
@@ -320,6 +461,9 @@ class DevicesModel extends BaseModel
         } else {
             $identification = 'No information could be retrieved.';
             $sql = "UPDATE `devices` SET `identification` = ? WHERE `id` = ?";
+            if (empty($device->type)) {
+                $sql = "UPDATE `devices` SET `identification` = ?, `type` = 'unknown' WHERE `id` = ?";
+            }
         }
         $query = $this->db->query($sql, [$identification, $id]);
         return true;
@@ -364,12 +508,16 @@ class DevicesModel extends BaseModel
 
         $included = array();
         // No excecutable, file, radio, san, scsi, usb
-        $current = array('audit_log', 'bios', 'change_log', 'disk', 'dns', 'edit_log', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'route', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'user', 'user_group', 'variable', 'video', 'vm', 'windows');
+        $current = array('antivirus', 'arp', 'audit_log', 'bios', 'change_log', 'cli_config', 'disk', 'dns', 'edit_log', 'file', 'firewall', 'firewall_rule', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'route', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'user', 'user_group', 'variable', 'video', 'vm', 'windows');
+
         if (!empty($instance->config->feature_executables) and $instance->config->feature_executables === 'y') {
-            $current = array('audit_log', 'bios', 'change_log', 'disk', 'dns', 'edit_log', 'executable', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'route', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'user', 'user_group', 'variable', 'video', 'vm', 'windows');
+            $current = array('antivirus', 'arp', 'audit_log', 'bios', 'change_log', 'cli_config', 'disk', 'dns', 'edit_log', 'file', 'firewall', 'firewall_rule', 'executable', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'route', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'user', 'user_group', 'variable', 'video', 'vm', 'windows');
         }
 
         foreach ($current as $table) {
+            if (!$this->db->tableExists($table)) {
+                continue;
+            }
             $sql = "SELECT count(*) AS `count` FROM `$table` LEFT JOIN `devices` ON $table.device_id = devices.id WHERE devices.org_id IN (" . implode(',', $orgs) . ")";
             $query = $this->db->query($sql);
             $result = $query->getResult();
@@ -397,8 +545,11 @@ class DevicesModel extends BaseModel
         }
 
         $include = array();
-        $current = array('bios', 'certificate', 'disk', 'dns', 'executable', 'file', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'radio', 'route', 'san', 'scsi', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'usb', 'user', 'user_group', 'variable', 'video', 'vm', 'warranty', 'windows');
+        $current = array('access_point', 'antivirus', 'arp', 'bios', 'certificate', 'cli_config', 'disk', 'dns', 'executable', 'file', 'firewall', 'firewall_rule', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'radio', 'route', 'san', 'scsi', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'usb', 'user', 'user_group', 'variable', 'video', 'vm', 'warranty', 'windows');
         foreach ($current as $table) {
+            if (!$this->db->tableExists($table)) {
+                continue;
+            }
             if (empty($resp_include) or in_array($table, $resp_include)) {
                 $sql = "SELECT * FROM `$table` WHERE device_id = ? and current = 'y'";
                 $query = $this->db->query($sql, $id);
@@ -409,9 +560,65 @@ class DevicesModel extends BaseModel
             }
         }
 
+        if ($this->db->tableExists('arp')) {
+            // $sql = "SELECT arp.*, ip.device_id AS `ip.device_id` FROM `arp` LEFT JOIN `ip` ON (arp.mac = ip.mac AND INET_ATON(arp.ip) = INET_ATON(ip.ip)) WHERE arp.device_id = ? and arp.current = 'y'";
+            $sql = "SELECT arp.*, ip.device_id AS `ip.device_id` FROM `arp` LEFT JOIN `ip` ON (arp.mac = ip.mac) WHERE arp.device_id = ? and arp.current = 'y' GROUP BY arp.mac";
+            $query = $this->db->query($sql, $id);
+            $result = $query->getResult();
+            if (!empty($result)) {
+                $include['arp'] = $result;
+            }
+        }
+
+        if (!empty($include['cli_config'])) {
+            $sql = "SELECT d.* FROM cli_config d WHERE d.last_seen IN (SELECT max(d2.last_seen) FROM cli_config d2 WHERE d2.name = d.name AND d2.current = 'n' and d2.device_id = ?)";
+            $query = $this->db->query($sql, $id);
+            $result = $query->getResult();
+            if (!empty($result)) {
+                $include['cli_config_non_current'] = $result;
+            }
+
+            if (!empty($include['cli_config_non_current'])) {
+                helper('diff');
+                $output = '';
+                foreach ($include['cli_config'] as $cli_config) {
+                    $cli_config->config = (!empty(json_decode($cli_config->config))) ? json_encode(json_decode($cli_config->config), JSON_PRETTY_PRINT) : $cli_config->config;
+                    $date = $date = '<div class="card-header col-12 clearfix"><h6>' . $cli_config->name . '&nbsp;&nbsp;on&nbsp;&nbsp;' . $cli_config->last_seen . '</h6></div>';
+                    foreach ($include['cli_config_non_current'] as $cli_config_non_current) {
+                        if ($cli_config->name === $cli_config_non_current->name) {
+                            $date = '<div class="card-header col-6 clearfix"><h6>' . $cli_config->name . '&nbsp;&nbsp;on&nbsp;&nbsp;' . $cli_config->last_seen . '</h6></div><div class="card-header col-6 clearfix"><h6>' . $cli_config->name . '&nbsp;&nbsp;on&nbsp;&nbsp;' .  $cli_config_non_current->last_seen . '</h6></div>';
+                        }
+                    }
+                    $output .= '<div class="card col-10 offset-1" style="margin-bottom:20px;">
+                                        <div class="row">
+                                            ' . $date . '
+                                        </div>
+                                    <div class="card-body">
+                                        <div class="row text-center" style="overflow-y:scroll; height:12em;">';
+                    $hit = false;
+                    foreach ($include['cli_config_non_current'] as $cli_config_non_current) {
+                        if ($cli_config->name === $cli_config_non_current->name) {
+                            $diffClass = new \App\Helpers\Diff();
+                            $cli_config_non_current->config = (!empty(json_decode($cli_config_non_current->config))) ? json_encode(json_decode($cli_config_non_current->config), JSON_PRETTY_PRINT) : $cli_config_non_current->config;
+                            $table_output = $diffClass->toTable($diffClass->compare($cli_config->config, $cli_config_non_current->config));
+                            $temp = str_replace('<table class="diff">', '<table class="diff font-monospace text-start" style="width:100%; font-size:.8em;">', $table_output);
+                            $temp = str_replace('<td ', '<td style="padding:4px; spacing:4px;  white-space:pre-wrap;" width="50%" ', $temp);
+                            $output .= $temp;
+                            $hit = true;
+                        }
+                    }
+                    if (!$hit) {
+                        $output .= '<div class="text-start col-6 font-monospace" style="font-size:.8em; white-space:pre-wrap;">' . $cli_config->config . '</div>';
+                    }
+                    $output .= '</div></div></div>';
+                }
+                $include['cli_config_diff'] = $output;
+            }
+        }
+
         if (!empty($include['ip'])) {
             $count = count($include['ip']);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $include['ip'][$i]->ip_padded = $include['ip'][$i]->ip;
                 $include['ip'][$i]->ip = ip_address_from_db($include['ip'][$i]->ip);
             }
@@ -425,7 +632,7 @@ class DevicesModel extends BaseModel
         }
 
 
-        $no_current = array('attachment', 'audit_log', 'change_log', 'credential', 'edit_log', 'image', 'rack_devices');
+        $no_current = array('attachment', 'audit_log', 'change_log', 'credential', 'edit_log', 'image');
         foreach ($no_current as $table) {
             if (empty($resp_include) or in_array($table, $resp_include)) {
                 $sql = "SELECT `$table`.*, devices.name AS `devices.name` FROM `$table` LEFT JOIN devices ON (`$table`.device_id = devices.id) WHERE device_id = ?";
@@ -436,6 +643,22 @@ class DevicesModel extends BaseModel
                 }
             }
         }
+
+        $sql = "SELECT `rack_devices`.*, devices.name AS `devices.name`, racks.name AS `racks.name`, locations.name AS `locations.name`, locations.id AS `locations.id` FROM `rack_devices` LEFT JOIN devices ON (rack_devices.device_id = devices.id) LEFT JOIN `racks` ON (rack_devices.rack_id = racks.id) LEFT JOIN `locations` ON (racks.location_id = locations.id) WHERE device_id = ?";
+        $query = $this->db->query($sql, $id);
+        $result = $query->getResult();
+        if (!empty($result)) {
+            $include['rack_devices'] = $result;
+        } else {
+            $blank_rack = new stdClass();
+            $blank_rack->{'rack_id'} = 0;
+            $blank_rack->{'position'} = 0;
+            $blank_rack->{'racks.name'} = 'Not in a rack';
+            $blank_rack->{'locations.name'} = '';
+            $blank_rack->{'locations.id'} = 0;
+            $include['rack_devices'][] = $blank_rack;
+        }
+
 
 
         $sql = "SELECT `application`.*, applications.name AS `applications.name`, applications.description AS `applications.description` FROM `application` LEFT JOIN applications ON (`application`.application_id = applications.id) WHERE application.device_id = ?";
@@ -758,7 +981,7 @@ class DevicesModel extends BaseModel
             return array();
         }
         $include['os'] = format_data($query->getResult(), 'devices');
-        for ($i=0; $i < count($include['os']); $i++) {
+        for ($i = 0; $i < count($include['os']); $i++) {
             if (file_exists(ROOTPATH . 'public/device_images/' . strtolower(str_replace(' ', '_', $include['os'][$i]->attributes->os_family)) . '.svg')) {
                 $include['os'][$i]->attributes->icon = strtolower(str_replace(' ', '_', $include['os'][$i]->attributes->os_family));
             }
@@ -769,7 +992,8 @@ class DevicesModel extends BaseModel
     /**
      * Update an individual item in the database
      *
-     * @param  object  $data The data attributes
+     * @param int    $id   The device id
+     * @param object $data The data attributes
      *
      * @return bool    true || false depending on success
      */
@@ -808,26 +1032,23 @@ class DevicesModel extends BaseModel
             $log->device_id = $data->id;
             $id = intval($data->id);
         }
+        $log->ip = '';
         if (!empty($data->ip)) {
-            $data->ip = @ip_address_to_db($data->ip);
-            $log->ip = @ip_address_from_db($data->ip);
-        } else {
-            $log->ip = '';
+            $data->ip = ip_address_to_db($data->ip);
+            $log->ip = ip_address_from_db($data->ip);
         }
+        $log->discovery_id = '';
         if (!empty($data->discovery_id)) {
             $log->discovery_id = $data->discovery_id;
             $GLOBALS['discovery_id'] = $data->discovery_id;
         } elseif (!empty($GLOBALS['discovery_id'])) {
             $log->discovery_id = $GLOBALS['discovery_id'];
-        } else {
-            $log->discovery_id = '';
         }
 
         $log->message = "System update start for ID: $id";
+        $source = 'user';
         if (!empty($data->last_seen_by)) {
             $source = $data->last_seen_by;
-        } else {
-            $source = 'user';
         }
 
         if (empty($data->discovery_id)) {
@@ -859,42 +1080,63 @@ class DevicesModel extends BaseModel
                 $data->{$column} =  strtolower($data->{$column});
             }
         }
-        // Get the lastest edit_log data
+        // Get the latest edit_log data
         $sql = "SELECT weight, db_column, MAX(timestamp) as `timestamp`, value, previous_value, source FROM edit_log WHERE device_id = ? AND `db_table` = 'devices' GROUP BY db_column, weight, value, previous_value, source ORDER BY id";
         $query = $this->db->query($sql, [$id]);
         $edit_log = $query->getResult();
+
+        // if (in_array($source, ['audit', 'audit_ssh', 'audit_wmi', 'audit_windows', 'windows', 'wmi', 'cloud', 'nmis', 'snmp', 'ssh', 'integrations'])) {
+        //     $name = $this->deriveName($data);
+        //     if (!empty($name)) {
+        //         $data->name = $name;
+        //     }
+        // }
+
+        if ($source !== 'user' and $source !== 'rules') {
+            $data->name = $this->deriveName($data);
+        }
+
         // Get the database column names
         $fields = $this->db->getFieldNames('devices');
         // We do not compare these with the edit_log data
         $disallowed_fields = array('id', 'icon', 'sysUpTime', 'uptime', 'last_seen', 'last_seen_by', 'first_seen', 'instance_options', 'credentials');
         $update_device = new \stdClass();
         foreach ($data as $key => $value) {
-            if (($key !== '' && $value !== '') or ($key !== '' and $source === 'user')) {
-                // need to iterate through available columns and only insert where $key == valid column name
-                if (!in_array($key, $disallowed_fields) && in_array($key, $fields)) {
-                    $previous_value = (!empty($db_entry->{$key})) ? $db_entry->{$key} : '';
-                    // get the current weight from the edit_log
-                    $previous_weight = 10000;
-                    $count = count($edit_log);
-                    for ($i=0; $i < $count; $i++) {
-                        if ($edit_log[$i]->db_column === $key) {
-                            $previous_weight = intval($edit_log[$i]->weight);
+            if (!empty($key)) {
+                if ((isset($value) and $value !== '') or $source === 'user') {
+                    // need to iterate through available columns and only insert where $key == valid column name
+                    if (!in_array($key, $disallowed_fields) && in_array($key, $fields)) {
+                        $previous_value = (!empty($db_entry->{$key})) ? $db_entry->{$key} : '';
+                        // get the current weight from the edit_log
+                        $previous_weight = 10000;
+                        $count = count($edit_log);
+                        for ($i = 0; $i < $count; $i++) {
+                            if ($edit_log[$i]->db_column === $key) {
+                                $previous_weight = intval($edit_log[$i]->weight);
+                            }
                         }
-                    }
-                    // calculate the weight
-                    $weight = intval(weight($source));
-                    if (!is_string($value)) {
-                        $value = json_encode($value);
-                    }
-                    if ($weight <= $previous_weight && (string)$value !== (string)$previous_value) {
-                        $update_device->$key = $value;
-                        $sql = "INSERT INTO edit_log VALUES (NULL, ?, ?, 'Data was changed', ?, ?, 'devices', ?, ?, ?, ?)";
-                        $query = $this->db->query($sql, [$user_id, $id, $source, $weight, $key, $data->timestamp, $value, $previous_value]);
-                    } else {
-                        // We have an existing edit_log entry with a more important change - don't touch the `devices`.`$key` value
+                        // calculate the weight
+                        $weight = intval(weight($source));
+                        if (!is_string($value)) {
+                            $value = json_encode($value);
+                        }
+                        if ($weight <= $previous_weight && (string)$value !== (string)$previous_value) {
+                            $update_device->$key = $value;
+                            $sql = "INSERT INTO edit_log VALUES (NULL, ?, ?, 'Data was changed', ?, ?, 'devices', ?, ?, ?, ?)";
+                            $query = $this->db->query($sql, [$user_id, $id, $source, $weight, $key, $data->timestamp, $value, $previous_value]);
+                        } else {
+                            // We have an existing edit_log entry with a more important change - don't touch the `devices`.`$key` value
+                        }
                     }
                 }
             }
+        }
+        $statuses = array('deleted', 'lost', 'retired');
+        if (in_array($source, ['nmap', 'ssh', 'snmp', 'cloud', 'wmi', 'windows', 'audit_wmi', 'audit_windows', 'audit']) and in_array($db_entry->status, $statuses)) {
+            // We discovered a device, set its status to production
+            $update_device->status = 'production';
+            $sql = "INSERT INTO edit_log VALUES (NULL, ?, ?, 'Data was changed', ?, ?, 'devices', ?, ?, ?, ?)";
+            $query = $this->db->query($sql, [$user_id, $id, $source, 2000, 'status', $data->timestamp, 'production', $db_entry->status]);
         }
         // Add our non-edit_log compared attributes to the data to be updated
         foreach ($data as $key => $value) {
@@ -904,7 +1146,9 @@ class DevicesModel extends BaseModel
         }
         $update = $this->updateFieldData('devices', $update_device);
         $this->builder->where('id', intval($id));
-        $this->builder->update($update);
+        if (count((array)$update_device) > 0) {
+            $this->builder->update($update_device);
+        }
         if ($this->sqlError($this->db->error())) {
             return false;
         }
@@ -930,23 +1174,27 @@ class DevicesModel extends BaseModel
         }
 
         // Check if we have a matching entry in the vm table and update it if required
-        $sql = "SELECT vm.id AS `vm.id`, vm.device_id AS `vm.device_id`, devices.hostname AS `devices.hostname` FROM vm, devices WHERE (LOWER(vm.uuid) = LOWER(?) OR LOWER(vm.uuid) = LOWER(?)) AND vm.uuid != '' AND vm.current = 'y' AND vm.device_id = devices.id;";
-        $query = $this->db->query($sql, [@$data->uuid, @$data->vm_uuid]);
-        if ($query->getNumRows() > 0) {
-            $row = $query->getRow();
-            $temp_vm_id = $row->{'vm.id'};
-            $data->vm_device_id = $row->{'vm.device_id'};
-            $data->vm_server_name = $row->{'devices.hostname'};
-            $sql = "SELECT icon, 'vm' FROM devices WHERE id = ?";
-            $query = $this->db->query($sql, [$id]);
-            $row = $query->getRow();
-            $data->icon = $row->icon;
-            $myName = (!empty($data->name)) ? $data->name : '';
-            $myName = (empty($myName) and !empty($data->hostname)) ? $data->hostname : '';
-            $sql = 'UPDATE vm SET guest_device_id = ?, icon = ?, name = ? WHERE id = ?';
-            $query = $this->db->query($sql, [$id, $data->icon, $myName, intval($temp_vm_id)]);
-            $sql = 'UPDATE devices SET vm_device_id = ?, vm_server_name = ? WHERE id = ?';
-            $query = $this->db->query($sql, [$data->vm_device_id, $data->vm_server_name, $data->id]);
+        if (!empty($data->uuid) and !empty($data->vm_uuid)) {
+            $sql = "SELECT vm.id AS `vm.id`, vm.device_id AS `vm.device_id`, devices.hostname AS `devices.hostname` FROM vm, devices WHERE (LOWER(vm.uuid) = LOWER(?) OR LOWER(vm.uuid) = LOWER(?)) AND vm.uuid != '' AND vm.current = 'y' AND vm.device_id = devices.id;";
+            $query = $this->db->query($sql, [$data->uuid, $data->vm_uuid]);
+            if ($query->getNumRows() > 0) {
+                $row = $query->getRow();
+                $temp_vm_id = $row->{'vm.id'};
+                $data->vm_device_id = $row->{'vm.device_id'};
+                $data->vm_server_name = $row->{'devices.hostname'};
+                $sql = "SELECT icon, 'vm' FROM devices WHERE id = ?";
+                $query = $this->db->query($sql, [$id]);
+                $row = $query->getRow();
+                $data->icon = $row->icon;
+                $myName = (!empty($data->name)) ? $data->name : '';
+                if (empty($myName) and !empty($data->hostname)) {
+                    $myName = $data->hostname;
+                }
+                $sql = 'UPDATE vm SET guest_device_id = ?, icon = ?, name = ? WHERE id = ?';
+                $query = $this->db->query($sql, [$id, $data->icon, $myName, intval($temp_vm_id)]);
+                $sql = 'UPDATE devices SET vm_device_id = ?, vm_server_name = ? WHERE id = ?';
+                $query = $this->db->query($sql, [$data->vm_device_id, $data->vm_server_name, $data->id]);
+            }
         }
         // Ensure we have an OrgID
         if (empty($data->org_id)) {
@@ -962,7 +1210,7 @@ class DevicesModel extends BaseModel
         }
 
         // Check and update any custom fields, if the supplied data key name == the fields.name
-        $fieldsModel = new \App\Models\FieldsModel;
+        $fieldsModel = new \App\Models\FieldsModel();
         // TODO - can we restrict this to only those fields from discoveries.org_id and lower by populating listUser([], $orgs) ?
         //      - The incoming data may be from a user (web interface) a discovery or an audit.
         $fields = $fieldsModel->listAll();
@@ -975,11 +1223,11 @@ class DevicesModel extends BaseModel
                     $updated = false;
                     if (!empty($deviceFields)) {
                         foreach ($deviceFields as $deviceField) {
-                            if (intval($field->id) === intval($deviceField->fields_id)) {
+                            if (intval($field->id) === intval($deviceField->field_id)) {
                                 $previous_value = (!empty($deviceField->value)) ? $deviceField->value : '';
-                                $update = true;
+                                $updated = true;
                                 $sql = "UPDATE field SET value = ?, `timestamp` = NOW() WHERE id = ?";
-                                $this->db->query($sql, [$deviceField->id, $value]);
+                                $this->db->query($sql, [$value, $deviceField->id]);
                                 $sql = "INSERT INTO edit_log VALUES (null, ?, ?, 'Field data was updated', ?, ?, 'field', ?, NOW(), ?, ?)";
                                 $this->db->query($sql, [$user_id, $id, $source, 1000, $field->name, $value, $previous_value]);
                             }
@@ -1019,6 +1267,7 @@ class DevicesModel extends BaseModel
         $dictionary->columns = new stdClass();
 
         $dictionary->attributes = new stdClass();
+        $dictionary->attributes->collection = explode(',', $instance->config->devices_default_display_columns);
         $dictionary->attributes->fields = $this->db->getFieldNames($collection); # All field names for this table
         $dictionary->attributes->create = array('name','org_id'); # We MUST have each of these present and assigned a value
         $dictionary->attributes->update = $this->updateFields($collection); # We MAY update any of these listed fields
@@ -1036,6 +1285,7 @@ class DevicesModel extends BaseModel
         $dictionary->columns->description = @$instance->dictionary->description;
         $dictionary->columns->org_id = @$instance->dictionary->org_id;
         $dictionary->columns->uuid = 'Retrieved from the device - Windows:Win32_ComputerSystemProduct, Linux:dmidecode, MacOS:system_profiler, ESXi:vim-cmd hostsvc/hostsummary, HP-UX:machinfo, Solaris:smbios, AIX:uname.';
+        $dictionary->columns->status = 'Normally \'production\'.';
         $dictionary->columns->last_seen = 'The last time that Open-AudIT retrieved details of this device.';
         $dictionary->columns->last_seen_by = 'The process that was used last to retrieve details about the device';
         return $dictionary;

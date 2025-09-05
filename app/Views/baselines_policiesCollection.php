@@ -9,7 +9,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"],[2,"asc"],[3,"asc"]]'>
                             <thead>
@@ -36,9 +36,9 @@ include 'shared/collection_functions.php';
                                             continue;
                                         }
                                         if ($key === 'table') {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".table=" . $item->attributes->table . "\">" . $item->attributes->table . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".table=" . $item->attributes->table . "\">" . $item->attributes->table . "</a></td>\n";
                                         } elseif ($key === 'baselines.name') {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?" . $meta->collection . ".baseline_id=" . $item->attributes->{'baseline_id'} . "\">" . $item->attributes->{'baselines.name'} . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?" . $meta->collection . ".baseline_id=" . $item->attributes->{'baseline_id'} . "\">" . $item->attributes->{'baselines.name'} . "</a></td>\n";
                                         } else {
                                             echo "<td>" . @$item->attributes->{$key} . "</td>\n";
                                         }

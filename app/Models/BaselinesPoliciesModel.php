@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class BaselinesPoliciesModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -49,7 +49,7 @@ class BaselinesPoliciesModel extends BaseModel
         }
         $result = $query->getResult();
         for ($i = 0; $i < count($result); $i++) {
-            if ($result[$i]->table === 'software') {
+            if (!empty($result[$i]->table) and $result[$i]->table === 'software') {
                 try {
                     $tests = json_decode($result[$i]->tests, false, 512, JSON_THROW_ON_ERROR);
                 } catch (\JsonException $e) {
@@ -66,7 +66,7 @@ class BaselinesPoliciesModel extends BaseModel
                     }
                 }
             }
-            if ($result[$i]->table === 'netstat') {
+            if (!empty($result[$i]->table) and $result[$i]->table === 'netstat') {
                 try {
                     $tests = json_decode($result[$i]->tests, false, 512, JSON_THROW_ON_ERROR);
                 } catch (\JsonException $e) {
@@ -83,7 +83,7 @@ class BaselinesPoliciesModel extends BaseModel
                     }
                 }
             }
-            if ($result[$i]->table === 'user') {
+            if (!empty($result[$i]->table) and $result[$i]->table === 'user') {
                 try {
                     $tests = json_decode($result[$i]->tests, false, 512, JSON_THROW_ON_ERROR);
                 } catch (\JsonException $e) {
@@ -114,21 +114,24 @@ class BaselinesPoliciesModel extends BaseModel
     public function create($data = null): ?int
     {
         if (empty($data)) {
+            log_message('error', 'No data object supplied to BaselinesPoliciesModel::create.');
             return null;
         }
         if (empty($data->baseline_id)) {
+            log_message('error', 'No data->baseline_id supplied to BaselinesPoliciesModel::create.');
             return null;
         }
 
         $sql = "SELECT org_id FROM baselines WHERE id = ?";
         $org_id = $this->db->query($sql, [$data->baseline_id])->getResult();
         if (empty($org_id)) {
+            log_message('error', 'No org_id retrieved from data in BaselinesPoliciesModel::create.');
             return null;
         }
         $data->org_id = intval($org_id[0]->org_id);
 
-        if (empty($data->type or $data->type === 'single')) {
-            log_message('ingo', 'Creating a siongle policy based on ' . $data->table);
+        if (empty($data->type) or $data->type === 'single') {
+            log_message('info', 'Creating a single policy based on ' . $data->table);
             if (!empty($data->table) && $data->table === 'software') {
                 $data->name = $data->tests->name->value . ' ' . $data->tests->version->operator . ' ' . $data->tests->version->value;
                 $tests = array();
@@ -427,7 +430,7 @@ class BaselinesPoliciesModel extends BaseModel
                 $attributes = array('protocol', 'program', 'port');
                 foreach ($attributes as $attribute) {
                     if (isset($data->tests->{$attribute})) {
-                        for ($i=0; $i < count($existing_tests); $i++) {
+                        for ($i = 0; $i < count($existing_tests); $i++) {
                             if ($existing_tests[$i]->column === $attribute) {
                                 $existing_tests[$i]->value = $data->tests->{$attribute};
                             }
@@ -438,31 +441,31 @@ class BaselinesPoliciesModel extends BaseModel
 
             if ($existing_policy->table === 'software') {
                 if (isset($data->tests->name)) {
-                    for ($i=0; $i < count($existing_tests); $i++) {
+                    for ($i = 0; $i < count($existing_tests); $i++) {
                         if ($existing_tests[$i]->column === 'name') {
                             $existing_tests[$i]->value = $data->tests->name;
                         }
                     }
                 }
                 if (isset($data->tests->operator)) {
-                    for ($i=0; $i < count($existing_tests); $i++) {
+                    for ($i = 0; $i < count($existing_tests); $i++) {
                         if ($existing_tests[$i]->column === 'version') {
                             $existing_tests[$i]->operator = $data->tests->operator;
                         }
                     }
-                    for ($i=0; $i < count($existing_tests); $i++) {
+                    for ($i = 0; $i < count($existing_tests); $i++) {
                         if ($existing_tests[$i]->column === 'version_padded') {
                             $existing_tests[$i]->operator = $data->tests->operator;
                         }
                     }
                 }
                 if (isset($data->tests->version)) {
-                    for ($i=0; $i < count($existing_tests); $i++) {
+                    for ($i = 0; $i < count($existing_tests); $i++) {
                         if ($existing_tests[$i]->column === 'version') {
                             $existing_tests[$i]->value = $data->tests->version;
                         }
                     }
-                    for ($i=0; $i < count($existing_tests); $i++) {
+                    for ($i = 0; $i < count($existing_tests); $i++) {
                         if ($existing_tests[$i]->column === 'version_padded') {
                             $existing_tests[$i]->value = $this->versionPadded($data->tests->version);
                         }
@@ -474,7 +477,7 @@ class BaselinesPoliciesModel extends BaseModel
                 $attributes = array('name', 'status', 'type', 'password_expires', 'password_changeable', 'password_required');
                 foreach ($attributes as $attribute) {
                     if (isset($data->tests->{$attribute})) {
-                        for ($i=0; $i < count($existing_tests); $i++) {
+                        for ($i = 0; $i < count($existing_tests); $i++) {
                             if ($existing_tests[$i]->column === $attribute) {
                                 $existing_tests[$i]->value = $data->tests->{$attribute};
                             }
@@ -512,7 +515,7 @@ class BaselinesPoliciesModel extends BaseModel
                     if (strlen($p) > 10) {
                         $version_padded .= $p;
                     } else {
-                        $version_padded .= mb_substr("00000000000000000000".$p, -10);
+                        $version_padded .= mb_substr("00000000000000000000" . $p, -10);
                     }
                 }
             }

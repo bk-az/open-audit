@@ -24,7 +24,7 @@
 
 # @package Open-AudIT
 # @author Mark Unwin <mark.unwin@firstwave.com>
-# @version   GIT: Open-AudIT_5.3.0
+# @version   GIT: Open-AudIT_5.6.5
 # @copyright Copyright (c) 2022, Firstwave
 # @license http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
 
@@ -74,7 +74,7 @@ self_delete='n'
 debugging=2
 
 # Version
-version="5.3.0"
+version="5.6.5"
 
 discovery_id=""
 
@@ -540,7 +540,7 @@ for vm in $(vim-cmd vmsvc/getallvms | grep -v ^Vmid | sed 's/ \+/ /g'); do
 		vm_cpu=$(vim-cmd vmsvc/get.summary $vm_ident | grep numCpu | cut -d= -f2 | sed 's/ //g' | sed 's/,//')
 		vm_status=$(vim-cmd vmsvc/get.summary $vm_ident | grep powerState | cut -d= -f2 | sed 's/ "//' | sed 's/", //')
 		vm_config_file=$(echo "$vm" | cut -d" " -f4)
-		temp_dir=$(vim-cmd vmsvc/get.config $vm_ident | grep datastoreUrl -A5 | grep url | cut -d= -f2- | sed 's/ "//' | sed 's/", //')
+		temp_dir=$(vim-cmd vmsvc/get.config $vm_ident | grep datastoreUrl -A5 | grep url | cut -d= -f2- | sed 's/ "//' | sed 's/", //' | cut -d\" -f1)
 		vm_config_file=$(echo "$temp_dir$vm_config_file")
 		echo "		<item>" >> $xml_file
 		echo "			<vm_ident>"$(escape_xml "$vm_ident")"</vm_ident>" >> $xml_file
@@ -591,7 +591,7 @@ if [ "$debugging" -gt "0" ]; then
 	echo "Video Cards Info"
 fi
 video_description=""
-video_description=$(trim `esxcli graphics device list 2>/dev/null | grep 'Device Name' | cut -d: -f2`)
+video_description=$(trim `esxcli graphics device list 2>/dev/null | grep 'Device Name' | cut -d: -f2 | sed 's/<class>//'`)
 if [ "$video_description" != "" ]; then
 	video_manufacturer=""
 	video_manufacturer=$(trim `esxcli graphics device list 2>/dev/null | grep 'Vendor Name' | cut -d: -f2`)

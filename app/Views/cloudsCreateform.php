@@ -11,7 +11,7 @@ include 'shared/create_functions.php';
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                                 <input type="hidden" value="<?= $meta->access_token; ?>" id="data[access_token]" name="data[access_token]" />
 
                                 <?= create_text_field('data[attributes][name]', __('Name'), $dictionary->attributes->create) ?>
@@ -35,7 +35,7 @@ include 'shared/create_functions.php';
 
                                 <div id="options"></div>
 
-                                <br />
+                                <br>
                                 <div class="row">
                                     <div class="offset-2 col-8">
                                         <label for="submit" class="form-label">&nbsp;</label>
@@ -50,36 +50,36 @@ include 'shared/create_functions.php';
                         <div class="col-md-6">
                             <div class="offset-2 col-8">
                                 <?php if (! empty($dictionary->about)) {
-                                    echo "<h4 class=\"text-center\">About</h4><br />";
+                                    echo "<h4 class=\"text-center\">About</h4><br>";
                                     echo html_entity_decode($dictionary->about);
                                 } ?>
                                 <?php if (! empty($dictionary->notes)) {
-                                    echo "<h4 class=\"text-center\">Notes</h4><br />";
+                                    echo "<h4 class=\"text-center\">Notes</h4><br>";
                                     echo html_entity_decode($dictionary->notes);
                                 } ?>
                                 <?php if (!empty($dictionary->columns)) { ?>
                                     <?php $fields = array('name', 'org_id', 'type', 'ssh', 'wmi', 'snmp', 'edited_by', 'edited_date') ?>
-                                    <h4 class="text-center"><?= __('Fields') ?></h4><br />
+                                    <h4 class="text-center"><?= __('Fields') ?></h4><br>
                                     <?php foreach ($fields as $key) { ?>
-                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br /><br />
+                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br><br>
                                     <?php } ?>
-                                    <hr />
+                                    <hr>
                                     <?php $fields = array('key', 'secret_key') ?>
-                                    <h5 class="text-center"><?= __('Amazon AWS Fields') ?></h5><br />
+                                    <h5 class="text-center"><?= __('Amazon AWS Fields') ?></h5><br>
                                     <?php foreach ($fields as $key) { ?>
-                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br /><br />
+                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br><br>
                                     <?php } ?>
-                                    <hr />
+                                    <hr>
                                     <?php $fields = array('subscription_id', 'tenant_id', 'client_id', 'client_secret') ?>
-                                    <h5 class="text-center"><?= __('Microsoft Azure Fields') ?></h5><br />
+                                    <h5 class="text-center"><?= __('Microsoft Azure Fields') ?></h5><br>
                                     <?php foreach ($fields as $key) { ?>
-                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br /><br />
+                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br><br>
                                     <?php } ?>
-                                    <hr />
+                                    <hr>
                                     <?php $fields = array('json') ?>
-                                    <h5 class="text-center"><?= __('Google Compute Fields') ?></h5><br />
+                                    <h5 class="text-center"><?= __('Google Compute Fields') ?></h5><br>
                                     <?php foreach ($fields as $key) { ?>
-                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br /><br />
+                                        <code><?= $key ?>: </code><?= @$dictionary->columns->{$key} ?><br><br>
                                     <?php } ?>
                                 <?php } ?>
                             </div>
@@ -92,6 +92,7 @@ include 'shared/create_functions.php';
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#data\\[attributes\\]\\[name\\]").focus();
         var $microsoft = '<?= create_text_field('data[attributes][credentials][subscription_id]', __('Subscription ID'), $dictionary->attributes->create) ?><?= create_text_field('data[attributes][credentials][tenant_id]', __('Tennant ID'), $dictionary->attributes->create) ?><?= create_text_field('data[attributes][credentials][client_id]', __('Client ID'), $dictionary->attributes->create) ?><?= create_text_field('data[attributes][credentials][client_secret]', __('Client Secret'), $dictionary->attributes->create) ?>';
 
         var $amazon = '<?= create_text_field('data[attributes][credentials][key]', __('Key'), $dictionary->attributes->create) ?><?= create_text_field('data[attributes][credentials][secret_key]', __('Secret Key'), $dictionary->attributes->create) ?>';

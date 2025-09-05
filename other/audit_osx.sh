@@ -24,7 +24,7 @@
 
 # @package Open-AudIT
 # @author Mark Unwin <mark.unwin@firstwave.com>
-# @version   GIT: Open-AudIT_5.3.0
+# @version   GIT: Open-AudIT_5.6.5
 # @copyright Copyright (c) 2022, Firstwave
 # @license http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
 
@@ -44,7 +44,7 @@ system_id=""
 last_seen_by="audit"
 
 # Version
-version="5.3.0"
+version="5.6.5"
 
 # DO NOT REMOVE THE LINE BELOW
 # Configuration from web UI here
@@ -593,6 +593,25 @@ echo "   <partition>" >> $xml_file
 echo "$partition_each</partition>" >> $xml_file
 
 
+if [ "$debugging" -gt "0" ]; then
+    echo "Arp Info"
+fi
+echo "  <arp>" >> $xml_file
+for line in $(arp -a | grep -v incomplete | awk '{print $2 "\t" $4 "\t" $6}'); do
+    ip=$(echo "$line" | awk '{print $1}' | cut -d\( -f2 | cut -d\) -f1)
+    mac=$(echo "$line" | awk '{print $2}')
+    interface=$(echo "$line" | awk '{print $3}')
+    {
+    echo "      <item>"
+    echo "          <mac>$mac</mac>"
+    echo "          <ip>$ip</ip>"
+    echo "          <interface>$interface</interface>"
+    echo "      </item>"
+    } >> "$xml_file"
+done
+echo "  </arp>" >> "$xml_file"
+
+
 
 if [ "$debugging" -gt "0" ]; then
     echo "Software Info"
@@ -654,15 +673,17 @@ for line in $(system_profiler SPApplicationsDataType | grep "Location: " -B 8 -A
     # fi
 
     if [[ "$line" == *"Location:"* ]]; then
-        software_location=`echo "$line" | cut -d":" -f2 | sed 's/^ *//'`
-        software_name=`echo $software_name | cut -d":" -f1`
-        echo "      <item>" >> $xml_file
-        echo "          <name><![CDATA[$software_name]]></name>" >> $xml_file
-        echo "          <version><![CDATA[$software_version]]></version>" >> $xml_file
-        echo "          <location><![CDATA[$software_location]]></location>" >> $xml_file
-        echo "          <install_source>$software_install_source</install_source>" >> $xml_file
-        echo "          <publisher><![CDATA[$software_publisher]]></publisher>" >> $xml_file
-        echo "      </item>" >> $xml_file
+        if [[ "$line" != *"Daemon Containers"* ]]; then
+            software_location=`echo "$line" | cut -d":" -f2 | sed 's/^ *//'`
+            software_name=`echo $software_name | cut -d":" -f1`
+            echo "      <item>" >> $xml_file
+            echo "          <name><![CDATA[$software_name]]></name>" >> $xml_file
+            echo "          <version><![CDATA[$software_version]]></version>" >> $xml_file
+            echo "          <location><![CDATA[$software_location]]></location>" >> $xml_file
+            echo "          <install_source>$software_install_source</install_source>" >> $xml_file
+            echo "          <publisher><![CDATA[$software_publisher]]></publisher>" >> $xml_file
+            echo "      </item>" >> $xml_file
+        fi
         software_name=""
         software_version=""
         software_location=""

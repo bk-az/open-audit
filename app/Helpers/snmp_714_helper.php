@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -13,12 +14,12 @@ $get_oid_details = function ($ip, $credentials, $oid) {
     $details->sysname = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.1.5.0");
     $details->description = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.1.1.0");
     $details->contact = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.1.4.0");
-    if ($details->contact > '') {
-        $details->description = "Contact: ".$details->contact.". ".$details->description;
+    if (!empty($details->contact)) {
+        $details->description = "Contact: " . $details->contact . ". " . $details->description;
     }
     $details->location = my_snmp_get($ip, $credentials, "1.3.6.1.2.1.1.6.0");
-    if ($details->location > '') {
-        $details->description = "Location: ".$details->location.". ".$details->description;
+    if (!empty($details->location)) {
+        $details->description = "Location: " . $details->location . ". " . $details->description;
     }
     return($details);
 };

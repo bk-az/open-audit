@@ -9,7 +9,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"],[2,"asc"],[3,"asc"]]'>
                             <thead>
@@ -49,4 +49,10 @@ include 'shared/collection_functions.php';
                     </div>
                 </div>
             </div>
+            <?php
+            if (count($data) === 0) {
+                @include 'help/' . $meta->collection . '.php';
+                echo collection_intro_header('Introduction to ' . $meta->heading, $meta->collection, $meta->icon, @$intro, @$body);
+            }
+            ?>
         </main>

@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,7 +7,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class UsersModel extends BaseModel
 {
@@ -117,10 +118,10 @@ class UsersModel extends BaseModel
      */
     public function includedCreateForm(int $id = 0): array
     {
-        $rolesModel = new \App\Models\RolesModel;
+        $rolesModel = new \App\Models\RolesModel();
         $included = array();
         $included['roles'] = $rolesModel->listUser();
-        $dashboardsModel = new \App\Models\DashboardsModel;
+        $dashboardsModel = new \App\Models\DashboardsModel();
         $included['dashboards'] = $dashboardsModel->listUser();
         return $included;
     }
@@ -275,6 +276,7 @@ class UsersModel extends BaseModel
                     log_message('error', 'Could not decode JSON. File:' . basename(__FILE__) . ', Line:' . __LINE__ . ', Error: ' . $e->getMessage());
                 }
                 $user->password = null;
+                $user->id = intval($user->id);
             }
 
 
@@ -331,6 +333,9 @@ class UsersModel extends BaseModel
             }
             if (empty($user->permissions['support'])) {
                 $user->permissions['support'] = 'r';
+            }
+            if (!isset($user->permissions['news'])) {
+                $user->permissions['news'] = '';
             }
 
             $access_token = '';

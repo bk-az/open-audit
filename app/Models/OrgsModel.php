@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class OrgsModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -102,7 +102,7 @@ class OrgsModel extends BaseModel
         if ($this->db->affectedRows() !== 1) {
             return false;
         }
-        $tables = array('applications', 'attributes', 'baselines', 'buildings', 'chart', 'clouds', 'clusters', 'collectors', 'connections', 'credentials', 'dashboards', 'devices', 'discoveries', 'discovery_scan_options', 'fields', 'files', 'floors', 'graph', 'groups', 'integrations', 'ldap_servers', 'licenses', 'locations', 'maps', 'networks', 'queries', 'queue', 'rack_devices', 'racks', 'rooms', 'rows', 'rules', 'scripts', 'summaries', 'system', 'tasks', 'users', 'widgets');
+        $tables = array('applications', 'attributes', 'auth', 'baselines', 'buildings', 'chart', 'clouds', 'clusters', 'collectors', 'connections', 'credentials', 'dashboards', 'devices', 'discoveries', 'discovery_scan_options', 'fields', 'files', 'floors', 'graph', 'groups', 'integrations', 'licenses', 'locations', 'maps', 'networks', 'queries', 'queue', 'rack_devices', 'racks', 'rooms', 'rows', 'rules', 'scripts', 'summaries', 'system', 'tasks', 'users', 'widgets');
         foreach ($tables as $table) {
             $builder = $this->db->table($table);
             $builder->set('org_id', $org[0]->parent_id, false);
@@ -143,7 +143,7 @@ class OrgsModel extends BaseModel
     public function getAscendants(int $id = 0)
     {
         $orgs = $this->getAscendant($id);
-        for ($i=0; $i < count($orgs); $i++) {
+        for ($i = 0; $i < count($orgs); $i++) {
             if (intval($orgs[$i]) === $id) {
                 unset($orgs[$i]);
             }
@@ -280,7 +280,7 @@ class OrgsModel extends BaseModel
 
         foreach ($csv as $key => $value) {
             $item = new \stdClass();
-            for ($i=0; $i < count($value); $i++) {
+            for ($i = 0; $i < count($value); $i++) {
                 $item->{@$header[$i]} = @$value[$i];
             }
             // Check user is auth on org_id
@@ -392,7 +392,7 @@ class OrgsModel extends BaseModel
         if (!empty($this->tableReset('orgs'))) {
             return false;
         }
-        $tables = array('agents', 'applications', 'attributes', 'baselines', 'buildings', 'chart', 'clouds', 'clusters', 'collectors', 'connections', 'credentials', 'dashboards', 'devices', 'discoveries', 'discovery_scan_options', 'fields', 'files', 'floors', 'graph', 'groups', 'integrations', 'invoice', 'ldap_servers', 'licenses', 'locations', 'maps', 'networks', 'queries', 'queue', 'rack_devices', 'racks', 'rooms', 'rows', 'rules', 'scripts', 'summaries', 'system', 'tasks', 'users', 'widgets');
+        $tables = array('agents', 'applications', 'attributes', 'auth', 'baselines', 'buildings', 'chart', 'clouds', 'clusters', 'collectors', 'connections', 'credentials', 'dashboards', 'devices', 'discoveries', 'discovery_scan_options', 'fields', 'files', 'floors', 'graph', 'groups', 'integrations', 'invoice', 'licenses', 'locations', 'maps', 'networks', 'queries', 'queue', 'rack_devices', 'racks', 'rooms', 'rows', 'rules', 'scripts', 'summaries', 'system', 'tasks', 'users', 'widgets');
         foreach ($tables as $table) {
             $sql = "UPDATE `$table` SET org_id = 1";
             $query = $this->db->query($sql);

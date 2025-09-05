@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -14,7 +15,7 @@ namespace App\Controllers;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -30,11 +31,12 @@ namespace App\Controllers;
  */
 class Baselines extends BaseController
 {
+    public $baselinesModel;
+
     /**
      * Provide a form to choose a group so we can execute a baseline
      *
      * @access public
-     * @return void
      */
     public function executeForm($id)
     {
@@ -61,7 +63,6 @@ class Baselines extends BaseController
      * Provide a form to choose a group so we can execute a baseline
      *
      * @access public
-     * @return void
      */
     public function execute($id)
     {

@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class ComponentsModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -30,85 +30,104 @@ class ComponentsModel extends BaseModel
         $result = array();
         $count = count($resp->meta->filter);
         $instance = & get_instance();
-        for ($i=0; $i < $count; $i++) {
+        $orgs = $instance->user->orgs;
+        $device_id = null;
+
+        // We also do the below in Collections controller as the HTML response needs to set the wable and warning
+        // Leave this in place for JSON direct requests (not via html + dataTables)
+        for ($i = 0; $i < $count; $i++) {
             if ($resp->meta->filter[$i]->name === 'type' or $resp->meta->filter[$i]->name === 'components.type') {
                 // The request has populated components.type=memory or components.type=memory,processor - get those into the $table variable
-                if (strpos($resp->meta->filter[$i]->value, ',') !== false) {
+                $resp->meta->filter[$i]->value = str_replace('%', '', $resp->meta->filter[$i]->value);
+                $table = $resp->meta->filter[$i]->value;
+                if (strpos($table, ',') !== false) {
                     # We have a comma separated list of tables
                     $tables = explode(',', $resp->meta->filter[$i]->value);
+                    $table = $tables[0];
+                    $resp->meta->filter[$i]->name = $table;
+                    $tables = array();
+                    $resp->warning = 'You can only ask for one type of component. Returning ' . htmlentities($table) . '.';
+                    log_message('warning', $resp->warning);
                 }
-                $table = $resp->meta->filter[$i]->value;
-                $properties[] = $table . '.*';
+                unset($resp->meta->filter[$i]);
+                $properties[] = '`' . $table . '`.*';
             }
         }
         if ($table === '' and $resp->meta->format === 'html') {
             $table = 'ip';
-            \Config\Services::session()->setFlashdata('warning', 'No components.type supplied, returning IP data.');
+            $resp->warning = 'No components.type supplied, returning IP data.';
+            log_message('warning', $resp->warning);
         }
-        if ($table === '') {
-            // No components.type requested, return all the below
-            $tables = array('benchmarks_result', 'bios', 'certificate', 'disk', 'dns', 'executable', 'file', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'radio', 'route', 'san', 'scsi', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'usb', 'user', 'user_group', 'variable', 'video', 'vm', 'warranty', 'windows');
-        }
-        $orgs = array();
-        $count = count($resp->meta->filter);
-        for ($i=0; $i < $count; $i++) {
-            if ($resp->meta->filter[$i]->name === 'components.org_id') {
-                $resp->meta->filter[$i]->name = 'devices.org_id';
-                $orgs = $resp->meta->filter[$i]->value;
+        $resp->meta->component = $table;
+        foreach ($resp->meta->filter as $filter) {
+            if ($filter->name === 'components.org_id') {
+                $filter->name = 'devices.org_id';
             }
         }
-        $device_sql = '';
-        $device_id = null;
-        $count = count($resp->meta->filter);
-        for ($i=0; $i < $count; $i++) {
-            if ($resp->meta->filter[$i]->name === 'components.device_id') {
-                $device_sql = " AND `$table`.device_id = " . intval($resp->meta->filter[$i]->value);
-                $device_id = intval($resp->meta->filter[$i]->value);
+        foreach ($resp->meta->filter as $filter) {
+            if ($filter->name === 'components.device_id') {
+                $filter->name = $table . '.device_id';
             }
         }
-        if (empty($tables)) {
-            if (!in_array($table, ['audit_log', 'benchmarks_result', 'bios', 'certificate', 'change_log', 'discovery_log', 'disk', 'dns', 'edit_log', 'executable', 'file', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'radio', 'route', 'san', 'scsi', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'usb', 'user', 'user_group', 'variable', 'video', 'vm', 'warranty', 'windows'])) {
-                # Invalid table
-                log_message('error', 'Invalid table provided to ComponentsModel::collection, ' . $table);
-                $_SESSION['error'] = 'Invalid table provided to ComponentsModel::collection, ' . htmlentities($table);
-                return array();
-            }
-            $sql = "SELECT `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id WHERE devices.org_id IN (?) $device_sql LIMIT " . $resp->meta->limit;
-            if ($instance->config->device_known > $instance->config->device_license and $instance->config->device_license > 0) {
-                $sql = "SELECT `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id JOIN (SELECT DISTINCT devices.id FROM `devices` LEFT JOIN $table ON devices.id = $table.device_id WHERE devices.type NOT IN ('unknown', 'unclassified') AND devices.org_id IN (" . implode(',', $orgs) . ") AND $table.id IS NOT NULL ORDER BY devices.id LIMIT " . $instance->config->device_license . ") as D2 on $table.device_id = D2.id WHERE devices.org_id IN (" . implode(',', $orgs) . ") $device_sql LIMIT " . $resp->meta->limit;
-            }
-            if ($table === 'benchmarks_result') {
-                $sql = "SELECT `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name`, benchmarks_policies.id AS `benchmarks_policies.id` FROM `$table` LEFT JOIN benchmarks_policies ON benchmarks_result.external_ident = benchmarks_policies.external_ident LEFT JOIN `devices` ON `$table`.device_id = devices.id JOIN (SELECT DISTINCT devices.id FROM `devices` LEFT JOIN $table ON devices.id = $table.device_id LEFT JOIN benchmarks_policies ON benchmarks_result.external_ident = benchmarks_policies.external_ident WHERE devices.type NOT IN ('unknown', 'unclassified') AND devices.org_id IN (" . implode(',', $orgs) . ") AND $table.id IS NOT NULL ORDER BY devices.id LIMIT " . $instance->config->device_license . ") as D2 on $table.device_id = D2.id WHERE devices.org_id IN (" . implode(',', $orgs) . ") $device_sql LIMIT " . $resp->meta->limit;
+        if (!in_array($table, ['access_point', 'antivirus', 'audit_log', 'benchmarks_result', 'bios', 'certificate', 'change_log', 'cli_config', 'discovery_log', 'disk', 'dns', 'edit_log', 'executable', 'file', 'firewall', 'firewall_rule', 'ip', 'log', 'memory', 'module', 'monitor', 'motherboard', 'netstat', 'network', 'nmap', 'optical', 'pagefile', 'partition', 'policy', 'print_queue', 'processor', 'radio', 'route', 'san', 'scsi', 'server', 'server_item', 'service', 'share', 'software', 'software_key', 'sound', 'task', 'usb', 'user', 'user_group', 'variable', 'video', 'vm', 'warranty', 'windows'])) {
+            # Invalid table
+            $resp->warning = 'Invalid table provided to ComponentsModel::collection, ' . htmlentities($table);
+            log_message('error', $resp->warning);
+            return array();
+        }
 
-                #$sql = "SELECT `benchmarks_result`.*, devices.id AS `devices.id`, devices.name AS `devices.name`, benchmarks_policies.id AS `benchmarks_policies.id` FROM `benchmarks_result` LEFT JOIN benchmarks_policies ON benchmarks_result.external_ident = benchmarks_policies.external_ident LEFT JOIN `devices` ON `benchmarks_result`.device_id = devices.id JOIN (SELECT DISTINCT devices.id FROM `devices` LEFT JOIN benchmarks_result ON devices.id = benchmarks_result.device_id WHERE devices.type NOT IN ('unknown', 'unclassified') AND benchmarks_result.id IS NOT NULL ORDER BY devices.id) as D2 on benchmarks_result.device_id = D2.id WHERE benchmarks_result.device_id = 7033";
-            }
-            $query = $this->db->query($sql, [implode(',', $orgs)]);
-            if ($this->sqlError($this->db->error())) {
-                return array();
-            }
-            $result = $query->getResult();
-            return format_data($result, $table);
-        } else {
-            foreach ($tables as $table) {
-                if (empty($device_id)) {
-                    $sql = "SELECT '$table' AS `table`, `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id WHERE devices.org_id IN (?) LIMIT " . $resp->meta->limit;
-                    if ($instance->config->device_known > $instance->config->device_license and $instance->config->device_license > 0) {
-                        $sql = "SELECT '$table' AS `table`, `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id JOIN (SELECT DISTINCT devices.id FROM `devices` LEFT JOIN $table ON devices.id = $table.device_id WHERE devices.type NOT IN ('unknown', 'unclassified') AND devices.org_id IN (" . implode(',', $orgs) . ") AND $table.id IS NOT NULL ORDER BY devices.id LIMIT " . $instance->config->device_license . ") as D2 on $table.device_id = D2.id WHERE devices.org_id IN (?) LIMIT " . $resp->meta->limit;
-                    }
-                } else {
-                    $sql = "SELECT '$table' AS `table`, `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id WHERE devices.org_id IN (?) AND devices.id = $device_id LIMIT " . $resp->meta->limit;
-                    if ($instance->config->device_known > $instance->config->device_license and $instance->config->device_license > 0) {
-                        $sql = "SELECT '$table' AS `table`, `$table`.*, devices.id AS `devices.id`, devices.name AS `devices.name` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id JOIN (SELECT DISTINCT devices.id FROM `devices` LEFT JOIN $table ON devices.id = $table.device_id WHERE devices.type NOT IN ('unknown', 'unclassified') AND devices.org_id IN (" . implode(',', $orgs) . ") AND $table.id IS NOT NULL ORDER BY devices.id LIMIT " . $instance->config->device_license . ") as D2 on $table.device_id = D2.id WHERE devices.org_id IN (?) AND devices.id = $device_id LIMIT " . $resp->meta->limit;
-                    }
-                }
-                $query = $this->db->query($sql, [implode(',', $orgs)]);
-                if ($this->sqlError($this->db->error())) {
-                    return array();
-                }
-                $result = array_merge($result, format_data($query->getResult(), $table));
-            }
-            return $result;
+        // For dataTables
+        $sql = "SELECT count(*) AS `count` FROM `$table` LEFT JOIN `devices` ON `$table`.device_id = devices.id WHERE devices.org_id IN (?)";
+        $query = $this->db->query($sql, [implode(',', $orgs)]);
+        // log_message('debug', str_replace("\n", " ", (string)$this->db->getLastQuery()));
+        $result = $query->getResult();
+        $GLOBALS['recordsFiltered'] = 0;
+        if (isset($result[0]->count)) {
+            $GLOBALS['recordsFiltered'] = intval($result[0]->count);
         }
+
+        $this->builder = $this->db->table($table);
+        if (!empty($instance->config->license_limit) and $instance->config->device_known > intval($instance->config->license_limit * 1.1)) {
+            $resp->warning = 'Restricting Devices to the first ' . $instance->config->license_limit . ' devices as per license. There are actually ' . $instance->config->device_known . ' licensed devices in the database.';
+            log_message('warning', $resp->warning);
+
+            $subquery = $this->db->table('devices');
+            $subquery->orderBy('devices.id');
+            $subquery->limit(intval($instance->config->license_limit));
+            $this->builder = $this->db->newQuery()->fromSubquery($subquery, 'devices');
+        }
+        $properties = array();
+        $properties[] = "'$table' as `table`";
+        $properties[] = "`$table`.*";
+        $properties[] = "devices.id as `devices.id`";
+        $properties[] = "devices.name as `devices.name`";
+        $this->builder->select($properties, false);
+        $this->builder->join('devices', $table . '.device_id = devices.id', 'left');
+        foreach ($resp->meta->filter as $filter) {
+            if ($filter->name === 'type' or $filter->name === 'components.type' or $filter->name === $table . '.type') {
+                continue;
+            }
+            $filter->name = str_replace('components.', $table . '.', $filter->name);
+            if ($filter->name === $table . '.type') {
+                continue;
+            }
+            $filter->name = str_replace('__', '.', $filter->name);
+            if (strpos($filter->name, '.') === false) {
+                $filter->name = $table . '.' . $filter->name;
+            }
+            if (in_array($filter->operator, ['!=', '>=', '<=', '=', '>', '<', 'like', 'not like'])) {
+                $this->builder->{$filter->function}($filter->name . ' ' . $filter->operator, $filter->value);
+            } else {
+                $this->builder->{$filter->function}($filter->name, $filter->value);
+            }
+        }
+        $this->builder->orderBy($resp->meta->sort);
+        $this->builder->limit($resp->meta->limit, $resp->meta->offset);
+        log_message('debug', str_replace("\n", " ", (string)$this->builder->getCompiledSelect(false)));
+        $query = $this->builder->get();
+        $result = $query->getResult();
+        $result = format_data($result, $table);
+        return $result;
     }
 
     /**
@@ -181,7 +200,7 @@ class ComponentsModel extends BaseModel
         if ($data->component_type === 'credential') {
             foreach ($device_ids as $id) {
                 // we only store a SINGLE credential set of each type per device - delete any existing
-                $sql ='DELETE FROM `credential` WHERE `device_id` = ? AND `type` = ?';
+                $sql = 'DELETE FROM `credential` WHERE `device_id` = ? AND `type` = ?';
                 $this->db->query($sql, [intval($id), (string)$data->type]);
 
                 if (!empty($data->credentials) && is_string($data->credentials)) {
@@ -286,7 +305,7 @@ class ComponentsModel extends BaseModel
                 $filetypes = array('image/png', 'image/jpeg', '');
                 $extensions = array('jpg', 'jpeg', 'png');
                 $temp = explode('.', $filename);
-                $extension = strtolower($temp[count($temp)-1]);
+                $extension = strtolower($temp[count($temp) - 1]);
                 if (!in_array($mime_type, $filetypes) or !in_array($extension, $extensions)) {
                     unlink($_FILES['attachment']['tmp_name']);
                     log_message('warning', 'Only jpg and png files are accepted (' . $extension . ') (' . $mime_type . ')');
@@ -295,7 +314,7 @@ class ComponentsModel extends BaseModel
                     return null;
                 }
                 # $target = $_SERVER['DOCUMENT_ROOT'] . '/open-audit/custom_images/' . $filename;
-                $target = APPPATH . '../public/custom_images/' . $filename;
+                $target = ROOTPATH . 'public/custom_images/' . $filename;
                 if (php_uname('s') === 'Windows NT') {
                     $target = 'c:\\xampp\\htdocs\\open-audit\\custom_images\\' . $filename;
                 }
@@ -364,7 +383,7 @@ class ComponentsModel extends BaseModel
             // $sql = "SELECT * FROM `image` WHERE id = ?";
             // $query = $this->db->query($sql, [$id]);
             // $data = $query->getResult();
-            // unlink(APPPATH . '../public/custom_images/' . $data[0]->filename);
+            // unlink(ROOTPATH . 'public/custom_images/' . $data[0]->filename);
         }
         $sql = "DELETE FROM `$type` WHERE id = ?";
         $query = $this->db->query($sql, [$id]);
@@ -505,7 +524,7 @@ class ComponentsModel extends BaseModel
         }
         if (!$this->db->tableExists($table)) {
             $name = (!empty($device->name)) ? $device->name : @$device->ip;
-            log_message('error', 'ComponentsModel::upsert - Table supplied does not exist (' . @$table . ') for '. $name);
+            log_message('error', 'ComponentsModel::upsert - Table supplied does not exist (' . @$table . ') for ' . $name);
             return false;
         }
         if (empty($device->id)) {
@@ -569,17 +588,39 @@ class ComponentsModel extends BaseModel
 
         foreach ($match_columns as $match_column) {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (isset($data[$i]) and !isset($data[$i]->{$match_column})) {
-                    $data[$i]->$match_column = '';
+                    $data[$i]->{$match_column} = '';
                 }
             }
         }
 
+        // ARP
+        if ((string)$table === 'arp') {
+            $count = count($data);
+            for ($i = 0; $i < $count; $i++) {
+                if (!empty($data[$i]->mac)) {
+                    // Padding
+                    $explode = explode(':', $data[$i]->mac);
+                    for ($j=0; $j < count($explode); $j++) {
+                        $explode[$j] = substr('00' . $explode[$j], -2);
+                    }
+                    $data[$i]->mac = implode(':', $explode);
+                }
+                if (empty($data[$i]->manufacturer) and !empty($data[$i]->mac)) {
+                    $data[$i]->manufacturer = get_manufacturer_from_mac($data[$i]->mac);
+                }
+                if ($data[$i]->mac === 'ff:ff:ff:ff:ff:ff') {
+                    unset($data[$i]);
+                }
+            }
+        }
+
+
         // BIOS
         if ((string)$table === 'bios') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // `description` changed to `model`
                 if (empty($data[$i]->model) and !empty($data[$i]->description)) {
                     $data[$i]->model = $data[$i]->description;
@@ -604,7 +645,7 @@ class ComponentsModel extends BaseModel
             // Format the dates to our standard
             if ($device->os_group === 'Linux') {
                 $count = count($data);
-                for ($i=0; $i < $count; $i++) {
+                for ($i = 0; $i < $count; $i++) {
                     if (! empty($data[$i]->valid_from_raw)) {
                         $from = strtotime($data[$i]->valid_from_raw);
                         $data[$i]->valid_from = '';
@@ -626,7 +667,7 @@ class ComponentsModel extends BaseModel
         // DISK
         if ((string)$table === 'disk') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (empty($data[$i]->size)) {
                     $data[$i]->size = 0;
                 } else {
@@ -698,9 +739,9 @@ class ComponentsModel extends BaseModel
 
         // IP ADDRESS
         if ((string)$table === 'ip') {
-            $networksModel = new \App\Models\NetworksModel;
+            $networksModel = new \App\Models\NetworksModel();
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (!empty($data[$i])) {
                     // some devices may provide upper case MAC addresses - ensure all stored in the DB are lower
                     $data[$i]->mac = strtolower($data[$i]->mac);
@@ -732,7 +773,7 @@ class ComponentsModel extends BaseModel
                         $data[$i]->ip = ip_address_from_db($data[$i]->ip);
                         $temp_long = ip2long($data[$i]->netmask);
                         $temp_base = ip2long('255.255.255.255');
-                        $temp_subnet = 32-log(($temp_long ^ $temp_base)+1, 2);
+                        $temp_subnet = 32 - log(($temp_long ^ $temp_base) + 1, 2);
                         $temp_net = network_details($data[$i]->ip . '/' . $temp_subnet);
                         if (isset($temp_net->network) and $temp_net->network !== '') {
                             $data[$i]->network = $temp_net->network . '/' . $temp_subnet;
@@ -754,7 +795,7 @@ class ComponentsModel extends BaseModel
                             $mymac = explode(':', $data[$i]->mac);
                             $count = count($mymac);
                             for ($j = 0; $j < $count; $j++) {
-                                $mymac[$j] = mb_substr('00'.$mymac[$j], -2);
+                                $mymac[$j] = mb_substr('00' . $mymac[$j], -2);
                             }
                             if ($count > 0) {
                                 $data[$i]->mac = implode(':', $mymac);
@@ -808,7 +849,7 @@ class ComponentsModel extends BaseModel
         // MEMORY
         if ((string)$table === 'memory') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (!empty($data[$i]->speed)) {
                     if (!is_integer($data[$i]->speed)) {
                         $data[$i]->speed = intval(preg_replace('/[^\d.]/', '', $data[$i]->speed));
@@ -831,7 +872,7 @@ class ComponentsModel extends BaseModel
         // MONITOR
         if ((string)$table === 'monitor') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 if (empty($data[$i]->name)) {
                     $data[$i]->name = trim(@$data[$i]->manufacturer . ' ' . @$data[$i]->model);
@@ -842,7 +883,7 @@ class ComponentsModel extends BaseModel
         // MOTHERBOARD
         if ((string)$table === 'motherboard') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 if (empty($data[$i]->name)) {
                     $data[$i]->name = trim(@$data[$i]->manufacturer . ' ' . @$data[$i]->model);
@@ -853,7 +894,7 @@ class ComponentsModel extends BaseModel
         // NETSTAT
         if ((string)$table === 'netstat') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 if (empty($data[$i]->name)) {
                     $data[$i]->name = trim(@$data[$i]->program . ' on ' . @$data[$i]->ip . ' ' . @$data[$i]->protocol . ' port ' . @$data[$i]->port);
@@ -903,7 +944,7 @@ class ComponentsModel extends BaseModel
             // some devices may provide upper case MAC addresses - ensure all stored in the DB are lower
             // populate the manufacturer (if not already) using the MAC prefix
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (isset($data[$i]->mac)) {
                     $data[$i]->mac = strtolower($data[$i]->mac);
                 } else {
@@ -917,7 +958,7 @@ class ComponentsModel extends BaseModel
                 }
             }
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 if (empty($data[$i]->name)) {
                     $data[$i]->name = trim(@$data[$i]->manufacturer . ' ' . @$data[$i]->model);
@@ -928,7 +969,7 @@ class ComponentsModel extends BaseModel
         // NMAP
         if ((string)$table === 'nmap') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 if (empty($data[$i]->name)) {
                     $data[$i]->name = trim(@$data[$i]->program . ' on ' . @$data[$i]->ip . ' ' . @$data[$i]->protocol . ' port ' . @$data[$i]->port);
@@ -939,7 +980,7 @@ class ComponentsModel extends BaseModel
         // PAGEFILE
         if ((string)$table === 'pagefile') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $data[$i]->initial_size = abs(intval($data[$i]->initial_size));
                 $data[$i]->max_size = abs(intval($data[$i]->max_size));
             }
@@ -952,7 +993,7 @@ class ComponentsModel extends BaseModel
                 $match_columns[] = 'description';
             }
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // new DERIVED column `name`
                 $data[$i]->name = $data[$i]->mount_type;
                 if (!empty($data[$i]->mount_point)) {
@@ -999,7 +1040,7 @@ class ComponentsModel extends BaseModel
         // ROUTE
         if ((string)$table === 'route') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $temp = @dqtobin($data[$i]->mask);
                 $temp = @bintocdr($temp);
                 $data[$i]->name = trim(@$data[$i]->destination . '/' . $temp . ' via ' . @$data[$i]->next_hop);
@@ -1009,7 +1050,7 @@ class ComponentsModel extends BaseModel
         // SCSI
         if ((string)$table === 'scsi') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $data[$i]->name = @$data[$i]->model;
             }
         }
@@ -1017,7 +1058,7 @@ class ComponentsModel extends BaseModel
         // SERVER
         if ((string)$table === 'server') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (isset($data[$i]->version) and $data[$i]->version !== '' and $data[$i]->type === 'database') {
                     $data[$i]->version_string = get_sql_server_version_string($data[$i]->version);
                 }
@@ -1029,7 +1070,7 @@ class ComponentsModel extends BaseModel
         // Blank will not match as the database column is an int with a default of 0
         if ((string)$table === 'server_item') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (empty($data[$i]->port)) {
                     $data[$i]->port = 0;
                 }
@@ -1055,7 +1096,7 @@ class ComponentsModel extends BaseModel
         // SOFTWARE
         if ((string)$table === 'software') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 if (isset($data[$i]->version) and $data[$i]->version !== '') {
                     $data[$i]->version_padded = version_padded($data[$i]->version);
                 } else {
@@ -1073,7 +1114,7 @@ class ComponentsModel extends BaseModel
         // SOUND
         if ((string)$table === 'sound') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $data[$i]->name = trim(@$data[$i]->manufacturer . ' ' . @$data[$i]->model);
             }
         }
@@ -1081,7 +1122,7 @@ class ComponentsModel extends BaseModel
         // USER
         if ((string)$table === 'user') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 // Ensure we have a keys item.
                 //       Should be a JSON array (if populated) or an empty string (if not populated, ie: here).
                 // We use an empty string because of existing entries on an upgraded database.
@@ -1097,7 +1138,7 @@ class ComponentsModel extends BaseModel
         // VIDEO
         if ((string)$table === 'video') {
             $count = count($data);
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $data[$i]->name = trim(@$data[$i]->manufacturer . ' ' . @$data[$i]->model);
             }
         }
@@ -1186,7 +1227,7 @@ class ComponentsModel extends BaseModel
                     // and test if the variables match
                     if (isset($data_item->{$match_columns[$i]}) and isset($output_item->{$match_columns[$i]}) and (string)$data_item->{$match_columns[$i]} === (string)$output_item->{$match_columns[$i]}) {
                         // they match so increment the count
-                        $match_count ++;
+                        $match_count++;
                     }
                 }
                 if ($match_count === (count($match_columns))) {
@@ -1218,7 +1259,7 @@ class ComponentsModel extends BaseModel
                 $count = count($match_columns);
                 for ($i = 0; $i < $count; $i++) {
                     if (isset($data_item->{$match_columns[$i]}) and isset($db_item->{$match_columns[$i]}) and (string)$data_item->{$match_columns[$i]} === (string)$db_item->{$match_columns[$i]} and $db_item->updated !== 'y') {
-                        $match_count ++;
+                        $match_count++;
                     }
                 }
                 if ($match_count === (count($match_columns))) {
@@ -1435,7 +1476,50 @@ class ComponentsModel extends BaseModel
                 $query = $this->db->query($sql);
             }
         }
+        // ACCESS POINT
+        if ((string)$table === 'access_point') {
+            $sql = "SELECT * FROM access_point WHERE current = 'y' AND device_id = ?";
+            $aps = $this->db->query($sql, [$device->id])->getResult();
+            foreach ($aps as $ap) {
+                if (!empty($ap->ip) and filter_var($ap->ip, FILTER_VALIDATE_IP) !== false) {
+                    $sql = "SELECT ip.id, ip.device_id, ip.mac, devices.name, devices.serial FROM ip LEFT JOIN devices ON (ip.device_id = devices.id AND ip.current = 'y') WHERE devices.org_id = ? AND ip.ip = ? AND (ip.mac = ? OR ip.mac = ? OR ip.mac = '')";
+                    $apdevice = $this->db->query($sql, [intval($device->org_id), ip_address_to_db($ap->ip), $ap->mac, $ap->ethernet_mac])->getResult();
+                    if (!empty($apdevice) and count($apdevice) === 1) {
+                        // The AP already exists in the database, update it's details if required.
+                        if ($apdevice[0]->serial !== $ap->serial and empty($apdevice[0]->serial)) {
+                            $sql = "UPDATE devices SET `serial` = ?, `os_version` = ?, `name` = ?, `model` = ?, `os_group` = 'Cisco', `os_family` = 'Cisco IOS', `type` = 'access point' WHERE id = ?";
+                            $query = $this->db->query($sql, [$ap->serial, $ap->ios_version, $ap->name, $ap->model, $apdevice[0]->device_id]);
+                            reset_icons($apdevice[0]->device_id);
+
+                            $ap->ip = ip_address_from_db($ap->ip);
+                            $temp_long = !empty($ap->netmask) ? ip2long($ap->netmask) : '';
+                            $temp_base = ip2long('255.255.255.255');
+                            $temp_subnet = 32 - log(($temp_long ^ $temp_base) + 1, 2);
+                            $temp_net = @network_details($ap->ip . '/' . $temp_subnet);
+                            if (!empty($network_details)) {
+                                $network = !empty($temp_net->network) ? $temp_net->network . '/' . $temp_subnet : '';
+                                $cidr = !empty($temp_net->network_slash) ? $temp_net->network_slash : '';
+                                unset($temp_long);
+                                unset($temp_base);
+                                unset($temp_subnet);
+                                unset($temp_net);
+                                $sql = "UPDATE ip SET mac = ?, netmask = ?, network = ?, cidr = ? WHERE id = ? ";
+                                $query = $this->db->query($sql, [$ap->ethernet_mac, $ap->netmask, $network, $cidr, $apdevice[0]->id]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return true;
+    }
+
+    public function getFields($table = ''): array
+    {
+        if (empty($table) or !$this->db->tableExists($table)) {
+            return array();
+        }
+        return $this->db->getFieldNames($table);
     }
 
     /**
@@ -1459,7 +1543,7 @@ class ComponentsModel extends BaseModel
         $dictionary->attributes->fieldsMeta = array();
         $dictionary->attributes->update = array();
 
-        $dictionary->about = '<p>Components is a generic term used for the tables that store the attributes for a device. Those tables are: bios, certificate, disk, dns, file, ip, log, memory, module, monitor, motherboard, netstat, network, nmap, optical, pagefile, partition, policy, print_queue, processor, radio, route, san, scsi, server, server_item, service, share, software, software_key, sound, task, usb, user, user_group, variable, video, vm, windows.</p><p> In addition we class the following tables also as device related: application, attachment, cluster, credential, image.</p>';
+        $dictionary->about = '<p>Components is a generic term used for the tables that store the attributes for a device. Those tables are: access_point, bios, certificate, cli_config, disk, dns, file, ip, log, memory, module, monitor, motherboard, netstat, network, nmap, optical, pagefile, partition, policy, print_queue, processor, radio, route, san, scsi, server, server_item, service, share, software, software_key, sound, task, usb, user, user_group, variable, video, vm, windows.</p><p> In addition we class the following tables also as device related: application, attachment, cluster, credential, image.</p>';
 
         $dictionary->notes = '<p></p>';
 

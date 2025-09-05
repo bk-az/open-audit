@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -7,11 +8,23 @@ declare(strict_types=1);
 function match_columns($table)
 {
     $match_columns = array();
+    if ($table === 'access_point') {
+            $match_columns = array('mac', 'serial', 'software_version', 'ios_version', 'location');
+    }
+    if ($table === 'antivirus') {
+            $match_columns = array('name');
+    }
+    if ($table === 'arp') {
+            $match_columns = array('ip', 'mac', 'interface');
+    }
     if ($table === 'bios') {
             $match_columns = array('manufacturer', 'model', 'serial', 'smversion', 'version');
     }
     if ($table === 'certificate') {
             $match_columns = array('name', 'issuer', 'serial', 'valid_from_raw', 'valid_to_raw');
+    }
+    if ($table === 'cli_config') {
+            $match_columns = array('name', 'hash', 'config');
     }
     if ($table === 'disk') {
             $match_columns = array('model', 'serial', 'hard_drive_index', 'size');
@@ -24,6 +37,12 @@ function match_columns($table)
     }
     if ($table === 'file') {
             $match_columns = array('full_name', 'hash', 'inode', 'last_changed');
+    }
+    if ($table === 'firewall') {
+            $match_columns = array('name');
+    }
+    if ($table === 'firewall_rule') {
+            $match_columns = array('name', 'profile', 'enabled', 'direction', 'action', 'local_port', 'remote_port', 'firewall');
     }
     if ($table === 'log') {
             $match_columns = array('name', 'file_name', 'overwrite');
@@ -149,7 +168,7 @@ function version_padded($version)
                 if (strlen($p) > 10) {
                     $version_padded .= $p;
                 } else {
-                    $version_padded .= mb_substr("00000000000000000000".$p, -10);
+                    $version_padded .= mb_substr("00000000000000000000" . $p, -10);
                 }
             }
         }
@@ -814,7 +833,7 @@ if (! function_exists('weight')) {
             case 'nmap':
                 $weight = 6000;
                 break;
-            
+
             default:
                 $weight = 10000;
                 break;
