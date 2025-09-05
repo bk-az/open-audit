@@ -2,6 +2,7 @@
 
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Patch Version: 1.0
 
 declare(strict_types=1);
 
@@ -465,10 +466,11 @@ function my_snmp_walk_command($ip, $credentials, $oid)
         exec($command, $output, $return_var);
         foreach ($output as $line) {
             $temp = explode(' = ', $line);
+	    if (count($temp) < 2) continue;
             $thisOid = substr($temp[0], 1);
             $value = '';
-            if (strpos($temp[1], ':') !== false) {
-                $values = explode(':', $temp[1]);
+	    if (strpos($temp[1], ':') !== false) {
+               $values = explode(':', $temp[1]);
                 unset($values[0]);
                 $value = trim(implode(':', $values), ' "');
             }
@@ -1546,6 +1548,29 @@ if (!function_exists('snmp_audit')) {
             $discoveryLogModel->create($log);
             unset($log->id, $log->command, $log->command_time_to_execute);
         }
+        if (empty($details->model) or $details->model === 'Jet Direct Print Server') {
+            $item_start = microtime(true);
+            $details->model = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.47.1.1.1.1.13.4000');
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Model based on Host Resources MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.47.1.1.1.1.13.4000';
+            $log->command_output = (string)$details->model;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute);
+        }
+        // patched
+        if (empty($details->model) or $details->model === 'Jet Direct Print Server') {
+            $item_start = microtime(true);
+            $details->model = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.1.1.0'); # Hp storage MSA2040
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Model based on Host Resources MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.1.1.0';
+            $log->command_output = (string)$details->model;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute);
+        }
         //  guess at model parsing host resources mib
         if (empty($details->model) or $details->model === 'Jet Direct Print Server') {
             $item_start = microtime(true);
@@ -1597,6 +1622,95 @@ if (!function_exists('snmp_audit')) {
             $log->command_time_to_execute = (microtime(true) - $item_start);
             $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
             $log->command = 'snmpget 1.3.6.1.2.1.47.1.1.1.1.11.1.0';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.47.1.1.1.1.11.11');
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.47.1.1.1.1.11.11';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.33.1.1.5.0');
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.33.1.1.5.0';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        // patched
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.47.1.1.1.1.11.67108992'); # Cisco switch SG300-52
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.47.1.1.1.1.11.67108992';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.4.1.9.3.6.3.0'); # Catalyst 9500-48Y4C
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.4.1.9.3.6.3.0';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.4.1.1963.20.10.5.10.0'); # Intermec PX6i/PM
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.4.1.1963.20.10.5.10.0';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+       if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.4.1.232.2.2.2.1.0'); # Hp storage MSA2040, HPserver/ILO card
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.4.1.232.2.2.2.1.0';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        } 
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.4.1.1248.1.2.2.1.1.1.5.1'); # Epson DS-1660W
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.4.1.1248.1.2.2.1.1.1.5.1';
+            $log->command_output = (string)$details->serial;
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            unset($log->id, $log->command, $log->command_time_to_execute, $log->command_output);
+        }
+        if (empty($details->serial)) {
+            $item_start = microtime(true);
+            $details->serial = my_snmp_get($ip, $credentials, '1.3.6.1.2.1.47.1.1.1.1.11.4000'); # AP410I-WR
+            $log->command_time_to_execute = (microtime(true) - $item_start);
+            $log->message = 'Serial based on Entity MIB retrieval for ' . $ip;
+            $log->command = 'snmpget 1.3.6.1.2.1.47.1.1.1.1.11.4000';
             $log->command_output = (string)$details->serial;
             $log->command_status = 'notice';
             $discoveryLogModel->create($log);
@@ -1668,7 +1782,7 @@ if (!function_exists('snmp_audit')) {
                 $details->type = 'network printer';
                 $item_start = microtime(true);
                 $temp_walk = my_snmp_walk($ip, $credentials, '1.3.6.1.2.1.43.13.4.1.10.1');
-                if (count($temp_walk) > 0) {
+                if (is_countable($temp_walk) && count($temp_walk) > 0) {
                     $details->printer_duplex = 'n';
                     for ($key = 0; $key < count($temp_walk); $key++) {
                         if (mb_strpos($temp_walk[$key], 'Duplex') !== false) {
@@ -2788,6 +2902,7 @@ if (!function_exists('snmp_audit')) {
                 if (!empty($value)) {
                     $item = new stdClass();
                     $explode = explode('.', $key);
+		    if (count($explode) < 11) continue;
                     $item->ip = implode('.', array_splice($explode, -4));
                     $item->interface = (!empty($connection_ids['.1.3.6.1.2.1.31.1.1.1.1.' . $explode[11]])) ? $connection_ids['.1.3.6.1.2.1.31.1.1.1.1.' . $explode[11]] : '';
                     $item->interface_id = @$explode[11];
