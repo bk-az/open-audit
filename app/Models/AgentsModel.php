@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class AgentsModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -60,29 +60,6 @@ class AgentsModel extends BaseModel
     {
         if (empty($data)) {
             return null;
-        }
-        if (is_array($data->inputs) or is_object($data->inputs)) {
-            $new_inputs = array();
-            foreach ($data->inputs as $input) {
-                $item = new \stdClass();
-                foreach ($input as $key => $value) {
-                    $item->{$key} = $value;
-                }
-                $new_inputs[] = $item;
-            }
-            $data->inputs = json_encode($new_inputs);
-        }
-
-        if (is_array($data->outputs) or is_object($data->outputs)) {
-            $new_outputs = array();
-            foreach ($data->outputs as $output) {
-                $item = new \stdClass();
-                foreach ($output as $key => $value) {
-                    $item->{$key} = $value;
-                }
-                $new_outputs[] = $item;
-            }
-            $data->outputs = json_encode($new_outputs);
         }
         $data = $this->createFieldData('agents', $data);
         if (empty($data)) {
@@ -158,16 +135,16 @@ class AgentsModel extends BaseModel
             case 'linux':
                 $script = 'agent_installer_linux.sh';
                 break;
-            
+
             case 'darwin':
             case 'osx':
                 $script = 'agent_installer_apple.sh';
                 break;
-            
+
             case 'windows':
                 $script = 'agent_installer_windows.ps1';
                 break;
-            
+
             default:
                 $audit_script = '';
                 break;

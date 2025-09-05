@@ -11,7 +11,7 @@ include 'shared/create_functions.php';
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                            <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                                 <input type="hidden" value="<?= $meta->access_token ?>" id="data[access_token]" name="data[access_token]" />
 
                                 <?= create_text_field('data[attributes][name]', __('Name'), $dictionary->attributes->create) ?>
@@ -25,6 +25,7 @@ include 'shared/create_functions.php';
                                         <select class="form-select" name="data[attributes][type]" id="data[attributes][type]" required>
                                             <option value=""><?= __('Choose') ?></option>
                                             <option value="baselines"><?= __('Baseline') ?></option>
+                                            <option value="benchmarks"><?= __('Benchmark') ?></option>
                                             <option value="clouds"><?= __('Cloud Discovery') ?></option>
                                             <option value="discoveries"><?= __('Discovery') ?></option>
                                             <option value="integrations"><?= __('Integration') ?></option>
@@ -81,11 +82,11 @@ include 'shared/create_functions.php';
                                 <?php if (empty($config->servers) or (!empty($config->servers->type) and $config->servers->type === 'stand-alone')) { ?>
                                 <div class="row" style="padding-top:16px;" id="div_minute">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][minute][]" class="form-label"><?= __('Minute') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][minute][]" class="form-label"><?= __('Minute') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][minute][]" id="data[attributes][minute][]">
                                             <option value="*">*</option>
                                             <option value="0" selected>0</option>
-                                            <?php for ($i=1; $i <= 59; $i++) { ?>
+                                            <?php for ($i = 1; $i <= 59; $i++) { ?>
                                             <option value="<?= $i ?>" ><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -97,11 +98,11 @@ include 'shared/create_functions.php';
                                 <?php if (empty($config->servers) or (!empty($config->servers->type) and $config->servers->type === 'stand-alone')) { ?>
                                 <div class="row" style="padding-top:16px;" id="div_hour">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][hour][]" class="form-label"><?= __('Hour') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][hour][]" class="form-label"><?= __('Hour') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][hour][]" id="data[attributes][hour][]">
                                             <option value="*">*</option>
                                             <option value="0" selected>0</option>
-                                            <?php for ($i=1; $i <= 23; $i++) { ?>
+                                            <?php for ($i = 1; $i <= 23; $i++) { ?>
                                             <option value="<?= $i ?>" ><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -113,11 +114,11 @@ include 'shared/create_functions.php';
                                 <?php if (empty($config->servers) or (!empty($config->servers->type) and $config->servers->type === 'stand-alone')) { ?>
                                 <div class="row" style="padding-top:16px;" id="div_day_of_month">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][day_of_month][]" class="form-label"><?= __('Day of Month') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][day_of_month][]" class="form-label"><?= __('Day of Month') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][day_of_month][]" id="data[attributes][day_of_month][]">
                                             <option value="*">*</option>
                                             <option value="0" selected>0</option>
-                                            <?php for ($i=1; $i <= 31; $i++) { ?>
+                                            <?php for ($i = 1; $i <= 31; $i++) { ?>
                                             <option value="<?= $i ?>" ><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -128,7 +129,7 @@ include 'shared/create_functions.php';
                                 <?php if (empty($config->servers) or (!empty($config->servers->type) and $config->servers->type === 'stand-alone')) { ?>
                                 <div class="row" style="padding-top:16px;" id="div_month">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][month][]" class="form-label"><?= __('Month') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][month][]" class="form-label"><?= __('Month') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][month][]" id="data[attributes][month][]">
                                             <option value="*" selected>*</option>
                                             <option value="1"><?= __('January') ?></option>
@@ -151,7 +152,7 @@ include 'shared/create_functions.php';
                                 <?php if (empty($config->servers) or (!empty($config->servers->type) and $config->servers->type === 'stand-alone')) { ?>
                                 <div class="row" style="padding-top:16px;" id="div_day_of_week">
                                     <div class="offset-2 col-8" style="position:relative;">
-                                        <label for="data[attributes][day_of_week][]" class="form-label"><?= __('Day Of Week') ?> <span style="color: #dc3545;">*</span></label><br />
+                                        <label for="data[attributes][day_of_week][]" class="form-label"><?= __('Day Of Week') ?> <span style="color: #dc3545;">*</span></label><br>
                                         <select class="form-select" multiple name="data[attributes][day_of_week][]" id="data[attributes][day_of_week][]">
                                             <option value="*" selected>*</option>
                                             <option value="0"><?= __('Sunday') ?></option>
@@ -203,7 +204,7 @@ include 'shared/create_functions.php';
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
-
+        $("#data\\[attributes\\]\\[name\\]").focus();
         $("#data\\[attributes\\]\\[enabled\\]").val('y');
         $('#data\\[attributes\\]\\[first_run\\]').val('2001-01-01');
 
@@ -219,6 +220,11 @@ window.onload = function () {
                 $("#div_collector").css('display', 'none');
                 $("#div_options").css('display', 'block');
                 $("#div_options").html(baselines);
+            }
+            if ($type == "benchmarks") {
+                $("#div_collector").css('display', 'none');
+                $("#div_options").css('display', 'block');
+                $("#div_options").html(benchmarks);
             }
             if ($type == "clouds") {
                 $("#div_collector").css('display', 'none');
@@ -272,7 +278,7 @@ window.onload = function () {
         var email_format = '<?= create_text_field('data[attributes][email_address]', __('Email Address'), $dictionary->attributes->create) ?>\
                                 <div class=\"row\" style=\"padding-top:16px;\">\
                                     <div class=\"offset-2 col-8\" style=\"position:relative;\">\
-                                        <label for=\"data[attributes][format]\" class=\"form-label\"><?= __('Format') ?> <span style=\"color: #dc3545;\">*</span></label><br />\
+                                        <label for=\"data[attributes][format]\" class=\"form-label\"><?= __('Format') ?> <span style=\"color: #dc3545;\">*</span></label><br>\
                                         <select class=\"form-select\" name=\"data[attributes][format]\" id=\"data[attributes][format]\">\
                                             <option value="csv" selected >Excel / CSV</option>\
                                             <option value="json" >JSON</option>\
@@ -284,15 +290,15 @@ window.onload = function () {
         <?php if (!empty($included['baselines'])) { ?>
         var baselines = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Baseline') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Baseline') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['baselines'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
                                         </select>\
                                     </div>\
-                                </div><br />\
+                                </div><br>\
                                                    <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][group_id]" class="form-label"><?= __('Group') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][group_id]" class="form-label"><?= __('Group') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][group_id]" id="data[attributes][group_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['groups'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -302,8 +308,27 @@ window.onload = function () {
         <?php } else { ?>
         var baselines = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Baseline') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Baseline') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Baseline before creating a task." >\
+                                    </div>\
+                                </div>';
+        <?php } ?>
+
+        <?php if (!empty($included['benchmarks'])) { ?>
+        var benchmarks = '                                <div class="row" style="padding-top:16px;">\
+                                    <div class="offset-2 col-8" style="position:relative;">\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Benchmark') ?> <span style="color: #dc3545;">*</span></label><br>\
+                                        <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
+                                            <option value=""> </option>\
+                                            <?php foreach ($included['benchmarks'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
+                                        </select>\
+                                    </div>\
+                                </div>';
+        <?php } else { ?>
+        var benchmarks = '                                <div class="row" style="padding-top:16px;">\
+                                    <div class="offset-2 col-8" style="position:relative;">\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Benchmark') ?></label><br>\
+                                        <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Benchmark before creating a task." >\
                                     </div>\
                                 </div>';
         <?php } ?>
@@ -311,7 +336,7 @@ window.onload = function () {
         <?php if (!empty($included['clouds'])) { ?>
         var clouds = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Cloud') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Cloud') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['clouds'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -321,7 +346,7 @@ window.onload = function () {
         <?php } else { ?>
         var clouds = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Cloud') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Cloud') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Cloud before creating a task." >\
                                     </div>\
                                 </div>';
@@ -330,7 +355,7 @@ window.onload = function () {
         <?php if (!empty($included['discoveries'])) { ?>
         var discoveries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Discovery') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Discovery') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['discoveries'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name . " (" . $item->attributes->description . ")" ?></option><?php } ?>\
@@ -340,7 +365,7 @@ window.onload = function () {
         <?php } else { ?>
         var discoveries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Discovery') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Discovery') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Discovery before creating a task." >\
                                     </div>\
                                 </div>';
@@ -349,7 +374,7 @@ window.onload = function () {
         <?php if (!empty($included['integrations'])) { ?>
         var integrations = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Integration') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Integration') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['integrations'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -359,7 +384,7 @@ window.onload = function () {
         <?php } else { ?>
         var integrations = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Integration') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Integration') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add an Integration before creating a task." >\
                                     </div>\
                                 </div>';
@@ -368,7 +393,7 @@ window.onload = function () {
         <?php if (!empty($included['queries'])) { ?>
         var queries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Query') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Query') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['queries'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -378,7 +403,7 @@ window.onload = function () {
         <?php } else { ?>
         var queries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Query') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Query') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Query before creating a task." >\
                                     </div>\
                                 </div>';
@@ -387,7 +412,7 @@ window.onload = function () {
         <?php if (!empty($included['reports'])) { ?>
         var reports = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Report') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Report') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['reports'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -397,7 +422,7 @@ window.onload = function () {
         <?php } else { ?>
         var reports = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Report') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Report') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Report before creating a task." >\
                                     </div>\
                                 </div>';
@@ -406,7 +431,7 @@ window.onload = function () {
         <?php if (!empty($included['summaries'])) { ?>
         var summaries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Summary') ?> <span style="color: #dc3545;">*</span></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Summary') ?> <span style="color: #dc3545;">*</span></label><br>\
                                         <select class="form-select" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]">\
                                             <option value=""> </option>\
                                             <?php foreach ($included['summaries'] as $item) { ?><option value="<?= $item->id ?>"><?= $item->attributes->name ?></option><?php } ?>\
@@ -416,7 +441,7 @@ window.onload = function () {
         <?php } else { ?>
         var summaries = '                                <div class="row" style="padding-top:16px;">\
                                     <div class="offset-2 col-8" style="position:relative;">\
-                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Summary') ?></label><br />\
+                                        <label for="data[attributes][sub_resource_id]" class="form-label"><?= __('Summary') ?></label><br>\
                                         <input readonly required type="text" class="form-control" name="data[attributes][sub_resource_id]" id="data[attributes][sub_resource_id]" value="" placeholder="Please add a Summary before creating a task." >\
                                     </div>\
                                 </div>';

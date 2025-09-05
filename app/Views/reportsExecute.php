@@ -10,7 +10,7 @@ include 'shared/read_functions.php';
                     <?= read_card_header($meta->collection, $meta->id, $meta->icon, $user, $meta->name) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <form action="devices?action=update" method="post" id="bulk_edit" name="bulk_edit">
                         <div class="table-responsive">
                             <?php if (!empty($audit_status)) {
@@ -54,7 +54,7 @@ include 'shared/read_functions.php';
                                                 <span class="<?= $item->attributes->audit_class ?>" title="<?= $item->attributes->audit_text ?>"></span>
                                             </td>
                                         <?php }
-                                        echo "                                    " . collection_button_read($meta->collection, $item->id) . "\n";
+                                        echo "                                    " . collection_button_read('devices', $item->id) . "\n";
                                         foreach ($meta->data_order as $key) {
                                             $key = str_replace('devices.', '', $key);
                                             if ($key === 'id' or $key === 'orgs.id') {

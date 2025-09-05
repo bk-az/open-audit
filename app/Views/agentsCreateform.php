@@ -9,7 +9,7 @@ include 'shared/create_functions.php';
                     <?= create_card_header($meta->collection, $meta->icon, $user); ?>
                 </div>
                 <div class="card-body">
-                    <form class="form-horizontal" method="post" action="<?= url_to($meta->collection.'Create') ?>">
+                    <form class="form-horizontal" method="post" action="<?= url_to($meta->collection . 'Create') ?>">
                     <div class="row">
                         <div class="col-md-4">
                             <input type="hidden" value="<?= $meta->access_token ?>" id="data[access_token]" name="data[access_token]" />
@@ -67,16 +67,15 @@ include 'shared/create_functions.php';
             </div>
         </main>
 
-
 <script {csp-script-nonce}>
 window.onload = function () {
     $(document).ready(function () {
+        $("#data\\[attributes\\]\\[name\\]").focus();
         $("#data\\[attributes\\]\\[weight\\]").val(100);
         $("#data\\[attributes\\]\\[action_audit\\]").val('y');
         $("#data\\[attributes\\]\\[action_uninstall\\]").val('n');
         $('#data\\[attributes\\]\\[action_devices_assigned_to_location\\] option[value=""]').text("");
         $('#data\\[attributes\\]\\[action_devices_assigned_to_org\\] option[value=""]').text("");
-
     });
 }
 </script>

@@ -46,7 +46,7 @@ include 'shared/read_functions.php';
                                             </div>
                                             <?php } ?>
                                         </div>
-                                        <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="format[]" data-dictionary="<?= $dictionary->columns->format ?>"><span><br /></span></div>
+                                        <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="format[]" data-dictionary="<?= $dictionary->columns->format ?>"><span><br></span></div>
                                     </div>
                                 </div>
                             <?php } ?>
@@ -70,7 +70,7 @@ include 'shared/read_functions.php';
                                             </div>
                                             <?php } ?>
                                         </div>
-                                        <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="group_id[]" data-dictionary="<?= $dictionary->columns->group_id ?>"><span><br /></span></div>
+                                        <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="group_id[]" data-dictionary="<?= $dictionary->columns->group_id ?>"><span><br></span></div>
                                     </div>
                                 </div>
                             <?php } ?>
@@ -83,7 +83,7 @@ include 'shared/read_functions.php';
                                         <select class="form-select" id="minute[]" name="minute[]" multiple disabled>
                                             <?php $split = explode(',', $resource->minute); ?>
                                             <option value="*" <?php if ($resource->minute === '*') { echo "selected"; } ?>>*</option>
-                                            <?php for ($i=0; $i <= 59; $i++) { ?>
+                                            <?php for ($i = 0; $i <= 59; $i++) { ?>
                                             <option value="<?= $i ?>" <?php if (in_array((string)$i, $split)) { echo "selected"; } ?>><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -95,7 +95,7 @@ include 'shared/read_functions.php';
                                         </div>
                                         <?php } ?>
                                     </div>
-                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="minute[]" data-dictionary="<?= $dictionary->columns->minute ?>"><span><br /></span></div>
+                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="minute[]" data-dictionary="<?= $dictionary->columns->minute ?>"><span><br></span></div>
                                 </div>
                             </div>
                             <?php } else { ?>
@@ -110,7 +110,7 @@ include 'shared/read_functions.php';
                                         <select class="form-select" id="hour[]" name="hour[]" multiple disabled>
                                             <?php $split = explode(',', $resource->hour); ?>
                                             <option value="*" <?php if ($resource->hour === '*') { echo "selected"; } ?>>*</option>
-                                            <?php for ($i=0; $i <= 23; $i++) { ?>
+                                            <?php for ($i = 0; $i <= 23; $i++) { ?>
                                             <option value="<?= $i ?>" <?php if (in_array((string)$i, $split)) { echo "selected"; } ?>><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -122,7 +122,7 @@ include 'shared/read_functions.php';
                                         </div>
                                         <?php } ?>
                                     </div>
-                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="hour[]" data-dictionary="<?= $dictionary->columns->hour ?>"><span><br /></span></div>
+                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="hour[]" data-dictionary="<?= $dictionary->columns->hour ?>"><span><br></span></div>
                                 </div>
                             </div>
                             <?php } else { ?>
@@ -137,7 +137,7 @@ include 'shared/read_functions.php';
                                         <select class="form-select" id="day_of_month[]" name="day_of_month[]" multiple disabled>
                                             <?php $split = explode(',', $resource->day_of_month); ?>
                                             <option value="*" <?php if ($resource->day_of_month === '*') { echo "selected"; } ?>>*</option>
-                                            <?php for ($i=0; $i <= 31; $i++) { ?>
+                                            <?php for ($i = 0; $i <= 31; $i++) { ?>
                                             <option value="<?= $i ?>" <?php if (in_array((string)$i, $split)) { echo "selected"; } ?>><?= $i ?></option>
                                             <?php } ?>
                                         </select>
@@ -149,7 +149,7 @@ include 'shared/read_functions.php';
                                         </div>
                                         <?php } ?>
                                     </div>
-                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="day_of_month[]" data-dictionary="<?= $dictionary->columns->day_of_month ?>"><span><br /></span></div>
+                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="day_of_month[]" data-dictionary="<?= $dictionary->columns->day_of_month ?>"><span><br></span></div>
                                 </div>
                             </div>
                             <?php } else { ?>
@@ -185,7 +185,7 @@ include 'shared/read_functions.php';
                                         </div>
                                         <?php } ?>
                                     </div>
-                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="month[]" data-dictionary="<?= $dictionary->columns->month ?>"><span><br /></span></div>
+                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="month[]" data-dictionary="<?= $dictionary->columns->month ?>"><span><br></span></div>
                                 </div>
                             </div>
 
@@ -212,7 +212,7 @@ include 'shared/read_functions.php';
                                         </div>
                                         <?php } ?>
                                     </div>
-                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="day_of_week[]" data-dictionary="<?= $dictionary->columns->day_of_week ?>"><span><br /></span></div>
+                                    <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="day_of_week[]" data-dictionary="<?= $dictionary->columns->day_of_week ?>"><span><br></span></div>
                                 </div>
                             </div>
 

@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -36,15 +37,38 @@ abstract class BaseController extends Controller
     protected $request;
 
     /**
-     * An array of helpers to be loaded automatically upon
-     * class instantiation. These helpers will be available
-     * to all other controllers that extend BaseController.
+     * Helpers that will be automatically loaded on class instantiation.
      *
-     * @var array
+     * @var list<string>
      */
     protected $helpers = ['components', 'device', 'network', 'output', 'response', 'scripts', 'security', 'utility'];
 
+    public $collections;
+    public $config;
+    public $controller;
+    public $dashboards;
+    public $dashboardsModel;
+    public $devicesModel;
+    public $dictionary;
+    public $licenses;
+    public $licenses_collector;
+    public $method;
+    public $networksModel;
+    public $orgs;
+    public $orgsModel;
+    public $orgsUser;
+    public $queries;
+    public $queriesModel;
+    public $queriesUser;
+    public $reportsModel;
+    public $resp;
     public $response;
+    public $roles;
+    public $rolesModel;
+    public $session;
+    public $summariesModel;
+    public $user;
+    public $usersModel;
 
     /**
      * Constructor.
@@ -90,32 +114,38 @@ abstract class BaseController extends Controller
             define('REPLACE_FLAGS', ENT_COMPAT | ENT_XHTML);
         }
 
+        if (empty($this->config->internal_version)) {
+            $this->config->internal_version = 1;
+        }
         if ($this->config->internal_version > 20230614) {
             $this->orgs = $this->orgsModel->listAll();
         }
 
         $this->queries = array();
 
-        if (empty($this->user) and $this->controller === '\App\Controllers\Input') {
+        if ($this->controller === '\App\Controllers\Input') {
             // We are receiving input from an audit result, no need for $user, et al.
             return;
         }
-        if (empty($this->user) and $this->controller === '\App\Controllers\Queue' and $this->method === 'start') {
+        if ($this->controller === '\App\Controllers\Queue' and $this->method === 'start') {
             // We are starting the queue, no need for $user, et al.
             return;
         }
-        if (empty($this->user) and $this->controller === '\App\Controllers\Scripts' and $this->method === 'download') {
+        if ($this->controller === '\App\Controllers\Scripts' and $this->method === 'download') {
             // Anyone can download a script
             return;
         }
-        if (empty($this->user) and $this->controller === '\App\Controllers\Agents' and ($this->method === 'download' or $this->method === 'execute')) {
+        if ($this->controller === '\App\Controllers\Agents' and ($this->method === 'download' or $this->method === 'execute')) {
             // Anyone can download an agent
+            return;
+        }
+        if ($this->controller === '\App\Controllers\News' and $this->method === 'executeAll') {
             return;
         }
 
         $this->user = $this->usersModel->userValidate();
 
-        if ((int)$this->config->internal_version < $this->config->appVersion) {
+        if (!empty($this->config->internal_version) and intval($this->config->internal_version) < intval($this->config->appVersion)) {
             if ($router->controllerName() !== '\App\Controllers\Database' and $router->methodName() !== 'update') {
                 header('Location: ' . url_to('databaseUpdate'));
                 exit;
@@ -184,9 +214,7 @@ abstract class BaseController extends Controller
             }
             $message .= ':' . $data;
         }
-        if ($message !== '') {
-            log_message('info', $message);
-        }
+        log_message('info', $message);
 
         // The dictionary items
         $this->dictionary = new stdClass();
@@ -211,7 +239,7 @@ abstract class BaseController extends Controller
             $collection = str_replace(' ', '', $collection);
         }
         $namespace = "\\App\\Models\\" . $collection . "Model";
-        $this->{strtolower($this->resp->meta->collection) . "Model"} = new $namespace;
+        $this->{strtolower($this->resp->meta->collection) . "Model"} = new $namespace();
 
         $this->resp->meta->icon = $this->collections->{strtolower($this->resp->meta->collection)}->icon;
 
@@ -230,11 +258,17 @@ abstract class BaseController extends Controller
             $this->dashboards = $this->dashboardsModel->listUser();
         }
 
-        if ($this->resp->meta->format === 'html' and
+        if (
+            $this->resp->meta->format === 'html' and
             $this->resp->meta->action !== 'help' and
             $this->resp->meta->action !== 'dictionary' and
-            $this->resp->meta->action !== 'defaults') {
+            $this->resp->meta->action !== 'defaults'
+        ) {
             $action = $this->resp->meta->permission_requested[$this->resp->meta->action];
+
+            if (empty($this->config->product)) {
+                $this->config->product = 'community';
+            }
 
             if (strpos($this->collections->{$this->resp->meta->collection}->actions->{$this->config->product}, $this->resp->meta->permission_requested[$this->resp->meta->action]) === false) {
                 log_message('error', $this->resp->meta->collection . '::' . $this->resp->meta->action . ' not permitted with a ' . $this->config->product . ' license.');
@@ -242,6 +276,16 @@ abstract class BaseController extends Controller
                 header('Location: ' . url_to($this->resp->meta->collection . 'Help'));
                 exit();
             }
+
+            if (@$this->collections->{$this->resp->meta->collection}->actions->{$this->config->product} === 'r' and $this->resp->meta->action === 'read') {
+                if ($this->config->product === 'professional') {
+                    \Config\Services::session()->setFlashdata('warning', 'Editing ' . $this->resp->meta->collection . ' is restricted to Enterprise licenses.');
+                }
+                if ($this->config->product !== 'professional' and $this->config->product !== 'enterprise') {
+                    \Config\Services::session()->setFlashdata('warning', 'Editing ' . $this->resp->meta->collection . ' is restricted to Enterprise licenses. Get your free license <a href="#" data-bs-toggle="modal" data-bs-target="#modalCompareLicense">here</a>.');
+                }
+            }
+
         }
     }
 }

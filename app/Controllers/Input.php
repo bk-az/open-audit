@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -8,6 +9,8 @@ namespace App\Controllers;
 
 use CodeIgniter\Controller;
 use CodeIgniter\HTTP\RequestInterface;
+use App\Models\DiscoveryLogModel;
+use stdClass;
 
 /**
  * PHP version 7.4
@@ -17,7 +20,7 @@ use CodeIgniter\HTTP\RequestInterface;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -33,7 +36,6 @@ use CodeIgniter\HTTP\RequestInterface;
  */
 class Input extends BaseController
 {
-
     public function benchmarks()
     {
         $db = db_connect();
@@ -73,9 +75,9 @@ class Input extends BaseController
         $device = $devicesModel->read($json->device_id)[0];
         if (empty($device)) {
             log_message('error', 'Invalid device ID supplied to Input::benchmarks. Supplied: ' . $json->device_id);
-            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'error', Invalid device ID supplied, $device_id', '')";
+            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'error', Invalid device ID supplied, $json->device_id', '')";
             $db->query($sql);
-            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'error', Completed. Memory: " . round((memory_get_peak_usage(false)/1024/1024), 3) . " MiB', '')";
+            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'error', Completed. Memory: " . round((memory_get_peak_usage(false) / 1024 / 1024), 3) . " MiB', '')";
             $db->query($sql);
             return;
         }
@@ -94,7 +96,7 @@ class Input extends BaseController
         #$sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'info', 'Processing report file completed. ' . intval(count($json->result)) . ' inserted.', '')";
         $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'info', 'Processing report file completed.', '')";
         $db->query($sql);
-            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'info', 'Completed. Memory: " . round((memory_get_peak_usage(false)/1024/1024), 3) . " MiB', '')";
+            $sql = "INSERT INTO benchmarks_log VALUES (null, $json->benchmark_id, $json->device_id, NOW(), 'info', 'Completed. Memory: " . round((memory_get_peak_usage(false) / 1024 / 1024), 3) . " MiB', '')";
         $db->query($sql);
     }
 
@@ -116,8 +118,8 @@ class Input extends BaseController
             return false;
         }
         include "include_process_device.php";
-        $discoveryLogModel = new \App\Models\DiscoveryLogModel();
-        $log = new \stdClass();
+        $discoveryLogModel = model('App\Models\DiscoveryLogModel');
+        $log = new stdClass();
         $log->discovery_id = (!empty($device->system->discovery_id)) ? intval($device->system->discovery_id) : null;
         $log->device_id = $device->system->id;
         $log->timestamp = null;
@@ -157,22 +159,19 @@ class Input extends BaseController
             );
             $context  = stream_context_create($options);
             $result = file_get_contents($url, false, $context);
+            $log->severity = 7;
+            $log->message = 'Result sent to ' . $server->host . '.';
+            $log->device_id = $id;
+            $log_level = 'debug';
             if ($result === false) {
                 // error
                 $log->severity = 4;
                 $log->message = 'Could not send result to ' . $url . ' - please check with your server administrator.';
-                $log->device_id = $id;
-                $discoveryLogModel->create($log);
-                $log->severity = 7;
-                log_message('error', 'Could not send result to ' . $url);
-            } else {
-                // success
-                $log->severity = 7;
-                $log->message = 'Result sent to ' . $server->host . '.';
-                $log->device_id = $id;
-                $discoveryLogModel->create($log);
-                log_message('debug', 'Result sent to ' . $server->host . '.');
+                $log_level = 'error';
             }
+            log_message($log_level, $log->message);
+            $discoveryLogModel->create($log);
+            $log->severity = 7;
         }
 
         return true;

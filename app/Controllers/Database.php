@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,7 +7,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use \stdClass;
+use stdClass;
 
 /**
  * PHP version 7.4
@@ -16,7 +17,7 @@ use \stdClass;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -39,7 +40,7 @@ class Database extends BaseController
         $return = array();
         $tables = $db->listTables();
 
-        $sql_file = file(APPPATH . '../other/open-audit.sql');
+        $sql_file = file(ROOTPATH . 'other/open-audit.sql');
         $output = '';
         $body_output = '';
         $total_inserts = 0;
@@ -92,10 +93,10 @@ class Database extends BaseController
 
             // From the file
             $file_schema = '';
-            for ($i=0; $i < count($sql_file); $i++) {
+            for ($i = 0; $i < count($sql_file); $i++) {
                 if (strpos($sql_file[$i], "CREATE TABLE `$table`") !== false) {
                     $file_schema = $sql_file[$i];
-                    for ($j=$i+1; $j < count($sql_file); $j++) {
+                    for ($j = $i + 1; $j < count($sql_file); $j++) {
                         if (strpos($sql_file[$j], '/*!') === false) {
                             $file_schema .= $sql_file[$j];
                         } else {
@@ -181,7 +182,7 @@ class Database extends BaseController
             // We want the raw table data and no extra columns, but formatted as usual (using attributes->).
             $count = count($this->resp->data);
             $return = array();
-            for ($i=0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; $i++) {
                 $item = new stdClass();
                 $item->attributes = $this->resp->data[$i];
                 $return[] = $item;
@@ -268,8 +269,9 @@ class Database extends BaseController
             $eula->new_value = json_encode($item);
             $errors = array();
             \Config\Services::session()->setFlashdata('success', "Database upgraded successfully. New database version is " . config('Openaudit')->display_version . " (" . config('Openaudit')->internal_version . ").");
+            $config = new \Config\OpenAudit();
             return view('shared/header', [
-                'config' => $this->config,
+                'config' => $config,
                 'dashboards' => filter_response($this->dashboards),
                 'meta' => filter_response($meta),
                 'queries' => array(),

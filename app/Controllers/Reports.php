@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,7 +7,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use \stdClass;
+use stdClass;
 
 /**
  * PHP version 7.4
@@ -16,7 +17,7 @@ use \stdClass;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -32,7 +33,6 @@ use \stdClass;
  */
 class Reports extends BaseController
 {
-
     /**
      * Execute a report
      *
@@ -68,7 +68,7 @@ class Reports extends BaseController
         $breadcrumb->url = url_to('reportsExecute', $this->resp->meta->id);
         $breadcrumb->name = (!empty($this->resp->meta->name)) ? $this->resp->meta->name : '';
         $this->resp->meta->breadcrumbs[] = $breadcrumb;
-        $this->resp->data = (!empty($this->resp->data)) ? format_data($this->resp->data, 'devices') : array();
+        $this->resp->data = (!empty($this->resp->data)) ? formatQuery(format_data($this->resp->data, 'devices')) : array();
 
         $this->resp->meta->total = count($this->resp->data);
         $this->resp->meta->filtered = count($this->resp->data);
@@ -95,6 +95,7 @@ class Reports extends BaseController
         }
         return view('shared/header', [
             'config' => $this->config,
+            'dashboards' => filter_response($this->dashboards),
             'dictionary' => $this->queriesModel->dictionary(),
             'meta' => filter_response($this->resp->meta),
             'orgs' => filter_response($this->orgsUser),

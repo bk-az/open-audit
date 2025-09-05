@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -52,7 +53,7 @@ if (!function_exists('scripts_options')) {
         $options['audit_win32_product']->type = 'select';
         $options['audit_win32_product']->values = 'y,n';
 
-        $options['create_file'] = new stdClass;
+        $options['create_file'] = new \stdClass();
         $options['create_file']->name = 'create_file';
         $options['create_file']->default = 'n';
         $options['create_file']->help = 'Should we create a file based on the audit result.';
@@ -66,7 +67,7 @@ if (!function_exists('scripts_options')) {
         $options['debugging']->type = 'select';
         $options['debugging']->values = '0,1,2,3';
 
-        $options['details_to_lower'] = new stdClass;
+        $options['details_to_lower'] = new \stdClass();
         $options['details_to_lower']->name = 'details_to_lower';
         $options['details_to_lower']->default = 'y';
         $options['details_to_lower']->help = 'Should we convert the hostname to lower.';
@@ -221,6 +222,7 @@ if (!function_exists('scripts_collectios_options')) {
             $options_scripts['audit_osx.sh'] = array('submit_online', 'create_file', 'url', 'debugging', 'org_id');
             $options_scripts['audit_solaris.sh'] = array('submit_online', 'create_file', 'url', 'debugging', 'org_id', 'system_id');
             $options_scripts['audit_windows.vbs'] = array('audit_dns', 'audit_mount_point', 'audit_netstat', 'audit_software', 'audit_win32_product', 'create_file', 'debugging', 'details_to_lower', 'hide_audit_window', 'ignore_invalid_ssl', 'ldap', 'ldap_seen_date', 'ldap_seen_days', 'org_id', 'ping_target', 'san_audit', 'san_discover', 'self_delete', 'strcomputer', 'strpass', 'struser', 'submit_online', 'system_id', 'url', 'use_proxy', 'windows_user_work_1', 'windows_user_work_2');
+            $options_scripts['audit_windows.ps1'] = array();
 
             return $options_scripts;
     }

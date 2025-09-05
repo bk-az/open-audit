@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -31,9 +32,11 @@ if (! function_exists('is_private_ip')) {
     {
         $ip = ip_address_to_db($ip);
         $private = false;
-        if (($ip >= '010.000.000.000' and $ip <= '010.255.255.255') ||
+        if (
+            ($ip >= '010.000.000.000' and $ip <= '010.255.255.255') ||
             ($ip >= '172.016.000.000' and $ip <= '172.031.255.255') ||
-            ($ip >= '192.168.000.000' and $ip <= '192.168.255.255')) {
+            ($ip >= '192.168.000.000' and $ip <= '192.168.255.255')
+        ) {
             $private = true;
         }
         return $private;
@@ -45,6 +48,17 @@ if (! function_exists('server_ip')) {
     function server_ip()
     {
         $ip_address_array = array();
+
+        # MacOS
+        if (php_uname('s') == 'Darwin') {
+            $command = "ifconfig | grep inet | grep -v inet6 | grep -v '127.0.0.1' | awk '{print $2}' | cut -f1  -d'/'";
+            exec($command, $output, $return_var);
+            if ($return_var == 0) {
+                foreach ($output as $line) {
+                    $ip_address_array[] = trim((string)$line);
+                }
+            }
+        }
 
         # linux
         if (php_uname('s') == 'Linux') {
@@ -132,7 +146,7 @@ if (! function_exists('network_details')) {
         if (! preg_match('/^0./', $dq_host)) {
             foreach (explode(".", $dq_host) as $octet) {
                 if ($octet > 255) {
-                    $details->error = "Invalid IP Address";
+                    $details->error = "Invalid IP Address.";
 
                     return($details);
                 }
@@ -144,7 +158,7 @@ if (! function_exists('network_details')) {
         $bin_net = str_pad(mb_substr($bin_host, 0, intval($cdr_nmask)), 32, '0');
         $bin_first = str_pad(mb_substr($bin_net, 0, 31), 32, '1');
         $bin_last = str_pad(mb_substr($bin_bcast, 0, 31), 32, '0');
-        $host_total = bindec(str_pad("", (32-$cdr_nmask), '1')) - 1;
+        $host_total = bindec(str_pad("", (32 - $cdr_nmask), '1')) - 1;
         if ($host_total <= 0) {
             //Takes care of 31 and 32 bit masks.
             $bin_first = "N/A";
@@ -158,20 +172,20 @@ if (! function_exists('network_details')) {
         //Determine Class
         if (preg_match('/^0/', $bin_net)) {
             $class = "A";
-            $dotbin_net = "0".mb_substr(dotbin($bin_net, $cdr_nmask), 1);
+            $dotbin_net = "0" . mb_substr(dotbin($bin_net, $cdr_nmask), 1);
         } elseif (preg_match('/^10/', $bin_net)) {
             $class = "B";
-            $dotbin_net = "10".mb_substr(dotbin($bin_net, $cdr_nmask), 2);
+            $dotbin_net = "10" . mb_substr(dotbin($bin_net, $cdr_nmask), 2);
         } elseif (preg_match('/^110/', $bin_net)) {
             $class = "C";
-            $dotbin_net = "110".mb_substr(dotbin($bin_net, $cdr_nmask), 3);
+            $dotbin_net = "110" . mb_substr(dotbin($bin_net, $cdr_nmask), 3);
         } elseif (preg_match('/^1110/', $bin_net)) {
             $class = "D";
-            $dotbin_net = "1110".mb_substr(dotbin($bin_net, $cdr_nmask), 4);
+            $dotbin_net = "1110" . mb_substr(dotbin($bin_net, $cdr_nmask), 4);
             $special = "Class D = Multicast Address Space.";
         } else {
             $class = "E";
-            $dotbin_net = "1111".mb_substr(dotbin($bin_net, $cdr_nmask), 4);
+            $dotbin_net = "1111" . mb_substr(dotbin($bin_net, $cdr_nmask), 4);
             $special = "Class E = Experimental Address Space.";
         }
 
@@ -232,7 +246,7 @@ if (! function_exists('bintodq')) {
             return $binin;
         }
         $binin = explode(".", chunk_split($binin, 8, "."));
-        for ($i = 0; $i<4; $i++) {
+        for ($i = 0; $i < 4; $i++) {
             $dq[$i] = bindec($binin[$i]);
         }
         return implode(".", $dq);
@@ -246,7 +260,7 @@ if (! function_exists('bintoint')) {
     }
 }
 
-if (! function_exists('bintoint')) {
+if (! function_exists('binwmtonm')) {
     function binwmtonm($binin)
     {
         $binin = rtrim((string)$binin, "1");
@@ -274,9 +288,9 @@ if (! function_exists('dotbin')) {
         }
         $oct = rtrim(chunk_split($binin, 8, "."), ".");
         if ($cdr_nmask > 0) {
-            $offset = sprintf("%u", $cdr_nmask/8) + $cdr_nmask;
+            $offset = sprintf("%u", $cdr_nmask / 8) + $cdr_nmask;
 
-            return mb_substr($oct, 0, $offset)."&nbsp;&nbsp;&nbsp;".mb_substr($oct, $offset);
+            return mb_substr($oct, 0, $offset) . "&nbsp;&nbsp;&nbsp;" . mb_substr($oct, $offset);
         } else {
             return $oct;
         }
@@ -288,7 +302,7 @@ if (! function_exists('dqtobin')) {
     {
         if (!empty($dqin)) {
             $dq = explode(".", $dqin);
-            for ($i = 0; $i<4; $i++) {
+            for ($i = 0; $i < 4; $i++) {
                 $bin[$i] = str_pad(decbin(intval($dq[$i])), 8, "0", STR_PAD_LEFT);
             }
             return implode("", $bin);
@@ -304,60 +318,38 @@ if (! function_exists('inttobin')) {
     }
 }
 
-if (! function_exists('ip_address_from_db')) {
+if (!function_exists('ip_address_from_db')) {
     function ip_address_from_db($ip = '')
     {
-        if ($ip != "") {
-            if (stripos($ip, '.') !== false) {
+        if (!empty($ip)) {
+            if (stripos($ip, '.') !== false and substr_count($ip, '.') === 3) {
                 // this is an ip v4 address
                 $myip = explode(".", $ip);
-                $myip[0] = ltrim((string)$myip[0], "0");
-                if ($myip[0] == "") {
-                    $myip[0] = "0";
-                }
-                if (isset($myip[1])) {
-                    $myip[1] = ltrim((string)$myip[1], "0");
-                }
-                if (!isset($myip[1]) or $myip[1] == "") {
-                    $myip[1] = "0";
-                }
-                if (isset($myip[2])) {
-                    $myip[2] = ltrim((string)$myip[2], "0");
-                }
-                if (!isset($myip[2]) or $myip[2] == "") {
-                    $myip[2] = "0";
-                }
-                if (isset($myip[3])) {
-                    $myip[3] = ltrim((string)$myip[3], "0");
-                }
-                if (!isset($myip[3]) or $myip[3] == "") {
-                    $myip[3] = "0";
-                }
-                $ip = $myip[0].".".$myip[1].".".$myip[2].".".$myip[3];
+                $ip = intval($myip[0]) . '.' . intval($myip[1]) . '.' . intval($myip[2]) . '.' . intval($myip[3]);
             }
             if (stripos($ip, ':') !== false) {
                 // this is an ip v6 address
             }
-        } else {
-            $ip = "";
         }
-        return $ip;
+        return (string)$ip;
     }
 }
 
-if (! function_exists('ip_address_to_db')) {
+if (!function_exists('ip_address_to_db')) {
     function ip_address_to_db($ip = '')
     {
         if ($ip != "") {
             if (stripos($ip, '.') !== false) {
+                // A cautionary thing. Something is sending a padded IP to be padded.
+                $ip = ip_address_from_db($ip);
                 if (filter_var($ip, FILTER_VALIDATE_IP)) {
                     // this is an ip v4 address
                     $myip = explode(".", $ip);
-                    $myip[0] = mb_substr("000".$myip[0], -3);
-                    $myip[1] = mb_substr("000".$myip[1], -3);
-                    $myip[2] = mb_substr("000".$myip[2], -3);
-                    $myip[3] = mb_substr("000".$myip[3], -3);
-                    $ip = $myip[0].".".$myip[1].".".$myip[2].".".$myip[3];
+                    $myip[0] = mb_substr("000" . $myip[0], -3);
+                    $myip[1] = mb_substr("000" . $myip[1], -3);
+                    $myip[2] = mb_substr("000" . $myip[2], -3);
+                    $myip[3] = mb_substr("000" . $myip[3], -3);
+                    $ip = $myip[0] . '.' . $myip[1] . '.' . $myip[2] . '.' . $myip[3];
                 } else {
                     $ip = '';
                 }
@@ -365,10 +357,8 @@ if (! function_exists('ip_address_to_db')) {
             if (stripos($ip, ':') !== false) {
                 // this is an ip v6 address
             }
-        } else {
-            $ip = "";
         }
-        return $ip;
+        return (string)$ip;
     }
 }
 
@@ -383,10 +373,11 @@ if (! function_exists('subnet_validate')) {
         if (!preg_match('/^[\d,\.,\/,-]*$/', $subnet)) {
             $error->message = 'Invalid Subnet. Received (' . $subnet . ').';
             log_message('error', $error->message);
+            log_message('error', json_encode($error));
             $GLOBALS['stash'] = $error;
             return '';
         }
-        
+
         if (strpos($subnet, '/') !== false and strpos($subnet, '-') !== false) {
             // We cannot have both a range AND a slash
             $error->message = 'A subnet cannot contain / and -. Received (' . $subnet . ').';
@@ -415,17 +406,17 @@ if (! function_exists('subnet_validate')) {
         }
 
         $temp = explode('.', $net[0]);
-        for ($i=0; $i < count($temp); $i++) {
+        for ($i = 0; $i < count($temp); $i++) {
             if (strpos($temp[$i], '-') !== false) {
                 $temp2 = explode('-', $temp[$i]);
                 if ($temp2[0] < 0 or $temp2[0] > 255) {
-                    $error->message = "Subnet octet " . ($i+1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
+                    $error->message = "Subnet octet " . ($i + 1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
                     log_message('error', $error->message);
                     $GLOBALS['stash'] = $error;
                     return '';
                 }
                 if ($temp2[1] < 0 or $temp2[1] > 255) {
-                    $error->message = "Subnet octet " . ($i+1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
+                    $error->message = "Subnet octet " . ($i + 1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
                     log_message('error', $error->message);
                     $GLOBALS['stash'] = $error;
                     return '';
@@ -433,7 +424,7 @@ if (! function_exists('subnet_validate')) {
             }
             if (strpos($temp[$i], '-') === false) {
                 if ($temp[$i] < 0 or $temp[$i] > 255) {
-                    $error->message = "Subnet octet " . ($i+1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
+                    $error->message = "Subnet octet " . ($i + 1) . " has a value of " . $temp[$i] . ' and is out of bounds. Received (' . $subnet . ').';
                     log_message('error', $error->message);
                     $GLOBALS['stash'] = $error;
                     return '';
@@ -509,12 +500,20 @@ if (! function_exists('dns_validate')) {
 /**
  * Read the collection from the database
  *
- * @param  string $ip_address A standard IP, a list of comma separated subnets or an empty string
- * @return bool               Returns true if ip is contained in a subnet, false otherwise
+ * @param  string $ip_address A standard IP
+ * @return bool               Returns true if ip is contained in any network in the database, false otherwise
  */
 function check_ip(string $ip = ''): bool
 {
     if (empty($ip)) {
+        return false;
+    }
+
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        return true;
+    }
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
         return false;
     }
 
@@ -538,13 +537,17 @@ function check_ip(string $ip = ''): bool
     if (stripos($ip, ':') !== false) {
         return true;
     }
+
     $db = db_connect();
     $sql = "SELECT COUNT(id) AS count FROM networks WHERE ((-1 << (33 - INSTR(BIN(INET_ATON(cidr_to_mask(SUBSTR(network, LOCATE('/', network)+1)))), '0'))) & INET_ATON(?) = INET_ATON(SUBSTR(network, 1, LOCATE('/', network)-1)) OR network = '" . $ip . "/32')";
+
     $result = $db->query($sql, [$ip])->getResult();
+
     if (!empty($db->error()->code)) {
         log_message('error', json_encode($db->error()));
         return false;
     }
+
     if (intval($result[0]->count) > 0) {
         return true;
     } else {

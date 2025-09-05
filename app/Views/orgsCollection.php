@@ -9,7 +9,7 @@ include 'shared/collection_functions.php';
                     <?= collection_card_header($meta->collection, $meta->icon, $user, '', $meta->query_string) ?>
                 </div>
                 <div class="card-body">
-                    <br />
+                    <br>
                     <div class="table-responsive">
                         <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[2,"asc"]]'>
                             <thead>
@@ -32,15 +32,15 @@ include 'shared/collection_functions.php';
                                 foreach ($data as $item) {
                                     echo "\n                                <tr>\n"; ?>
                                     <?= collection_button_read($meta->collection, $item->id) ?>
-                                    <?= collection_button_devices(url_to('devicesCollection') . '?devices.org_id=' . $item->id) . "\n" ?>
+                                    <?= collection_button_devices(url_to('devicesCollection') . '?devices.org_id=' . $item->id . '&properties=audit_status,devices.id,devices.icon,devices.type,devices.name,devices.ip,devices.manufacturer,devices.os_family,devices.status,orgs.name') . "\n" ?>
                                     <?php foreach ($meta->data_order as $key) {
                                         if ($key === 'id') {
                                             continue;
                                         }
                                         if ($key === 'parent_name' and !empty($item->attributes->parent_id)) {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?orgs.parent_id=" . $item->attributes->{'parent_id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?orgs.parent_id=" . $item->attributes->{'parent_id'} . "\">" . $item->attributes->{$key} . "</a></td>\n";
                                         } elseif ($key === 'type') {
-                                            echo "<td><a href=\"" . url_to($meta->collection.'Collection') . "?orgs.type=" . $item->attributes->type . "\">" . $item->attributes->type . "</a></td>\n";
+                                            echo "<td><a href=\"" . url_to($meta->collection . 'Collection') . "?orgs.type=" . $item->attributes->type . "\">" . $item->attributes->type . "</a></td>\n";
                                         } else {
                                             echo "<td>" . $item->attributes->{$key} . "</td>\n";
                                         }
@@ -61,5 +61,10 @@ include 'shared/collection_functions.php';
                     </div>
                 </div>
             </div>
+            <?php
+            if (count($data) === 1) {
+                @include 'help/' . $meta->collection . '.php';
+                echo collection_intro_header('Introduction to ' . $meta->heading, $meta->collection, $meta->icon, @$intro, @$body);
+            }
+            ?>
         </main>
-

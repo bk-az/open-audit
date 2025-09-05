@@ -8,8 +8,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use CodeIgniter\Controller;
-
-use \stdClass;
+use stdClass;
 
 /**
  * PHP version 7.4
@@ -19,7 +18,7 @@ use \stdClass;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -65,7 +64,7 @@ class Util extends Controller
 
     public function testWindowsClient()
     {
-        $filename = APPPATH . '../other/test_windows_client.vbs';
+        $filename = ROOTPATH . 'other/test_windows_client.vbs';
         $file = file_get_contents($filename);
         // Set headers
         header('Cache-Control: public');

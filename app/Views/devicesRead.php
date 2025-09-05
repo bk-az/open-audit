@@ -11,6 +11,12 @@ if (!empty($included['fields'])) {
         }
     }
 }
+if (empty($resource->icon)) {
+    $resource->icon = 'unknown';
+}
+if (empty($resource->type)) {
+    $resource->type = 'unknown';
+}
 ?>
         <main class="container-fluid">
             <div class="card">
@@ -71,7 +77,7 @@ if (!empty($included['fields'])) {
                                     </div>
                                     <?php
                                     $show = false;
-                                    $sections = array('bios', 'disk', 'memory', 'module', 'monitor', 'motherboard', 'network', 'optical', 'partition', 'processor', 'radio', 'san', 'scsi', 'sound', 'usb', 'video');
+                                    $sections = array('access_point', 'bios', 'disk', 'memory', 'module', 'monitor', 'motherboard', 'network', 'optical', 'partition', 'processor', 'radio', 'san', 'scsi', 'sound', 'usb', 'video');
                                     foreach ($sections as $section) {
                                         if (!empty($included[$section])) {
                                             $show = true;
@@ -100,7 +106,7 @@ if (!empty($included['fields'])) {
 
                                     <?php
                                     $show = false;
-                                    $sections = array('server', 'service', 'software', 'software_key');
+                                    $sections = array('antivirus', 'firewall', 'firewall_rule', 'server', 'service', 'software', 'software_key');
                                     foreach ($sections as $section) {
                                         if (!empty($included[$section])) {
                                             $show = true;
@@ -129,7 +135,7 @@ if (!empty($included['fields'])) {
 
                                     <?php
                                     $show = false;
-                                    $sections = array('certificate', 'dns', 'file', 'executable', 'ip', 'log', 'netstat', 'nmap', 'pagefile', 'policy', 'print_queue', 'route', 'share', 'task', 'user', 'user_group', 'variable', 'vm', 'windows');
+                                    $sections = array('arp', 'certificate', 'cli_config', 'dns', 'file', 'executable', 'ip', 'log', 'netstat', 'nmap', 'pagefile', 'policy', 'print_queue', 'route', 'share', 'task', 'user', 'user_group', 'variable', 'vm', 'windows');
                                     foreach ($sections as $section) {
                                         if (!empty($included[$section])) {
                                             $show = true;
@@ -207,6 +213,11 @@ if (!empty($included['fields'])) {
                                             <?= read_field('os_family', $resource->os_family, '', $update, __('OS Family')) ?>
                                             <?= read_field('processor_count', $resource->processor_count, '', false, __('Processors')) ?>
                                             <?= read_field('uptime', $resource->uptime) ?>
+                                            <?php if (!empty($resource->vm_device_id) and !empty($resource->vm_server_name)) {
+                                                $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('devicesRead', $resource->vm_device_id) . "\"><span title=\"" . __('View') . "\" class=\"fa fa-link\" aria-hidden=\"true\"></span></a>";
+                                                echo read_field('VM Host', $resource->vm_server_name, '', '', '', $link);
+                                            }
+                                            ?>
                                         </div>
                                         <div class="col-4">
                                             <?= read_field('domain', $resource->domain, '', $update) ?>
@@ -215,6 +226,7 @@ if (!empty($included['fields'])) {
                                             <?= read_field('os_version', $resource->os_version, '', false, __('OS Version')) ?>
                                             <?= read_field('memory_count', ($resource->memory_count / 1024 / 1024) . ' GB', '', false, __('Memory')) ?>
                                             <?= read_field('os_installation_date', $resource->os_installation_date, '', $update, __('OS Installed On')) ?>
+                                            <?= read_field('service_tag', $resource->service_tag, '', '', __('Service Tag')) ?>
                                         </div>
                                         <div class="col-4">
                                             <?= read_field('fqdn', $resource->fqdn, '', $update, __('FQDN')) ?>
@@ -610,7 +622,7 @@ if (!empty($included['fields'])) {
                                             }
                                             echo "<div class=\"col-4\">\n";
                                             if ($field->{'type'} == 'varchar') {
-                                                echo read_field($field->{'name'}, '', '', $update);
+                                                echo read_field($field->{'name'}, (string)@$field->{'field.value'}, '', $update);
                                             }
 
                                             if ($field->{'type'} == 'list') {
@@ -633,11 +645,11 @@ if (!empty($included['fields'])) {
                                                     $item->attributes->name = $value;
                                                     $values[] = $item;
                                                 }
-                                                echo read_select($field->name, '', '', $update, '', $values);
+                                                echo read_select($field->name, (string)@$field->{'field.value'}, '', $update, '', $values);
                                             }
 
                                             if ($field->{'type'} == 'date') {
-                                                echo read_field($field->{'name'}, '', '', $update, '', '', '', 'date') ;
+                                                echo read_field($field->{'name'}, (string)@$field->{'field.value'}, '', $update, '', '', '', 'date') ;
                                             }
                                             echo "</div>\n";
                                         }
@@ -668,7 +680,7 @@ if (!empty($included['fields'])) {
 
 
                                     <?php if (!empty($included['nmis_fields'])) {
-                                        for ($i=0; $i < 3; $i++) {
+                                        for ($i = 0; $i < 3; $i++) {
                                             $field = $included['nmis_fields'][$i];
                                             if ($field->{'type'} == 'list') {
                                                 $values = array();
@@ -707,7 +719,7 @@ if (!empty($included['fields'])) {
                                         <div class="col-4">
 
                                     <?php if (!empty($included['nmis_fields'])) {
-                                        for ($i=3; $i < count($included['nmis_fields']); $i++) {
+                                        for ($i = 3; $i < count($included['nmis_fields']); $i++) {
                                             $field = $included['nmis_fields'][$i];
                                             if (!in_array($field->name, $firstwave_fields)) {
                                                 continue;
@@ -825,6 +837,9 @@ if (!empty($included['fields'])) {
 
                             <?php
                             $location = new \stdClass();
+                            if (empty($included['locations'])) {
+                                $included['locations'] = array();
+                            }
                             foreach ($included['locations'] as $included_location) {
                                 if ($included_location->id == $resource->location_id) {
                                     $location = $included_location;
@@ -846,15 +861,34 @@ if (!empty($included['fields'])) {
                                     <div class="row">
                                         <div class="col-4">
                                             <?= read_select('location_id', $resource->location_id, '', $update, __('Location'), $included['locations']) ?>
-                                            <?= read_field('address', $location->attributes->address) ?>
-                                            <?= read_field('city', $location->attributes->city) ?>
-                                            <?= read_field('state', $location->attributes->state) ?>
-                                            <?= read_field('country', $location->attributes->country) ?>
+                                            <?= read_field('address', @(string)$location->attributes->address) ?>
+                                            <?= read_field('city', @(string)$location->attributes->city) ?>
+                                            <?= read_field('state', @(string)$location->attributes->state) ?>
+                                            <?= read_field('country', @(string)$location->attributes->country) ?>
                                         </div>
                                         <div class="col-4">
                                             <?php $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('devicesCollection') . "?devices.owner=" . urlencode($resource->owner) . "\"><span title=\"" . __('View') . "\" class=\"fa fa-link\" aria-hidden=\"true\"></span></a>"; ?>
                                             <?= read_field('owner', $resource->owner, '', $update, '', $link) ?>
                                             <?= read_select('org_id_2', $resource->org_id, '', false, __('Organisation'), $orgs) ?>
+
+                                            <?php
+                                            if (empty($included['rack_devices'][0]->{'rack_id'})) {
+                                                $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('racksCollection') . "\"><span title=\"" . __('View Racks') . "\" class=\"fa fa-film\" aria-hidden=\"true\"></span></a>";
+                                            } else {
+                                                $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('racksRead', $included['rack_devices'][0]->{'rack_id'}) . "\"><span title=\"" . __('View') . "\" class=\"fa fa-link\" aria-hidden=\"true\"></span></a>";
+                                            } ?>
+                                            <?= read_field('rack', $included['rack_devices'][0]->{'racks.name'}, '', '', '', $link) ?>
+                                            <?php
+                                            if (empty(!$included['rack_devices'][0]->{'position'})) {
+                                                echo read_field('position_in_rack', $included['rack_devices'][0]->{'position'}, '', '', '', '');
+                                            }
+                                            if (!empty($included['rack_devices'][0]->{'locations.id'})) {
+                                                $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('locationsRead', $included['rack_devices'][0]->{'locations.id'}) . "\"><span title=\"" . __('View') . "\" class=\"fa fa-link\" aria-hidden=\"true\"></span></a>";
+                                                echo read_field('rack_location', $included['rack_devices'][0]->{'locations.name'}, '', '', '', $link);
+                                            }
+                                            ?>
+
+
                                         </div>
                                         <div class="col-4">
                                             <?php $link = "<a role=\"button\" title=\"" . __('View') . "\" class=\"btn btn-outline-secondary link_button\" href=\"" . url_to('devicesCollection') . "?devices.switch_device_id=" . urlencode($resource->switch_device_id) . "\"><span title=\"" . __('View') . "\" class=\"fa fa-link\" aria-hidden=\"true\"></span></a>"; ?>
@@ -1073,6 +1107,51 @@ if (!empty($included['fields'])) {
                                 </div>
                             </div>
 
+                            <div style="margin-bottom:20px; display:none;" class="card" id="access_point_section">
+                                <?php $count = !empty($included['access_point']) ? count($included['access_point']) : 0; ?>
+                                <?=  device_panel('access_point', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center" data-orderable="false"><?= __('View') ?></th>
+                                                    <th><?= __('Name') ?></th>
+                                                    <th><?= __('Model') ?></th>
+                                                    <th><?= __('Serial') ?></th>
+                                                    <th><?= __('Ethernet MAC') ?></th>
+                                                    <th><?= __('Radio MAC') ?></th>
+                                                    <th><?= __('IP') ?></th>
+                                                    <th><?= __('Location') ?></th>
+                                                    <th><?= __('Status') ?></th>
+                                                    <th><?= __('IOS Version') ?></th>
+                                                    <th><?= __('Software Version') ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php if (!empty($included['access_point'])) {
+                                                foreach ($included['access_point'] as $row) { ?>
+                                                <tr>
+                                                    <?= device_component_button_read('access_point', $row->id) ?>
+                                                    <td><?= $row->name ?></td>
+                                                    <td><?= $row->model ?></td>
+                                                    <td><?= $row->serial ?></td>
+                                                    <td><?= $row->ethernet_mac ?></td>
+                                                    <td><?= $row->mac ?></td>
+                                                    <td><?= $row->ip ?></td>
+                                                    <td><?= $row->location ?></td>
+                                                    <td><?= $row->status ?></td>
+                                                    <td><?= $row->ios_version ?></td>
+                                                    <td><?= $row->software_version ?></td>
+                                                </tr>
+                                                <?php } ?>
+                                            <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style="margin-bottom:20px; display:none;" class="card" id="bios_section">
                                 <?php $count = !empty($included['bios']) ? count($included['bios']) : 0; ?>
                                 <?= device_panel('bios', $user->toolbar_style, $resource->id, '', $update, $count); ?>
@@ -1130,7 +1209,7 @@ if (!empty($included['fields'])) {
                                                     <td><?= $row->model_family ?></td>
                                                     <td><?= $row->caption ?></td>
                                                     <td><?= $row->serial ?></td>
-                                                    <td><?= number_format($row->size/1024) ?> GB</td>
+                                                    <td><?= number_format($row->size / 1024) ?> GB</td>
                                                     <td><?= $row->status ?></td>
                                                     <td><?= $row->interface_type ?></td>
                                                     <td><?= $row->firmware ?></td>
@@ -1403,6 +1482,8 @@ if (!empty($included['fields'])) {
                                                     <th><?= __('Used') ?></th>
                                                     <th><?= __('Format') ?></th>
                                                     <th><?= __('Serial') ?></th>
+                                                    <th><?= __('Encryption Status') ?></th>
+                                                    <th><?= __('Encryption Method') ?></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1419,6 +1500,8 @@ if (!empty($included['fields'])) {
                                                     <td><?= number_format($row->used / 1000) ?> GB</td>
                                                     <td><?= $row->format ?></td>
                                                     <td><?= $row->serial ?></td>
+                                                    <td><?= $row->encryption_status ?></td>
+                                                    <td><?= $row->encryption_method ?></td>
                                                 </tr>
                                                 <?php } ?>
                                             <?php } ?>
@@ -1641,6 +1724,115 @@ if (!empty($included['fields'])) {
                                 </div>
                             </div>
 
+                            <div style="margin-bottom:20px; display:none;" class="card" id="antivirus_section">
+                                <?php $count = !empty($included['antivirus']) ? count($included['antivirus']) : 0; ?>
+                                <?=  device_panel('antivirus', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center" data-orderable="false"><?= __('View') ?></th>
+                                                    <th><?= __('Name') ?></th>
+                                                    <th><?= __('Status') ?></th>
+                                                    <th><?= __('State') ?></th>
+                                                    <th><?= __('Executable') ?></th>
+                                                    <th><?= __('Reportable') ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php if (!empty($included['antivirus'])) {
+                                                foreach ($included['antivirus'] as $row) { ?>
+                                                <tr>
+                                                    <?= device_component_button_read('antivirus', $row->id) ?>
+                                                    <td><?= $row->name ?></td>
+                                                    <td><?= $row->status ?></td>
+                                                    <td><?= $row->state ?></td>
+                                                    <td><?= $row->executable ?></td>
+                                                    <td><?= $row->reportable ?></td>
+                                                </tr>
+                                                <?php } ?>
+                                            <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:20px; display:none;" class="card" id="firewall_section">
+                                <?php $count = !empty($included['firewall']) ? count($included['firewall']) : 0; ?>
+                                <?=  device_panel('firewall', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center" data-orderable="false"><?= __('View') ?></th>
+                                                    <th><?= __('Name') ?></th>
+                                                    <th><?= __('Status') ?></th>
+                                                    <th><?= __('State') ?></th>
+                                                    <th><?= __('Executable') ?></th>
+                                                    <th><?= __('Reportable') ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php if (!empty($included['firewall'])) {
+                                                foreach ($included['firewall'] as $row) { ?>
+                                                <tr>
+                                                    <?= device_component_button_read('firewall', $row->id) ?>
+                                                    <td><?= $row->name ?></td>
+                                                    <td><?= $row->status ?></td>
+                                                    <td><?= $row->state ?></td>
+                                                    <td><?= $row->executable ?></td>
+                                                    <td><?= $row->reportable ?></td>
+                                                </tr>
+                                                <?php } ?>
+                                            <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:20px; display:none;" class="card" id="firewall_rule_section">
+                                <?php $count = !empty($included['firewall_rule']) ? count($included['firewall_rule']) : 0; ?>
+                                <?=  device_panel('firewall_rule', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center" data-orderable="false"><?= __('View') ?></th>
+                                                    <th><?= __('Name') ?></th>
+                                                    <th><?= __('Profile') ?></th>
+                                                    <th><?= __('Enabled') ?></th>
+                                                    <th><?= __('Direction') ?></th>
+                                                    <th><?= __('Action') ?></th>
+                                                    <th><?= __('Local Port') ?></th>
+                                                    <th><?= __('Remote Port') ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php if (!empty($included['firewall_rule'])) {
+                                                foreach ($included['firewall_rule'] as $row) { ?>
+                                                <tr>
+                                                    <?= device_component_button_read('firewall_rule', $row->id) ?>
+                                                    <td><?= $row->name ?></td>
+                                                    <td><?= $row->profile ?></td>
+                                                    <td><?= $row->enabled ?></td>
+                                                    <td><?= $row->direction ?></td>
+                                                    <td><?= $row->action ?></td>
+                                                    <td><?= $row->local_port ?></td>
+                                                    <td><?= $row->remote_port ?></td>
+                                                </tr>
+                                                <?php } ?>
+                                            <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style="margin-bottom:20px; display:none;" class="card" id="service_section">
                                 <?php $count = !empty($included['service']) ? count($included['service']) : 0; ?>
                                 <?=  device_panel('service', $user->toolbar_style, $resource->id, '', false, $count); ?>
@@ -1759,6 +1951,66 @@ if (!empty($included['fields'])) {
                                 </div>
                             </div>
 
+                            <div style="margin-bottom:20px; display:none;" class="card" id="arp_section">
+                                <?php $count = !empty($included['arp']) ? count($included['arp']) : 0; ?>
+                                <?=  device_panel('arp', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                <?php
+                                $interface_id = false;
+                                if (!empty($included['arp'])) {
+                                    foreach ($included['arp'] as $row) {
+                                        if (!empty($row->interface_id)) {
+                                            $interface_id = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                ?>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" data-order='[[1,"asc"]]'>
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center" data-orderable="false"><?= __('View') ?></th>
+                                                    <th><?= __('IP') ?></th>
+                                                    <th><?= __('Mac') ?></th>
+                                                    <th><?= __('Interface') ?></th>
+                                                    <?php if ($interface_id) { ?>
+                                                    <th><?= __('Interface ID') ?></th>
+                                                    <?php } ?>
+                                                    <th><?= __('MAC Manufacturer') ?></th>
+                                                    <th class="text-center"><?= __('Device') ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php if (!empty($included['arp'])) {
+                                                foreach ($included['arp'] as $row) {
+                                                    if (!empty($row->manufacturer) and $row->manufacturer === 'private') {
+                                                        $row->manufacturer = '<i>private</i>';
+                                                    }
+                                                    if (!empty($row->{'ip.device_id'})) {
+                                                        #$row->{'ip.device_id'} = '<a href="' . url_to('devicesRead', intval($row->{'ip.device_id'})) . '">link</a>';
+                                                        $row->{'ip.device_id'} = "<a title=\"" . __('Device') . "\" role=\"button\" class=\"btn " . $GLOBALS['button'] . " btn-devices\" href=\"" . url_to('devicesRead', intval($row->{'ip.device_id'})) . "\"><span style=\"width:1rem;\" title=\"" . __('Device') . "\" class=\"fa fa-desktop\" aria-hidden=\"true\"></span></a>";
+                                                    }
+                                                    ?>
+                                                <tr>
+                                                    <?= device_component_button_read('arp', $row->id) ?>
+                                                    <td><span style="display:none;"><?= ip_address_to_db($row->ip) ?></span><?= $row->ip ?></td>
+                                                    <td><?= $row->mac ?></td>
+                                                    <td><?= $row->interface ?></td>
+                                                    <?php if ($interface_id) { ?>
+                                                    <td><?= $row->interface_id ?></td>
+                                                    <?php } ?>
+                                                    <td><?= $row->manufacturer ?></td>
+                                                    <td class="text-center"><?= $row->{'ip.device_id'} ?></td>
+                                                </tr>
+                                                <?php } ?>
+                                            <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style="margin-bottom:20px; display:none;" class="card" id="certificate_section">
                                 <?php $count = !empty($included['certificate']) ? count($included['certificate']) : 0; ?>
                                 <?=  device_panel('certificate', $user->toolbar_style, $resource->id, '', false, $count); ?>
@@ -1791,6 +2043,39 @@ if (!empty($included['fields'])) {
                                     </div>
                                 </div>
                             </div>
+
+                            <?php if (!empty($included['cli_config'])) { ?>
+                                <?php $count = !empty($included['cli_config']) ? count($included['cli_config']) : 0; ?>
+                                <?php if (empty($included['cli_config_non_current'])) { ?>
+                                <div style="margin-bottom:20px; display:none;" class="card" id="cli_config_section">
+                                    <?=  device_panel('cli_config', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-10 offset-1">
+                                                <?php foreach ($included['cli_config'] as $cli_config) {
+                                                    $myConfig = (!empty(json_decode(html_entity_decode($cli_config->config)))) ?
+                                                                json_encode(json_decode(html_entity_decode($cli_config->config)), JSON_PRETTY_PRINT) :
+                                                                html_entity_decode($cli_config->config); ?>
+                                                    <label for="cli_config_<?= $cli_config->hash ?>" class="form-label"><?= $cli_config->name ?></label>
+                                                    <textarea id="cli_config_<?= $cli_config->hash ?>" class="form-control" rows="10" style="font-family: courier;"><?= $myConfig ?></textarea>
+                                                    <br><br>
+                                                <?php } ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php } ?>
+                                <?php if (!empty($included['cli_config_non_current'])) { ?>
+                                <div style="margin-bottom:20px; display:none;" class="card" id="cli_config_section">
+                                    <?=  device_panel('cli_config', $user->toolbar_style, $resource->id, '', false, $count); ?>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <?= html_entity_decode($included['cli_config_diff']) ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php } ?>
+                            <?php } ?>
 
                             <div style="margin-bottom:20px; display:none;" class="card" id="dns_section">
                                 <?php $count = !empty($included['dns']) ? count($included['dns']) : 0; ?>
@@ -1844,10 +2129,10 @@ if (!empty($included['fields'])) {
                                             <tbody>
                                             <?php if (!empty($included['executable'])) {
                                                 foreach ($included['executable'] as $row) {
-                                                    if (intval($row->size > 1024)) {
-                                                        $size = number_format(intval($row->size / 1024), 0) . ' MB';
+                                                    if (intval($row->size > 1048576)) {
+                                                        $size = number_format(intval($row->size / 1024 / 1024)) . ' MB';
                                                     } else {
-                                                        $size = $row->size . ' KB';
+                                                        $size = number_format(intval($row->size / 1024))  . ' KB';
                                                     }
                                                     ?>
                                                 <tr>
@@ -2504,7 +2789,11 @@ if (!empty($included['fields'])) {
                                                 <tr>
                                                     <?= device_component_button_read('vm', $row->id) ?>
                                                     <td class="text-center"><?= $row->icon ?></td>
-                                                    <td><?= $row->name ?></td>
+                                                    <?php if (!empty($row->guest_device_id)) { ?>
+                                                        <td><a href="<?= url_to('devicesRead', $row->guest_device_id) ?>"><?= $row->name ?></a></td>
+                                                    <?php } else { ?>
+                                                        <td><?= $row->name ?></td>
+                                                    <?php } ?>
                                                     <td><?= $row->type ?></td>
                                                     <td><?= $row->memory_count ?></td>
                                                     <td><?= $row->cpu_count ?></td>
@@ -2519,8 +2808,6 @@ if (!empty($included['fields'])) {
                                     </div>
                                 </div>
                             </div>
-
-
 
                         </div>
                     </div>

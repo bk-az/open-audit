@@ -43,6 +43,11 @@ if ($collection === "discoveries") {
     $extra = "The fields 'scan_options' and 'match_options' are stored as a JSON object. You should use the field names of 'scan_options.attribute_name'. For an example, ping would be 'scan_options.ping'.</p><p>For an example, use the web interface to create a discovery and then go to menu -> Admin -> Database -> List Tables and click on Discoveries. Then export to CSV.</p><p>";
 }
 
+if ($collection === "executables") {
+    $sample = ' <tr><td>"name","org_id","path","description","os_family","exclude"</td></tr>
+                <tr><td>"The Open-AudIT binary","/usr/local/open-audit/other/enterprise.bin","This binary enables Enterprise functionality.","Linux",""</td></tr>';
+}
+
 if ($collection === "fields") {
     $sample = ' <tr><td>"name","org_id","group_id","type","values","placement"</td></tr>
                 <tr><td>"My Special Field","1","1","varchar","","custom"</td></tr>';
@@ -59,7 +64,7 @@ if ($collection === "groups") {
                 <tr><td>"1","Test Group","Ubuntu Machines","SELECT DISTINCT(devices.id) FROM devices WHERE @filter AND os_family LIKE \'Ubuntu\'","y"</td></tr>';
 }
 
-if ($collection === "ldap_servers") {
+if ($collection === "auth") {
     $sample = ' <tr><td>"name","org_id","lang","host","domain","refresh","use_roles"</td></tr>
                 <tr><td>"My LDAP Server","1","en","192.168.1.120","open-audit.com","24","y"</td></tr>';
 }
@@ -88,6 +93,11 @@ if ($collection === "orgs") {
                 <tr><td>"IT Servers","1","The Servers that belong to the IT Department"</td></tr>';
 }
 
+if ($collection === "packages") {
+    $sample = ' <tr><td>"name","org_id","software_name","type","os","description"</td></tr>
+                <tr><td>"WinZip","1","WinZIP%","approved","Windows","Winzip archiver."</td></tr>';
+}
+
 if ($collection === "queries") {
     $sample = ' <tr><td>"name","org_id","menu_display","menu_category",sql"</td></tr>
                 <tr><td>"Linux Device Hardware","1","y","Hardware",SELECT devices.id AS `devices.id`, devices.icon AS `devices.icon`, devices.type AS `devices.type`, devices.name AS `devices.name`, devices.domain AS `devices.domain`, devices.ip AS `devices.ip`, devices.manufacturer AS `devices.manufacturer`, devices.model AS `devices.model`, devices.serial AS `devices.serial`, devices.os_family AS `devices.os_family`, devices.memory_count AS `devices.memory_count`, devices.form_factor AS `devices.form_factor`, processor.description AS `processor.description` FROM devices LEFT JOIN processor ON (processor.device_id = devices.id AND processor.current = \'y\') WHERE @filter AND devices.os_group = \'Linux\' ORDER BY devices.name"</td></tr>
@@ -96,7 +106,7 @@ if ($collection === "queries") {
 
 if ($collection === "roles") {
     $sample = ' <tr><td>"name","description","permissions"</td></tr>
-                <tr><td style="word-wrap: break-word;min-width: 160px;max-width: 160px;">"admin","This role can change global options.","{\'attributes\':\'crud\',\'baselines\':\'crud\',\'configuration\':\'crud\',\'database\':\'crud\',\'errors\':\'r\',\'groups\':\'crud\',\'ldap_servers\':\'crud\',\'logs\':\'crud\',\'nmis\':\'crud\',\'queries\':\'crud\',\'roles\':\'crud\',\'search\':\'crud\',\'sessions\':\'crud\',\'summaries\':\'crud\'}"</td></tr>';
+                <tr><td style="word-wrap: break-word;min-width: 160px;max-width: 160px;">"admin","This role can change global options.","{\'attributes\':\'crud\',\'auth\':\'crud\',\'baselines\':\'crud\',\'configuration\':\'crud\',\'database\':\'crud\',\'errors\':\'r\',\'groups\':\'crud\',\'logs\':\'crud\',\'nmis\':\'crud\',\'queries\':\'crud\',\'roles\':\'crud\',\'search\':\'crud\',\'sessions\':\'crud\',\'summaries\':\'crud\'}"</td></tr>';
     $extra = "The field 'permissions' is stored as a JSON object. You should use single quotes in the JSON (the import routine will convert them).</p><p>For an example, use the web interface to create a role and then go to menu -> Admin -> Database -> List Tables and click on Roles. Then export to CSV.";
 }
 

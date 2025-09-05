@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -14,7 +15,7 @@ namespace App\Controllers;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -146,10 +147,10 @@ class Queue extends BaseController
                 discover_subnet($details);
             }
 
-            #if ($item->type === 'active directory') {
-            #    log_message('debug', $microtime . " " . "Scanning AD as per type.");
-            #    discover_ad($details);
-            #}
+            if ($item->type === 'active directory') {
+                log_message('debug', $microtime . " " . "Scanning AD as per type.");
+                discover_ad($details);
+            }
 
             if ($item->type === 'ip_scan') {
                 log_message('debug', $microtime . " " . "Scanning IP " . $details->ip . " as per type.");
@@ -159,7 +160,7 @@ class Queue extends BaseController
                     $log = new \stdClass();
                     $log->discovery_id = intval($details->discovery_id);
                     $log->command = 'Peak Memory';
-                    $log->command_output = round((memory_get_peak_usage(false)/1024/1024), 3) . ' MiB';
+                    $log->command_output = round((memory_get_peak_usage(false) / 1024 / 1024), 3) . ' MiB';
                     $log->command_status = 'device complete';
                     $log->command_time_to_execute = microtime(true)  - $microtime;
                     $log->message = 'IP Scan finish on device ' . ip_address_from_db($details->ip);

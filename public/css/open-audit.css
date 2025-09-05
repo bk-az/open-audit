@@ -123,6 +123,24 @@ Disabled as the light grey is a bit too light
 */
 
 
+/* DIFF for devices::cli_config and database::compare schema */
+.diffInserted {
+    background: #cdebac;
+}
+.diffDeleted {
+    background: rgb(242, 208, 211);
+}
+
+.input-group:not(.has-validation) > :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu):not(.form-floating),
+.input-group:not(.has-validation) > .dropdown-toggle:nth-last-child(n+3),
+.input-group:not(.has-validation) > .form-floating:not(:last-child) > .form-control,
+.input-group:not(.has-validation) > .form-floating:not(:last-child) > .form-select {
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+}
+
+
+
 
 /* General colors */
 .text-oa-success {
@@ -609,11 +627,44 @@ table.dataTable > thead .sorting_desc_disabled::after
   100% {background-color: rgba(237, 85, 101, 1)}
 }
 
+.toast-ent .toast-header {
+    background-color: var(--bs-success-bg-subtle);
+    --bs-border-color: var(--bs-primary-border-subtle);
+    color: var(--bs-success-text);
+}
+
+.toast-pro .toast-header {
+    background-color: var(--bs-primary-border-subtle);
+    color: var(--bs-primary-text);
+}
+
+.toast-perm .toast-header {
+    background-color: var(--bs-danger-bg-subtle);
+    --bs-border-color: var(--bs-danger-border-subtle);
+    color: var(--bs-danger-text);
+}
+
+.toast-success .toast-header {
+    background-color: var(--bs-success-bg-subtle);
+    --bs-border-color: var(--bs-success-border-subtle);
+    color: var(--bs-success-text);
+}
+
+.toast-failure .toast-header {
+    background-color: var(--bs-danger-bg-subtle);
+    --bs-border-color: var(--bs-danger-border-subtle);
+    color: var(--bs-danger-text);
+}
+
 
 @media (prefers-color-scheme: dark) {
     .nav-link
     {
         color: #fff;
+    }
+
+    .toast-body {
+        background: #ddd;
     }
 
     .table > :not(caption) > * > * {
@@ -644,6 +695,13 @@ table.dataTable > thead .sorting_desc_disabled::after
     }
     .card-body {
         color: white;
+    }
+    .modal-body {
+        color: white;
+    }
+    .form-control {
+        color: var(--bs-secondary-color);
+        opacity: 1;
     }
     .form-control:disabled, .form-control[readonly] {
         opacity: 1;
@@ -692,4 +750,81 @@ table.dataTable > thead .sorting_desc_disabled::after
     {
         color: var(--bs-btn-color);
     }
+}
+
+
+/*
+body {
+   background-color: #000;
+   background-image: url("/images/background.png");
+   background-position: right bottom;
+   background-repeat: no-repeat;
+   background-attachment: fixed;
+   background-size: 100% 100% ;
+   color: white !important;
+}
+
+.navbar {
+    background-color: transparent !important;
+    background: rgba(0,0,0,0.4) !important;
+    opacity: 1.2;
+    font-family: verdana;
+    font-size: 1.2rem;
+}
+
+.navbar-brand {
+    font-size: 1.2rem;
+}
+
+.second-nav {
+    background-color: transparent !important;
+    background: rgba(0,0,0,0.2) !important;
+    opacity: 1.2;
+    font-family: verdana;
+    font-size: 1rem;
+    box-shadow: none;
+}
+
+.link-secondary {
+    color: white !important;
+}
+
+.dropdown-toggle {
+    color: white !important;
+}
+
+.dash-drop {
+    border: 1px solid white !important;
+}
+
+.form-control-sm {
+    border: 1px solid white !important;
+}
+
+.btn-outline-secondary {
+    border: 1px solid white !important;
+    color: white !important;
+}
+
+.btn-light {
+    background: rgba(0,0,0,0.2) !important;
+    color: white !important;
+}
+
+.card-header {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(0,0,0,0.3) !important;
+}
+
+code {
+    color: white;
+    font-weight: bold;
+}
+
+.text-danger {
+    color: hwb(0 56.5% 5.5%) !important;
+}
+
+.card {
+    background-color: transparent !important;
 }

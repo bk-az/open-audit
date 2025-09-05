@@ -38,7 +38,7 @@ if (!empty($resource->attributes->password)) {
                 </div>
                 <div class="card-body">
                     <div class="row text-center">
-                        <div class="col-4 offset-4" style="background-color: rgba(var(--bs-body-color-rgb), 0.03);">
+                        <div class="col-8 offset-2" style="background-color: rgba(var(--bs-body-color-rgb), 0.03);">
                             <ul class="nav nav-pills nav-fill" id="myTab" role="tablist">
                                 <?= $summary_button ?>
                                 <?= $details_button ?>
@@ -58,11 +58,11 @@ if (!empty($resource->attributes->password)) {
                                     <?= read_field('status', $resource->status) ?>
                                     <?= read_field('last_run', $resource->last_run) ?>
                                     <?= read_field('duration', $resource->duration) ?>
-                                    <div class="offset-2 col-8" style="position:relative;"><hr /></div>
+                                    <div class="offset-2 col-8" style="position:relative;"><hr></div>
                                     <?= read_field('select_internal_count', $resource->select_internal_count, '', '', __('Devices Selected from Open-AudIT')) ?>
                                     <?= read_field('create_internal_count', $resource->create_internal_count, '', '', __('Devices Created in Open-AudIT')) ?>
                                     <?= read_field('update_internal_count', $resource->update_internal_count, '', '', __('Devices Updated in Open-AudIT')) ?>
-                                    <div class="offset-2 col-8" style="position:relative;"><hr /></div>
+                                    <div class="offset-2 col-8" style="position:relative;"><hr></div>
                                     <?= read_field('select_external_count', $resource->select_external_count, '', '', __('Devices Selected from ') . $resource->type) ?>
                                     <?= read_field('create_external_count', $resource->create_external_count, '', '', __('Devices Created in ') . $resource->type) ?>
                                     <?= read_field('update_external_count', $resource->update_external_count, '', '', __('Devices Updated in ') . $resource->type) ?>
@@ -93,12 +93,12 @@ if (!empty($resource->attributes->password)) {
                                     <?= read_select('debug', $resource->debug, $dictionary->columns->debug, $update, __('Debug')) ?>
                                     <?= read_field('edited_by', $resource->edited_by, $dictionary->columns->edited_by, false) ?>
                                     <?= read_field('edited_date', $resource->edited_date, $dictionary->columns->edited_date, false) ?>
-                                    <br />
-                                    <div class="offset-2 col-8" style="position:relative;"><hr /></div>
+                                    <br>
+                                    <div class="offset-2 col-8" style="position:relative;"><hr></div>
                                     <?= read_field('attributes.url', $resource->attributes->url, $dictionary->columns->attributes->url, $update, __('URL')) ?>
                                     <?= read_field('attributes.username', $resource->attributes->username, $dictionary->columns->attributes->username, $update, __('Username')) ?>
                                     <?= read_field('attributes.password', '', $dictionary->columns->attributes->password, $update, __('Password'), '', $placeholder, 'password') ?>
-                                    <br />
+                                    <br>
                                 </div>
                                 <div class="col-6">
                                     <br>
@@ -118,15 +118,15 @@ if (!empty($resource->attributes->password)) {
                                             <code><?= $key ?>: </code><?= $dictionary->columns->{$key} ?><br><br>
                                             <?php } ?>
                                         <?php } ?>
-                                        <code>url: </code><?= $dictionary->columns->attributes->url ?><br /><br />
-                                        <code>username: </code><?= $dictionary->columns->attributes->username ?><br /><br />
-                                        <code>password: </code><?= $dictionary->columns->attributes->password ?><br /><br />
+                                        <code>url: </code><?= $dictionary->columns->attributes->url ?><br><br>
+                                        <code>username: </code><?= $dictionary->columns->attributes->username ?><br><br>
+                                        <code>password: </code><?= $dictionary->columns->attributes->password ?><br><br>
                                     </div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-10 offset-1">
-                                    <hr />
+                                    <hr>
                                 </div>
                                 <div class="col-6">
                                     <?= read_select('create_internal_from_external', $resource->create_internal_from_external, $dictionary->columns->create_internal_from_external, $update, __('Create Open-AudIT Devices from ') . $resource->type) ?>
@@ -145,7 +145,7 @@ if (!empty($resource->attributes->password)) {
                                                     <option value="query" <?php if ($resource->select_internal_type === 'query') { ?>selected<?php } ?>><?= __('Query') ?></option>
                                                 </select>
                                             </div>
-                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_type" data-dictionary="<?= $dictionary->columns->select_internal_type ?>"><span><br /></span></div>
+                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_type" data-dictionary="<?= $dictionary->columns->select_internal_type ?>"><span><br></span></div>
                                         </div>
                                     </div>
 
@@ -167,7 +167,7 @@ if (!empty($resource->attributes->password)) {
                                                 </div>
                                                 <?php } ?>
                                             </div>
-                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_attribute" data-dictionary="<?= $dictionary->columns->select_internal_attribute ?>"><span><br /></span></div>
+                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_attribute" data-dictionary="<?= $dictionary->columns->select_internal_attribute ?>"><span><br></span></div>
                                         </div>
                                     </div>
                                     <?php } ?>
@@ -190,7 +190,7 @@ if (!empty($resource->attributes->password)) {
                                                 </div>
                                                 <?php } ?>
                                             </div>
-                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_attribute" data-dictionary="<?= $dictionary->columns->select_internal_attribute ?>"><span><br /></span></div>
+                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_internal_attribute" data-dictionary="<?= $dictionary->columns->select_internal_attribute ?>"><span><br></span></div>
                                         </div>
                                     </div>
                                     <?php } ?>
@@ -222,7 +222,7 @@ if (!empty($resource->attributes->password)) {
                                                 </div>
                                                 <?php } ?>
                                             </div>
-                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_external_type" data-dictionary="<?= $dictionary->columns->select_external_type ?>"><span><br /></span></div>
+                                            <div class="form-text form-help pull-right" style="position: absolute; right: 0;" data-attribute="select_external_type" data-dictionary="<?= $dictionary->columns->select_external_type ?>"><span><br></span></div>
                                         </div>
                                     </div>
 
@@ -235,13 +235,13 @@ if (!empty($resource->attributes->password)) {
                         <div class="tab-pane" id="fields" role="tabpanel" tabindex="0">
                             <br>
                             <div class="table-responsive">
-                                <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover dataTable" id="fieldstable" data-order='[[0,"asc"]]'>
+                                <table class="table <?= $GLOBALS['table'] ?> table-striped table-hover" id="fieldstable" data-order='[[0,"asc"]]'>
                                     <thead>
                                         <tr>
                                             <th><?= __('Open-AudIT Field Name') ?></th>
                                             <th><?= $resource->type . ' ' . __('Field Name') ?></th>
                                             <th><?= $resource->type . ' ' . __('Field Type') ?></th>
-                                            <th><?= __('Priority') ?></th>
+                                            <th class="text-center"><?= __('Priority') ?></th>
                                             <th style="white-space: nowrap;"><?= __('Default Value') ?></th>
                                             <th><?= __('Match') ?></th>
                                             <th><?= __('Delete') ?></th>
@@ -251,16 +251,16 @@ if (!empty($resource->attributes->password)) {
                                         <?php foreach ($resource->{'fields'} as $field) {
                                             $priority = '';
                                             if ($field->priority === 'internal') {
-                                                $priority = '<span class="v-success">internal</span>';
+                                                $priority = '<span class="badge btn-success">Open-AudIT</span>';
                                             }
                                             if ($field->priority === 'external') {
-                                                $priority = '<span class="badge bg-info">external</span>';
+                                                $priority = '<span class="badge btn-info">' . $resource->type . '</span>';
                                             } ?>
                                         <tr>
                                             <td><?= $field->internal_field_name ?></td>
                                             <td><?= $field->external_field_name ?></td>
                                             <td><?= $field->external_field_type ?></td>
-                                            <td><?= $priority ?></td>
+                                            <td class="text-center"><?= $priority ?></td>
                                             <td><?= $field->default_value ?></td>
                                             <td>
                                             <?php if ($field->{'matching_attribute'} === 'y') { ?>
@@ -335,8 +335,8 @@ if (!empty($resource->attributes->password)) {
                                         <?php foreach ($included['devices'] as $result) { ?>
                                         <tr>
                                             <td class="text-center"><a title="<?= __('View') ?>" role="button" class="btn btn-sm btn-primary" href="<?= url_to('devicesRead', $result->attributes->id) ?>"><span class="fa fa-desktop" aria-hidden="true" style="margin-right: 0px;"></span></a></td>
-                                            <td><?= $result->attributes->ip ?><br /><?= $result->attributes->type ?></td>
-                                            <td><?= $result->attributes->name ?><br /><?= $result->attributes->fqdn ?></td>
+                                            <td><?= $result->attributes->ip ?><br><?= $result->attributes->type ?></td>
+                                            <td><?= $result->attributes->name ?><br><?= $result->attributes->fqdn ?></td>
                                         </tr>
                                         <?php } ?>
                                     <?php } ?>

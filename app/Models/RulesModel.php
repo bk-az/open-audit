@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class RulesModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -168,22 +168,22 @@ class RulesModel extends BaseModel
                 $device = $result[0];
                 $device->where = 'database';
                 // NOTE - Some of these are in the database and default to 0. Empty these.
-                if ($device->snmp_enterprise_id === 0) {
+                if (intval($device->snmp_enterprise_id) === 0) {
                     $device->snmp_enterprise_id = '';
                 }
-                if ($device->os_bit === 0) {
+                if (intval($device->os_bit) === 0) {
                     $device->os_bit = '';
                 }
-                if ($device->memory_count === 0) {
+                if (intval($device->memory_count) === 0) {
                     $device->memory_count = '';
                 }
-                if ($device->processor_count === 0) {
+                if (intval($device->processor_count) === 0) {
                     $device->processor_count = '';
                 }
-                if ($device->storage_count === 0) {
+                if (intval($device->storage_count) === 0) {
                     $device->storage_count = '';
                 }
-                if ($device->switch_port === 0) {
+                if (intval($device->switch_port) === 0) {
                     $device->switch_port = '';
                 }
                 $device->discovery_id = '';
@@ -234,7 +234,8 @@ class RulesModel extends BaseModel
         $newdevice = new \stdClass();
 
         // Details based on SNMP OID
-        if (!empty($device->snmp_oid)) {
+        // NEW for 5.7.0 - Do not run if we already have a model
+        if (!empty($device->snmp_oid) and (empty($device->model) or empty($device->type))) {
             $log_start = microtime(true);
             $newdevice = get_details_from_oid($device->snmp_oid);
             if (!empty($newdevice->type) or !empty($newdevice->model)) {
@@ -594,7 +595,7 @@ class RulesModel extends BaseModel
                                     }
                                 }
                                 break;
-                            
+
                             default:
                                 foreach ($device_sub[$input->table] as $dsub) {
                                     if ((string)$dsub->{$input->attribute} == (string)$input->value) {
@@ -614,11 +615,11 @@ class RulesModel extends BaseModel
                             case 'string':
                                 $newdevice->{$output->attribute} = (string)$output->value;
                                 break;
-                            
+
                             case 'integer':
                                 $newdevice->{$output->attribute} = intval($output->value);
                                 break;
-                            
+
                             case 'timestamp':
                                 if ($output->value == '') {
                                     $newdevice->{$output->attribute} = $instance->config->timestamp;
@@ -626,7 +627,7 @@ class RulesModel extends BaseModel
                                     $newdevice->{$output->attribute} = intval($output->value);
                                 }
                                 break;
-                            
+
                             default:
                                 $newdevice->{$output->attribute} = (string)$output->value;
                                 break;

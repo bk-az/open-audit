@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -157,9 +158,9 @@ if (! function_exists('scp')) {
         $log->command = 'sftp ' . $source . ' to ' . @$username . '@' . $ip . ':' . $destination;
         $log->command_status = 'success';
         $log->message = 'Copy file to ' . $ip;
+        $log->command_output = ' ';
         if ($ssh->put($destination, $source, SFTP::SOURCE_LOCAL_FILE) === false) {
-            $log->command = '';
-            $log->command_output = $ssh->getLog();
+            $log->command_output = json_encode($ssh->getLog());
             $log->command_status = 'fail';
             $status = false;
         }
@@ -169,7 +170,12 @@ if (! function_exists('scp')) {
         if (!empty($parameters->discovery_id)) {
             $discoveryLogModel->create($log);
         } else {
-            log_message('debug', $log->message);
+            if ($status === false) {
+                log_message('error', $log->message . ' FAILED.');
+            } else {
+                log_message('debug', $log->message . ' succeeded.');
+                // log_message('debug', $log->command);
+            }
         }
         unset($log->command, $log->command_status, $log->command_time_to_execute, $log->command_output);
         return($status);
@@ -437,7 +443,7 @@ if (! function_exists('ssh_command')) {
         // if (!defined('NET_SSH2_LOGGING')) {
         //     define('NET_SSH2_LOGGING', SSH2::LOG_COMPLEX);
         // }
-        $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
+        $ssh = new phpseclib3\Net\SSH2($ip, $ssh_port);
         if (empty($ssh)) {
             $log->message = 'Could not instanciate SSH object to ' . $ip . ':' . $ssh_port . '.';
             $log->severity = 3;
@@ -515,16 +521,17 @@ if (! function_exists('ssh_command')) {
             $ssh->setTimeout($timeout);
             // Not using sudo, so no password prompt
             $result = $ssh->exec($command);
+            $output = $result;
             $result = explode("\n", $result);
             // remove the last line as it's always blank
-            unset($result[count($result)-1]);
+            unset($result[count($result) - 1]);
         } else {
             // Using sudo - need to input in response to password prompt
             $ssh->setTimeout(1);
             $ssh->write($command . "\n");
             $output = $ssh->read('assword');
             if (stripos($output, 'assword') !== false) {
-                $ssh->write($password."\n");
+                $ssh->write($password . "\n");
                 $output = $ssh->read('[prompt]');
             }
             while (true) {
@@ -538,16 +545,30 @@ if (! function_exists('ssh_command')) {
             }
             $result = explode("\n", $output);
         }
+        $item_end = microtime(true);
         $ssh->disconnect();
         unset($ssh);
-        for ($i=0; $i < count($result); $i++) {
+        if ((($item_end - $item_start) > $timeout) and stripos($output, 'Audit Completed') === false and strpos($command, 'sudo rm ') === false) {
+            if (!empty($parameters->discovery_id)) {
+                $log->command_time_to_execute = ($item_end - $item_start);
+                $log->command_status = 'warning';
+                $log->command_output = '';
+                $log->message = 'SSH command timed out (took more than ' . number_format($timeout) . ' seconds).';
+                $log->command_output = json_encode($result);
+                $discoveryLogModel->create($log);
+            }
+            log_message('warning', 'SSH command timed out to ' . $ip);
+            return false;
+        }
+        for ($i = 0; $i < count($result); $i++) {
             $result[$i] = trim((string)$result[$i]);
             # Special Case
             if (stripos($result[$i], 'Exiting as other audits are currently running.') !== false) {
+                log_message('warning', 'Multiple audits running on ' . $ip . ', not executing.');
                 return false;
             }
         }
-        $log->command_time_to_execute = (microtime(true) - $item_start);
+        $log->command_time_to_execute = ($item_end - $item_start);
         $log->command_output = @json_encode($result);
         $log->command_status = 'success';
         if (!empty($parameters->discovery_id)) {
@@ -556,6 +577,89 @@ if (! function_exists('ssh_command')) {
         unset($log);
         return($result);
     }
+}
+
+function ssh_connect(string $ip = '', array $credentials = array(), int $discovery_id = 0, int $ssh_port = 22, int $timeout = 10)
+{
+    $discoveryLogModel = model('DiscoveryLogModel');
+
+    $return = new \StdClass();
+
+    $log = new \StdClass();
+    $log->discovery_id = (!empty($discovery_id)) ? $discovery_id : '';
+    $log->ip = (!empty($ip)) ? $ip : '';
+    $log->file = 'ssh_helper';
+    $log->function = 'ssh_credentials';
+
+    if (empty($credentials)) {
+        $message = 'No credentials array passed to ssh_credentials for ' . $ip . '.';
+        log_message('warning', $message);
+        $log->message = $message;
+        $log->command_output = '';
+        $log->command_status = 'error';
+        $log->severity = 4;
+        $discoveryLogModel->create($log);
+        return false;
+    }
+    if (empty($ip) or ! filter_var($ip, FILTER_VALIDATE_IP)) {
+        $message = 'Invalid or blank IP passed to snmp_credentials.';
+        log_message('error', $message);
+        $log->message = $message;
+        $log->command_output = '';
+        $log->command_status = 'error';
+        $log->severity = 4;
+        $discoveryLogModel->create($log);
+        return false;
+    }
+
+    foreach ($credentials as $credential) {
+        if ($credential->type === 'ssh_key') {
+            log_message('debug', 'Testing SSH Key credentials named: ' . $credential->name . ' on ' . $ip);
+            unset($test);
+            $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
+            $ssh->setTimeout($timeout);
+            if (!empty($credential->credentials->password)) {
+                $key = PublicKeyLoader::load($credential->credentials->ssh_key, $credential->credentials->password);
+            } else {
+                $key = PublicKeyLoader::load($credential->credentials->ssh_key);
+            }
+            $test = @$ssh->login($credential->credentials->username, $key);
+            if (!empty($test)) {
+                $log->message = "Valid credentials for {$credential->type} named {$credential->name} used to log in to {$ip}.";
+                $log->command_status = 'success';
+                $discoveryLogModel->create($log);
+                $GLOBALS[$discovery_id . '_' . $ip] = $credential->id;
+                break;
+            }
+            if (empty($test)) {
+                $ssh->disconnect();
+                unset($ssh);
+                unset($test);
+            }
+        } elseif ($credential->type === 'ssh') {
+            log_message('debug', 'Testing SSH credentials named: ' . $credential->name . ' on ' . $ip);
+            unset($test);
+            $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
+            $ssh->setTimeout($timeout);
+            $test = @$ssh->login($credential->credentials->username, $credential->credentials->password);
+            if (!empty($test)) {
+                $log->message = "Valid credentials named {$credential->name} used to log in to {$ip}.";
+                $log->command_status = 'success';
+                $discoveryLogModel->create($log);
+                $GLOBALS[$discovery_id . '_' . $ip] = $credential->id;
+                break;
+            }
+            if (empty($test)) {
+                $ssh->disconnect();
+                unset($ssh);
+                unset($test);
+            }
+        }
+    }
+    if (!empty($ssh)) {
+        return $ssh;
+    }
+    return null;
 }
 
 if (! function_exists('ssh_audit')) {
@@ -655,24 +759,24 @@ if (! function_exists('ssh_audit')) {
             }
         }
 
-
         // if (!defined('NET_SSH2_LOGGING')) {
         //     define('NET_SSH2_LOGGING', SSH2::LOG_COMPLEX);
         // }
         $password = '';
 
         foreach ($credentials as $credential) {
-            $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
-            $ssh->setTimeout(10);
             if ($credential->type === 'ssh_key') {
-                log_message('debug', 'Testing credentials named: ' . $credential->name . ' on ' . $ip);
+                $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
+                $ssh->setTimeout(10);
+                log_message('debug', 'Testing SSH Key credentials named: ' . $credential->name . ' for ' . $ip);
+                unset($test);
                 if (!empty($credential->credentials->password)) {
                     $key = PublicKeyLoader::load($credential->credentials->ssh_key, $credential->credentials->password);
                 } else {
                     $key = PublicKeyLoader::load($credential->credentials->ssh_key);
                 }
-
-                if ($ssh->login($credential->credentials->username, $key)) {
+                $test = @$ssh->login($credential->credentials->username, $key);
+                if (!empty($test)) {
                     $log->message = "Valid credentials for {$credential->type} named {$credential->name} used to log in to {$ip}.";
                     $log->command_status = 'success';
                     $discoveryLogModel->create($log);
@@ -682,31 +786,32 @@ if (! function_exists('ssh_audit')) {
                         $password = $credential->credentials->sudo_password;
                     }
                     break;
-                } else {
-                    $log->message = "Credential set for {$credential->type} named {$credential->name} not working on {$ip}.";
-                    $log->command_status = 'notice';
-                    $discoveryLogModel->create($log);
+                }
+                if (empty($test)) {
                     $ssh->disconnect();
                     unset($ssh);
+                    unset($test);
                 }
             } elseif ($credential->type === 'ssh') {
-                log_message('debug', 'Testing credentials named: ' . $credential->name . ' on ' . $ip);
-                // NOTE - Use @ below because some devices cause "Error reading from socket" and halt this process
-                // TODO - change to try / catch
-                if (@$ssh->login($credential->credentials->username, $credential->credentials->password)) {
+                log_message('debug', 'Testing SSH credentials named: ' . $credential->name . ' for ' . $ip);
+                unset($test);
+                $ssh = new \phpseclib3\Net\SSH2($ip, $ssh_port);
+                $ssh->setTimeout($timeout);
+                $test = @$ssh->login($credential->credentials->username, $credential->credentials->password);
+                if (!empty($test)) {
                     $log->message = "Valid credentials named {$credential->name} used to log in to {$ip}.";
                     $log->command_status = 'success';
                     $discoveryLogModel->create($log);
                     $username = $credential->credentials->username;
                     $password = (!empty($credential->credentials->password)) ? $credential->credentials->password : '';
                     break;
-                } else {
-                    $log->message = "Credential set for SSH named {$credential->name} not working on {$ip}.";
-                    $log->command_status = 'notice';
-                    $discoveryLogModel->create($log);
+                }
+                if (empty($test)) {
                     $ssh->disconnect();
                     unset($ssh);
+                    unset($test);
                 }
+
             }
         }
 
@@ -721,9 +826,18 @@ if (! function_exists('ssh_audit')) {
         }
 
         $device = new \StdClass();
+        try {
+            $windows_os_name = $ssh->exec('wmic os get name');
+        } catch (Exception $e) {
+            $log->message = "Unsuccessful SSH command attempt, aborting SSH connection.";
+            $log->command_status = 'notice';
+            $discoveryLogModel->create($log);
+            $ssh->disconnect();
+            unset($ssh);
+            return false;
+        }
 
-        $windows_os_name = $ssh->exec('wmic os get name');
-        if (stripos($windows_os_name, 'Microsoft Windows') !== false) {
+        if (!empty($windows_os_name) and stripos($windows_os_name, 'Microsoft Windows') !== false) {
             $device->type = 'computer';
             $device->os_group = 'Windows';
 
@@ -764,7 +878,6 @@ if (! function_exists('ssh_audit')) {
             }
             $discoveryLogModel->create($log);
 
-
             $temp = $ssh->exec('wmic computersystem get name');
             $temp = str_replace('Name', '', $temp);
             $device->hostname = strtolower(trim((string)$temp));
@@ -780,44 +893,60 @@ if (! function_exists('ssh_audit')) {
             $discoveryLogModel->create($log);
 
             $device->os_family = '';
-            if (strpos($device->os_name, ' 95') !== false) {
-                $device->os_family = 'Windows 95';
-            }
-            if (strpos($device->os_name, ' 98') !== false) {
-                $device->os_family = 'Windows 98';
-            }
-            if (strpos($device->os_name, ' NT') !== false) {
-                $device->os_family = 'Windows NT';
-            }
-            if (strpos($device->os_name, '2000') !== false) {
-                $device->os_family = 'Windows 2000';
-            }
-            if (strpos($device->os_name, ' XP') !== false) {
-                $device->os_family = 'Windows XP';
-            }
-            if (strpos($device->os_name, '2003') !== false) {
-                $device->os_family = 'Windows 2003';
-            }
-            if (strpos($device->os_name, 'Vista') !== false) {
-                $device->os_family = 'Windows Vista';
-            }
-            if (strpos($device->os_name, '2008') !== false) {
-                $device->os_family = 'Windows 2008';
-            }
-            if (strpos($device->os_name, 'Windows 7') !== false) {
-                $device->os_family = 'Windows 7';
-            }
-            if (strpos($device->os_name, 'Windows 8') !== false) {
-                $device->os_family = 'Windows 8';
-            }
-            if (strpos($device->os_name, '2012') !== false) {
-                $device->os_family = 'Windows 2012';
-            }
-            if (strpos($device->os_name, 'Windows 10') !== false) {
-                $device->os_family = 'Windows 10';
-            }
-            if (strpos($device->os_name, '2016') !== false) {
-                $device->os_family = 'Windows 2016';
+            if (!empty($device->os_name)) {
+                // Client
+                if (strpos($device->os_name, ' 95') !== false) {
+                    $device->os_family = 'Windows 95';
+                }
+                if (strpos($device->os_name, ' 98') !== false) {
+                    $device->os_family = 'Windows 98';
+                }
+                if (strpos($device->os_name, ' XP') !== false) {
+                    $device->os_family = 'Windows XP';
+                }
+                if (strpos($device->os_name, 'Vista') !== false) {
+                    $device->os_family = 'Windows Vista';
+                }
+                if (strpos($device->os_name, 'Windows 7') !== false) {
+                    $device->os_family = 'Windows 7';
+                }
+                if (strpos($device->os_name, 'Windows 8') !== false) {
+                    $device->os_family = 'Windows 8';
+                }
+                if (strpos($device->os_name, 'Windows 10') !== false) {
+                    $device->os_family = 'Windows 10';
+                }
+                if (strpos($device->os_name, 'Windows 11') !== false) {
+                    $device->os_family = 'Windows 11';
+                }
+                // Server
+                if (strpos($device->os_name, ' NT') !== false) {
+                    $device->os_family = 'Windows NT';
+                }
+                if (strpos($device->os_name, '2000') !== false) {
+                    $device->os_family = 'Windows 2000';
+                }
+                if (strpos($device->os_name, '2003') !== false) {
+                    $device->os_family = 'Windows 2003';
+                }
+                if (strpos($device->os_name, '2008') !== false) {
+                    $device->os_family = 'Windows 2008';
+                }
+                if (strpos($device->os_name, '2012') !== false) {
+                    $device->os_family = 'Windows 2012';
+                }
+                if (strpos($device->os_name, '2016') !== false) {
+                    $device->os_family = 'Windows 2016';
+                }
+                if (strpos($device->os_name, '2019') !== false) {
+                    $device->os_family = 'Windows 2019';
+                }
+                if (strpos($device->os_name, '2022') !== false) {
+                    $device->os_family = 'Windows 2022';
+                }
+                if (strpos($device->os_name, '2025') !== false) {
+                    $device->os_family = 'Windows 2025';
+                }
             }
             $device->credentials = $credential;
             return $device;
@@ -832,18 +961,19 @@ if (! function_exists('ssh_audit')) {
         $log->command_time_to_execute = (microtime(true) - $item_start);
         $log->command_status = 'success';
         $log->message = 'The default shell for ' . $username . ' is ' . $device->shell;
-        if (stripos($device->shell, 'COMMAND NOT RECOGNIZED') !== false) {
+        if (!empty($device->shell) and stripos($device->shell, 'COMMAND NOT RECOGNIZED') !== false) {
             $device->shell = '';
         }
-        if (strpos($device->shell, 'bash') === false) {
+        if (!empty($device->shell) and strpos($device->shell, 'bash') === false) {
             $log->command_status = 'notice';
             $log->message = 'The default shell for ' . $username . ' is ' . $device->shell . ' (not bash)';
             $log->severity = 6;
         }
+
         $discoveryLogModel->create($log);
         $log->severity = 7;
 
-        if (strpos($device->shell, 'bash') === false) {
+        if (!empty($device->shell) and strpos($device->shell, 'bash') === false) {
             $item_start = microtime(true);
             $device->bash = trim((string)$ssh->exec('which bash'));
             $log->command = 'which bash';
@@ -862,7 +992,11 @@ if (! function_exists('ssh_audit')) {
         }
         $log->severity = 7;
 
-        if ($device->bash === '') {
+        if (empty($device->bash) and !empty($device->shell) and stripos($device->shell, 'bash') !== false) {
+            $device->bash = $device->shell;
+        }
+
+        if ((string)$device->bash === '') {
             // See if we have /bin/sh
             $item_start = microtime(true);
             $device->sh = trim((string)$ssh->exec('which sh'));
@@ -884,7 +1018,7 @@ if (! function_exists('ssh_audit')) {
             unset($device->sh);
         }
 
-        if (strpos($device->shell, 'bash') === false && $device->bash === '') {
+        if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash === '') {
             $log->command = '';
             $log->command_output = $device->shell;
             $log->command_time_to_execute = '';
@@ -952,32 +1086,32 @@ if (! function_exists('ssh_audit')) {
         );
 
         if ($type === 'seed') {
-            $commands['arp'] = 'arp -an 2>/dev/null';
-            $commands['route'] = 'netstat -rn 2>/dev/null | grep "^[0-9]" | awk  \'"\'"\'{print $2}\'"\'"\' | sort | uniq | grep -v "0\.0\.0\.0" | grep "\." | grep -v "127\.0\.0\.1"';
+            $commands['arp_one'] = 'arp -an      2>/dev/null | grep -v -i incomplete | awk \'{print $2 "\t" $4}\' | sed \'s/[()]//g\'';
+            $commands['arp_two'] = 'ip neighbour 2>/dev/null | grep -v -i failed     | awk \'{print $1 "\t" $5 "\t" $3}\'';
         }
 
         foreach ($commands as $item => $command) {
-            if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+            if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                 $command = $device->bash . " -c '" . $command . "'";
             }
             $item_start = microtime(true);
             $temp1 = $ssh->exec($command);
             $temp1 = trim((string)$temp1);
             $temp2 = $temp1;
-            if (stripos($temp1, 'command not found')) {
+            if (!empty($temp1) and stripos($temp1, 'command not found')) {
                 $temp1 = '';
             }
-            if (stripos($temp1, 'No entry for terminal type')) {
+            if (!empty($temp1) and stripos($temp1, 'No entry for terminal type')) {
                 $temp1 = '';
             }
-            if (stripos($temp1, 'invalid command detected at')) {
+            if (!empty($temp1) and stripos($temp1, 'invalid command detected at')) {
                 $temp1 = '';
             }
-            if (stripos($temp1, 'COMMAND NOT RECOGNIZED')) {
+            if (!empty($temp1) and stripos($temp1, 'COMMAND NOT RECOGNIZED')) {
                 $temp1 = '';
             }
             // if ($item === 'solaris_domain' && $temp1 === '(none)') {
-            if ($temp1 === '(none)') {
+            if (!empty($temp1) and $temp1 === '(none)') {
                 $temp1 = '';
             }
             if (!empty($temp1)) {
@@ -1000,7 +1134,7 @@ if (! function_exists('ssh_audit')) {
                 }
                 $log->command = $command;
                 $log->command_time_to_execute = (microtime(true) - $item_start);
-                $log->command_output = $temp1;
+                $log->command_output = json_encode($temp1);
                 $log->command_status = 'success';
                 $log->message = 'SSH command - ' . $item;
                 $discoveryLogModel->create($log);
@@ -1018,34 +1152,47 @@ if (! function_exists('ssh_audit')) {
         $device->ips_found = array();
 
         if ($type === 'seed') {
-            if (!empty($device->arp)) {
-                foreach ($device->arp as $line) {
-                    $item = array();
-
-                    $explode = explode('(', $line);
-                    $explode_2 = explode(')', $explode[1]);
-                    $item_ip = $explode_2[0];
-
-                    $item_mac = '';
-                    $explode = explode(' ', $line);
-                    if (!empty($explode[3])) {
-                        $item_mac = strtolower($explode[3]);
+            if (!empty($device->arp_one)) {
+                if (is_string($device->arp_one)) {
+                    $device->arp_one = explode("\n", $device->arp_one);
+                }
+                foreach ($device->arp_one as $line) {
+                    $explode = explode("\t", $line);
+                    $mac = '';
+                    $ip = '';
+                    if (!empty($explode[1]) and strpos($explode[1], ':') !== false and $explode[1] !== 'ff:ff:ff:ff:ff:ff' and substr_count($explode[1], ':') === 5) {
+                        $mac = $explode[1];
                     }
-                    if (!empty($item_mac) && stripos($item_mac, ':') !== false && $item_mac !== 'ff:ff:ff:ff:ff:ff' &&
-                            ! empty($item_ip) && stripos($item_ip, '.') !== false && $item_ip !== '255.255.255.255' && filter_var($item_ip, FILTER_VALIDATE_IP)) {
-                        $device->ips_found[$item_mac] = $item_ip;
+                    if (!empty($explode[0]) and strpos($explode[0], '.') !== false and $explode[0] !== '255.255.255.255' and filter_var($explode[0], FILTER_VALIDATE_IP)) {
+                        $ip = $explode[0];
+                    }
+                    if (!empty($ip) and !empty($mac)) {
+                        $device->ips_found[$mac] = $ip;
                     }
                 }
+                unset($device->arp_one);
             }
-            unset($device->arp);
-            if (!empty($device->route)) {
-                foreach ($device->route as $ip) {
-                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                        $device->ips_found[] = $ip;
+            if (!empty($device->arp_two)) {
+                if (is_string($device->arp_two)) {
+                    $device->arp_two = explode("\n", $device->arp_two);
+                }
+                foreach ($device->arp_two as $line) {
+                    $explode = explode("\t", $line);
+                    $mac = '';
+                    $ip = '';
+                    $interface = '';
+                    if (!empty($explode[1]) and strpos($explode[1], ':') !== false and $explode[1] !== 'ff:ff:ff:ff:ff:ff' and substr_count($explode[1], ':') === 5) {
+                        $mac = $explode[1];
+                    }
+                    if (!empty($explode[0]) and strpos($explode[0], '.') !== false and $explode[0] !== '255.255.255.255' and filter_var($explode[0], FILTER_VALIDATE_IP)) {
+                        $ip = $explode[0];
+                    }
+                    if (!empty($ip) and !empty($mac)) {
+                        $device->ips_found[$mac] = $ip;
                     }
                 }
+                unset($device->arp_two);
             }
-            unset($device->route);
 
             // Lower case all MAC addresses
             $device->ips_found = array_change_key_case($device->ips_found, CASE_LOWER);
@@ -1061,8 +1208,10 @@ if (! function_exists('ssh_audit')) {
             unset($log->id, $log->command, $log->command_time_to_execute);
         }
 
-
         // Set some items that may have multiple results
+        if (!empty($device->hostname) and is_array($device->hostname)) {
+            $device->hostname = implode('', $device->hostname);
+        }
         if (!empty($device->hostname)) {
             $device->hostname = strtolower($device->hostname);
             if (stripos($device->hostname, '.') !== false) {
@@ -1133,7 +1282,7 @@ if (! function_exists('ssh_audit')) {
         }
         unset($device->redhat_os_name);
 
-        if (stripos($device->os_group, 'VMkernel') !== false && ! empty($device->vmware_os_version)) {
+        if (!empty($device->os_group) and stripos($device->os_group, 'VMkernel') !== false && ! empty($device->vmware_os_version)) {
             $device->os_group = 'VMware';
             $device->os_family = 'VMware ESXi';
             $device->os_name = 'Vmware ESXi ' . $device->vmware_os_version;
@@ -1203,7 +1352,7 @@ if (! function_exists('ssh_audit')) {
             unset($result, $command);
         }
         unset($device->vmware_os_version);
-        if (trim(strtolower($device->os_group)) === 'darwin') {
+        if (!empty($device->os_group) and trim(strtolower($device->os_group)) === 'darwin') {
             $device->os_group = 'Apple';
             $device->type = 'computer';
             $device->os_family = 'Apple OSX';
@@ -1310,10 +1459,10 @@ if (! function_exists('ssh_audit')) {
         $device->use_sudo = false;
         $command = '';
 
-        if (empty($device->which_sudo) and ! empty($instance->config->discovery_sudo_path)) {
+        if (empty($device->which_sudo) and !empty($instance->config->discovery_sudo_path)) {
             $sudo_paths = explode(',', $instance->config->discovery_sudo_path);
             foreach ($sudo_paths as $sudo_path) {
-                if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+                if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                     $command = $device->bash . " -c 'ls {$sudo_path} 2>/dev/null'";
                 } else {
                     $command = "ls {$sudo_path} 2>/dev/null";
@@ -1347,13 +1496,15 @@ if (! function_exists('ssh_audit')) {
         }
 
         if ($username !== 'root') {
-            if (($instance->config->discovery_linux_use_sudo === 'y' and strtolower($device->os_group) === 'linux') or
-                ($instance->config->discovery_sunos_use_sudo === 'y' and strtolower($device->os_group) === 'sunos') or
-                (strtolower($device->os_group) !== 'linux' && strtolower($device->os_group) !== 'sunos')) {
+            if (
+                (!empty($instance->config->discovery_linux_use_sudo) and $instance->config->discovery_linux_use_sudo === 'y' and !empty($device->os_group) and strtolower($device->os_group) === 'linux') or
+                (!empty($instance->config->discovery_sunos_use_sudo) and $instance->config->discovery_sunos_use_sudo === 'y' and !empty($device->os_group) and strtolower($device->os_group) === 'sunos') or
+                (!empty($device->os_group) and strtolower($device->os_group) !== 'linux' && strtolower($device->os_group) !== 'sunos')
+            ) {
                 if (!empty($device->which_sudo)) {
                     $item_start = microtime(true);
                     $command = $device->which_sudo . ' hostname 2>/dev/null';
-                    if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+                    if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                         $command = $device->bash . " -c '" . $command . "'\n";
                     } else {
                         $command .= "\n";
@@ -1366,16 +1517,22 @@ if (! function_exists('ssh_audit')) {
                         $output = $ssh->read('[prompt]');
                     }
                     $lines = explode("\n", $output);
-                    $hostname = trim((string)$lines[count($lines)-2]);
+                    $hostname = '';
+                    if (!empty($lines[count($lines) - 2])) {
+                        $hostname = trim((string)$lines[count($lines) - 2]);
+                    }
                     $sudo_temp_hostname = explode('.', $hostname);
-                    $ssh_hostname = explode('.', $device->hostname);
+                    $ssh_hostname = array();
+                    if (!empty($device->hostname)) {
+                        $ssh_hostname = explode('.', $device->hostname);
+                    }
                     $s_h_result = '';
-                    if (trim(strtolower($sudo_temp_hostname[0])) === trim(strtolower($ssh_hostname[0]))) {
+                    if (!empty($sudo_temp_hostname[0]) and !empty($ssh_hostname[0]) and trim(strtolower($sudo_temp_hostname[0])) === trim(strtolower($ssh_hostname[0]))) {
                         $device->use_sudo = true;
                         $s_h_result = trim(strtolower($sudo_temp_hostname[0]));
                     }
                     foreach ($lines as $line) {
-                        if (trim(strtolower($line)) === trim(strtolower($ssh_hostname[0]))) {
+                        if (!empty($line) and !empty($ssh_hostname[0]) and trim(strtolower($line)) === trim(strtolower($ssh_hostname[0]))) {
                             $device->use_sudo = true;
                             $s_h_result = trim(strtolower($line));
                         }
@@ -1402,7 +1559,7 @@ if (! function_exists('ssh_audit')) {
                 $output = '';
                 $item_start = microtime(true);
                 $command = $device->which_sudo . ' dmidecode -s system-uuid 2>/dev/null';
-                if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+                if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                     $command = $device->bash . " -c '" . $command . "'\n";
                 } else {
                     $command .= "\n";
@@ -1410,12 +1567,17 @@ if (! function_exists('ssh_audit')) {
                 $ssh->write($command);
                 $output = $ssh->read('assword');
                 if (stripos($output, 'assword') !== false) {
-                    $ssh->write($password."\n");
+                    $ssh->write($password . "\n");
                     $output = $ssh->read('[prompt]');
                 }
                 $lines = explode("\n", $output);
-                $device->uuid = trim((string)$lines[count($lines)-2]);
-                if ($device->uuid === ':' or strpos($device->uuid, 'dmidecode -s system-uuid 2>/dev/null') !== false) {
+                if (!empty($lines[count($lines) - 2])) {
+                    $device->uuid = trim((string)$lines[count($lines) - 2]);
+                }
+                if (!empty($device->uuid) and ($device->uuid === ':' or strpos($device->uuid, 'dmidecode -s system-uuid 2>/dev/null') !== false)) {
+                    $device->uuid = '';
+                }
+                if (empty($device->uuid)) {
                     $device->uuid = '';
                 }
                 $log->command = trim((string)$command) . '; # uuid';
@@ -1431,7 +1593,7 @@ if (! function_exists('ssh_audit')) {
                     $output = '';
                     $item_start = microtime(true);
                     $command = $device->which_sudo . ' cat /sys/class/dmi/id/product_uuid 2>/dev/null';
-                    if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+                    if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                         $command = $device->bash . " -c '" . $command . "'";
                     } else {
                         $command .= "\n";
@@ -1439,11 +1601,13 @@ if (! function_exists('ssh_audit')) {
                     $ssh->write($command);
                     $output = $ssh->read('assword');
                     if (stripos($output, 'assword') !== false) {
-                        $ssh->write($password."\n");
+                        $ssh->write($password . "\n");
                         $output = $ssh->read('[prompt]');
                     }
                     $lines = explode("\n", $output);
-                    $device->uuid = trim((string)$lines[count($lines)-2]);
+                    if (!empty($lines[count($lines) - 2])) {
+                        $device->uuid = trim((string)$lines[count($lines) - 2]);
+                    }
                     if (stripos($device->uuid, 'cat /sys/class/dmi/id/product_uuid 2>/dev/null') !== false) {
                         $device->uuid = '';
                     }
@@ -1472,7 +1636,7 @@ if (! function_exists('ssh_audit')) {
         if (empty($device->uuid) && $username === 'root') {
             $item_start = microtime(true);
             $command = 'dmidecode -s system-uuid 2>/dev/null';
-            if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+            if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                 $command = $device->bash . " -c '" . $command . "'";
             }
             $device->uuid = trim((string)$ssh->exec($command));
@@ -1482,7 +1646,7 @@ if (! function_exists('ssh_audit')) {
                 $device->uuid = '';
             }
             $log->message = 'SSH command';
-            $log->command = trim((string)$command) .'; # uuid';
+            $log->command = trim((string)$command) . '; # uuid';
             $log->command_time_to_execute = (microtime(true) - $item_start);
             if (!empty($device->uuid)) {
                 $log->command_output = $device->uuid;
@@ -1495,7 +1659,7 @@ if (! function_exists('ssh_audit')) {
 
                 $item_start = microtime(true);
                 $command = 'cat /sys/class/dmi/id/product_uuid 2>/dev/null';
-                if (strpos($device->shell, 'bash') === false && $device->bash !== '') {
+                if (!empty($device->shell) and strpos($device->shell, 'bash') === false and $device->bash !== '') {
                     $command = $device->bash . " -c '" . $command . "'";
                 }
                 $device->uuid = trim((string)$ssh->exec($command));

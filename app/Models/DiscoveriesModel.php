@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class DiscoveriesModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -40,8 +40,8 @@ class DiscoveriesModel extends BaseModel
                 $this->builder->{$filter->function}($filter->name, $filter->value);
             }
         }
-        $instance = & get_instance();
-        if ($instance->config->product  !== 'enterprise') {
+        $config = config('Openaudit');
+        if ($config->product !== 'enterprise') {
             $this->builder->where('discoveries.type !=', 'seed');
         }
         $this->builder->orderBy($resp->meta->sort);
@@ -339,7 +339,7 @@ class DiscoveriesModel extends BaseModel
                 if (!$test) {
                     // This IP is not in any existing subnets - insert a /30
                     // TODO - account for Org ID in existing as check_ip returns only true/false, and does not acount for orgs
-                    $temp = network_details($data->subnet.'/30');
+                    $temp = network_details($data->subnet . '/30');
                     $network = new \stdClass();
                     $network->name = $temp->network . '/' . $temp->network_slash;
                     $network->network = $temp->network . '/' . $temp->network_slash;
@@ -420,7 +420,6 @@ class DiscoveriesModel extends BaseModel
         return true;
     }
 
-
     /**
      * Take a discovery ID and optionally a device ID
      * Return an array of credentials in the order of device specific, device previously worked, discovery associated
@@ -463,7 +462,7 @@ class DiscoveriesModel extends BaseModel
         $sql = 'SELECT * FROM `credential` WHERE `device_id` = ?';
         $result = $this->db->query($sql, [$device_id])->getResult();
         if (!empty($result)) {
-            for ($i=0; $i < count($result); $i++) {
+            for ($i = 0; $i < count($result); $i++) {
                 try {
                     $result[$i]->credentials = json_decode(simpleDecrypt($result[$i]->credentials, config('Encryption')->key), false, 512, JSON_THROW_ON_ERROR);
                 } catch (\JsonException $e) {
@@ -488,7 +487,7 @@ class DiscoveriesModel extends BaseModel
                 $sql = "SELECT credentials.*, 'credentials' AS `foreign` FROM `credentials` WHERE id IN (" . $id_list . ')';
                 $result = $this->db->query($sql)->getResult();
                 if (!empty($result)) {
-                    for ($i=0; $i < count($result); $i++) {
+                    for ($i = 0; $i < count($result); $i++) {
                         try {
                             $result[$i]->credentials = json_decode(simpleDecrypt($result[$i]->credentials, config('Encryption')->key), false, 512, JSON_THROW_ON_ERROR);
                         } catch (\JsonException $e) {
@@ -512,7 +511,7 @@ class DiscoveriesModel extends BaseModel
         $sql = "SELECT credentials.*, 'credentials' AS `foreign` FROM `credentials` WHERE `org_id` IN (" . $org_list . ')';
         $result = $this->db->query($sql)->getResult();
         if (!empty($result)) {
-            for ($i=0; $i < count($result); $i++) {
+            for ($i = 0; $i < count($result); $i++) {
                 $result[$i]->credentials = json_decode(simpleDecrypt($result[$i]->credentials, config('Encryption')->key));
             }
             $credentials = array_merge($credentials, $result);
@@ -553,12 +552,24 @@ class DiscoveriesModel extends BaseModel
         $included['queue_id'] = $this->db->query($sql)->getResult()[0]->id;
 
         // Mark as completed any discoveries with status = running and last logged > 30 minutes ago
-        $sql = "SELECT discovery_id FROM discovery_log INNER JOIN discoveries ON discovery_log.discovery_id = discoveries.id WHERE discoveries.status = 'running' GROUP BY discovery_id HAVING TIMESTAMPDIFF(MINUTE, MAX(discovery_log.timestamp), NOW()) > 30;";
+        $sql = "SELECT discovery_id FROM discovery_log INNER JOIN discoveries ON discovery_log.discovery_id = discoveries.id WHERE discoveries.status = 'running' GROUP BY discovery_id HAVING TIMESTAMPDIFF(MINUTE, MAX(discovery_log.timestamp), NOW()) > 30";
         $result = $this->db->query($sql)->getResult();
         foreach ($result as $discovery) {
             $sql = "UPDATE `discoveries` SET `status` = 'killed' WHERE id = ?";
             $query = $this->db->query($sql, [$discovery->discovery_id]);
         }
+
+        if (!empty($instance->config->queue_count)) {
+            $sql = "SELECT discovery_log.timestamp FROM discovery_log WHERE discovery_log.timestamp < DATE_SUB(NOW(), INTERVAL 6 HOUR) AND discovery_log.id = (SELECT MAX(id) FROM discovery_log) ORDER BY discovery_log.timestamp DESC";
+            $result = $this->db->query($sql)->getResult();
+            if (!empty($result[0]->timestamp)) {
+                // We have items in the queue, but no logs for > 6 hours. Reset the queue count
+                log_message('info', 'Items in queue count, but no logs for 6+ hours. Resetting queue count. Last log timestamp: ' . $result[0]->timestamp);
+                $sql = "UPDATE configuration SET value = '0' WHERE name = 'queue_count'";
+                $this->db->query($sql);
+            }
+        }
+
 
         return $included;
     }
@@ -571,47 +582,20 @@ class DiscoveriesModel extends BaseModel
      */
     public function includedRead(int $id = 0): array
     {
-
         $included = array();
 
         $locationsModel = new \App\Models\LocationsModel();
         $included['locations'] = $locationsModel->listUser();
-
-        $sql = "SELECT * FROM discovery_log WHERE discovery_id = ? ORDER BY id";
-        $query = $this->db->query($sql, [$id]);
-        $discovery_log = $query->getResult();
-        foreach ($discovery_log as $log) {
-            $log->ip_padded = ip_address_to_db($log->ip);
-        }
-        $included['discovery_log'] = $discovery_log;
 
         $discovery_scan_optionsModel = new \App\Models\DiscoveryScanOptionsModel();
         $included['discovery_scan_options'] = $discovery_scan_optionsModel->listUser();
 
         $included['issues'] = $this->issuesRead($id);
 
-        $sql = "SELECT discovery_log.ip AS `discovery_log.ip`, discovery_log.message AS `discovery_log.message`, ROUND(discovery_log.command_time_to_execute, 1) AS `discovery_log.command_time_to_execute`, devices.id AS `devices.id`, devices.type AS `devices.type`, devices.name AS `devices.name`, devices.domain AS `devices.domain`, devices.ip AS `devices.ip`, devices.os_family AS `devices.os_family`, devices.serial AS `devices.serial`, devices.status AS `devices.status`, devices.last_seen_by AS `devices.last_seen_by`, devices.last_seen AS `devices.last_seen`, devices.manufacturer AS `devices.manufacturer`, devices.class AS `devices.class`, devices.os_group AS `devices.os_group`, devices.icon AS `devices.icon`, devices.identification AS `devices.identification` FROM discovery_log LEFT JOIN devices ON (discovery_log.device_id = devices.id) WHERE discovery_log.message LIKE '% responding, %' AND discovery_log.discovery_id = ?";
-        $query = $this->db->query($sql, [$id]);
-        $included['ips'] = $query->getResult();
+        $included['discovery_log'] = array();
+        $included['ips'] = array();
+        $included['devices'] = array();
 
-        $sql = "SELECT TIMEDIFF(MAX(discovery_log.timestamp), MIN(discovery_log.timestamp)) AS `discovery_log.command_time_to_execute`, discovery_log.ip AS `discovery_log.ip`, devices.id AS `devices.id`, devices.type AS `devices.type`, devices.name AS `devices.name`, devices.domain AS `devices.domain`, devices.ip AS `devices.ip`, devices.os_family AS `devices.os_family`, devices.serial AS `devices.serial`, devices.status AS `devices.status`, devices.last_seen_by AS `devices.last_seen_by`, devices.last_seen AS `devices.last_seen`, devices.manufacturer AS `devices.manufacturer`, devices.class AS `devices.class`, devices.os_group AS `devices.os_group`, devices.icon AS `devices.icon`, devices.identification AS `devices.identification`, '' AS `discovery_log.message` FROM discovery_log LEFT JOIN devices ON (discovery_log.device_id = devices.id) WHERE discovery_log.discovery_id = ? AND discovery_log.ip != '127.0.0.1' AND discovery_log.device_id IS NOT NULL GROUP BY discovery_log.ip";
-        $query = $this->db->query($sql, [$id]);
-        $devices = $query->getResult();
-        $device_ips = array();
-        foreach ($devices as $device) {
-            $device_ips[] = $device->{'discovery_log.ip'};
-        }
-        $sql = "SELECT device_id, ip, message FROM discovery_log WHERE `id` IN (SELECT MAX(t2.id) FROM discovery_log t2 WHERE discovery_id = ? GROUP BY ip) AND discovery_id = ? AND ip IN ( \"" . implode('","', $device_ips) . "\") and ip != '127.0.0.1'";
-        $query = $this->db->query($sql, [$id, $id]);
-        $messages = $query->getResult();
-        foreach ($messages as $message) {
-            foreach ($devices as $device) {
-                if ($message->ip === $device->{'discovery_log.ip'}) {
-                    $device->{'discovery_log.message'} = $message->message;
-                }
-            }
-        }
-        $included['devices'] = $devices;
         return $included;
     }
 
@@ -637,12 +621,11 @@ class DiscoveriesModel extends BaseModel
         return $included;
     }
 
-
     public function issuesRead(int $id = 0): array
     {
-        $sql = "SELECT discovery_log.id AS `discovery_log.id`, `discovery_log`.`discovery_id` AS `discovery_id`, `discoveries`.`name` AS `discovery_name`, `devices`.`ip` AS `devices.ip`, `devices`.`id` as `devices.id`, `devices`.`type` AS `devices.type`, `devices`.`icon` AS `devices.icon`, `devices`.`name` AS `devices.name`, `discovery_log`.`ip` AS `discovery_log.ip`, `discovery_log`.`message` AS `discovery_log.message`, `discovery_log`.`command_output` AS `output`, `discoveries`.`name` AS `discoveries.name` FROM `discovery_log` LEFT JOIN `discoveries` ON `discovery_log`.`discovery_id` = `discoveries`.`id` LEFT JOIN `devices` ON `discovery_log`.`device_id` = `devices`.`id` WHERE `command_status` = 'issue' AND `discoveries`.`id` = $id AND discoveries.name IS NOT NULL GROUP BY `discovery_log`.`device_id`, `command_output` ORDER BY discovery_log.id DESC";
+        $sql = "SELECT discovery_log.id AS `discovery_log.id`, `discovery_log`.`discovery_id` AS `discovery_id`, `discoveries`.`name` AS `discovery_name`, `devices`.`ip` AS `devices.ip`, `devices`.`id` as `devices.id`, `devices`.`type` AS `devices.type`, `devices`.`icon` AS `devices.icon`, `devices`.`name` AS `devices.name`, `discovery_log`.`ip` AS `discovery_log.ip`, `discovery_log`.`message` AS `discovery_log.message`, `discovery_log`.`command_output` AS `output`, `discoveries`.`name` AS `discoveries.name` FROM `discovery_log` LEFT JOIN `discoveries` ON `discovery_log`.`discovery_id` = `discoveries`.`id` LEFT JOIN `devices` ON `discovery_log`.`device_id` = `devices`.`id` WHERE `command_status` = 'issue' AND `discoveries`.`id` = $id AND discoveries.name IS NOT NULL GROUP BY `discovery_log`.`device_id`, `command_output` ORDER BY discovery_log.id DESC LIMIT 100";
         $issues = $this->db->query($sql)->getResult();
-        for ($i=0; $i < count($issues); $i++) {
+        for ($i = 0; $i < count($issues); $i++) {
             // Derive the description and action
             $issues[$i] = $this->issueMap($issues[$i]);
             // Format the IP
@@ -653,15 +636,16 @@ class DiscoveriesModel extends BaseModel
         }
         return $issues;
     }
+
     public function issuesCollection(int $user_id = 0): array
     {
         $instance = & get_instance();
         $org_list = array_unique(array_merge($instance->user->orgs, $instance->orgsModel->getUserDescendants($instance->user->orgs, $instance->orgs)));
         $org_list[] = 1;
         $org_list = array_unique($org_list);
-        $sql = "SELECT discovery_log.id AS `discovery_log.id`, `discovery_log`.`discovery_id` AS `discovery_id`, `discoveries`.`name` AS `discovery_name`, `devices`.`id` as `devices.id`, `devices`.`type` AS `devices.type`, `devices`.`icon` AS `devices.icon`, `devices`.`name` AS `devices.name`, `discovery_log`.`ip` AS `devices.ip`, `discovery_log`.`message` AS `discovery_log.message`, `discovery_log`.`command_output` AS `output`, `discoveries`.`name` AS `discoveries.name` FROM `discovery_log` LEFT JOIN `discoveries` ON `discovery_log`.`discovery_id` = `discoveries`.`id` LEFT JOIN `devices` ON `discovery_log`.`device_id` = `devices`.`id` WHERE `command_status` = 'issue' AND `discoveries`.`org_id` IN (" . implode(',', $org_list) . ") AND discoveries.name IS NOT NULL GROUP BY `discovery_log`.`device_id`, `command_output` ORDER BY discovery_log.id DESC LIMIT 100;";
+        $sql = "SELECT discovery_log.id AS `discovery_log.id`, `discovery_log`.`discovery_id` AS `discovery_id`, `discoveries`.`name` AS `discovery_name`, `devices`.`id` as `devices.id`, `devices`.`type` AS `devices.type`, `devices`.`icon` AS `devices.icon`, `devices`.`name` AS `devices.name`, `discovery_log`.`ip` AS `devices.ip`, `discovery_log`.`message` AS `discovery_log.message`, `discovery_log`.`command_output` AS `output`, `discoveries`.`name` AS `discoveries.name` FROM `discovery_log` LEFT JOIN `discoveries` ON `discovery_log`.`discovery_id` = `discoveries`.`id` LEFT JOIN `devices` ON `discovery_log`.`device_id` = `devices`.`id` WHERE `command_status` = 'issue' AND `discoveries`.`org_id` IN (" . implode(',', $org_list) . ") AND discoveries.name IS NOT NULL GROUP BY `discovery_log`.`device_id`, `command_output` ORDER BY discovery_log.id DESC LIMIT 100";
         $issues = $this->db->query($sql)->getResult();
-        for ($i=0; $i < count($issues); $i++) {
+        for ($i = 0; $i < count($issues); $i++) {
             // Derive the description and action
             $issues[$i] = $this->issueMap($issues[$i]);
             // Format the IP
@@ -706,6 +690,10 @@ class DiscoveriesModel extends BaseModel
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'Is the network logon service is running on the target machine? Check <a href="' . url_to('discoveryIssues', 6) . '">here</a>.';
             $issue->action = '';
+        } elseif (strpos($issue->{'output'}, 'NT_STATUS_NO_MEMORY') !== false) {
+            # Windows connection from Linux Open-AudIT server
+            $issue->description = 'The target machine looks to have an issue. Try again later. Check <a href="' . url_to('discoveryIssues', 9) . '">here</a>.';
+            $issue->action = '';
         } elseif (strpos($issue->{'output'}, 'NT_STATUS_ACCOUNT_EXPIRED') !== false) {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'The credentials have expired. Check <a href="' . url_to('discoveryIssues', 1) . '">here</a>.';
@@ -714,19 +702,19 @@ class DiscoveriesModel extends BaseModel
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'It is likely SMB1 was used in an attept to talk to Windows. SMB1 has been deprecated and now removed from most Windows install by Microsoft. Check <a href="' . url_to('discoveryIssues', 2) . '">here</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: UploadService failed - NT_STATUS_ACCESS_DENIED"]') {
+        } elseif ($issue->output === '["ERROR: UploadService failed - NT_STATUS_ACCESS_DENIED"]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'Are the ADMIN$ and IPC$ shares enabled? Check <a href="' . url_to('discoveryIssues', 3) . '">here</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: StartService failed. NT_STATUS_CANT_WAIT."]') {
+        } elseif ($issue->output === '["ERROR: StartService failed. NT_STATUS_CANT_WAIT."]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'Most likely you are trying to audit a 32bit Windows machine. We support 64bit only for discovery (it\'s a winexe thing). You can copy the audit script to the target and run it manually until such time as you decommission the 32bit machine. Check <a href="' . url_to('discoveryIssues', 7) . '">here</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: Failed to install service winexesvc - NT_STATUS_ACCESS_DENIED"]') {
+        } elseif ($issue->output === '["ERROR: Failed to install service winexesvc - NT_STATUS_ACCESS_DENIED"]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'This likely means the user account being used does not have sufficient rights on the target machine. It may also be that the ADMIN$ share is not available on the target machine. Check <a href="' . url_to('discoveryIssues', 7) . '">here</a>.';
             $issue->action = 'add credentials';
-        } elseif ($issue->output ==='["ERROR: StartService failed. NT_STATUS_PLUGPLAY_NO_DEVICE."]') {
+        } elseif ($issue->output === '["ERROR: StartService failed. NT_STATUS_PLUGPLAY_NO_DEVICE."]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'Does the target PC has a DNS resolvable name? Is the machine on the domain? Check <a href="' . url_to('discoveryIssues', 4) . '">here</a>.';
             $issue->action = '';
@@ -734,19 +722,19 @@ class DiscoveriesModel extends BaseModel
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'This may be an issue on some Windows 7 and 2008 machines. We suggest a disk defrag on the target machine as a first step. See this <a href="https://support.microsoft.com/en-us/topic/-status-sharing-violation-error-message-when-you-try-to-open-a-highly-fragmented-file-on-a-computer-that-is-running-windows-7-or-windows-server-2008-r2-be899c3b-8c5a-c883-ce0d-055d258a9178" target="_blank">link</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: CreateService failed. NT_STATUS_ACCESS_DENIED."]') {
+        } elseif ($issue->output === '["ERROR: CreateService failed. NT_STATUS_ACCESS_DENIED."]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'It appears that the winexesvc.exe file has been copied to the target but the service could not be registered. Check your credentials and that they are of a machine Administrator account. Check <a href="' . url_to('discoveryIssues', 1) . '">here</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: StartService failed. NT_STATUS_ACCESS_DENIED."]') {
+        } elseif ($issue->output === '["ERROR: StartService failed. NT_STATUS_ACCESS_DENIED."]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'It appears that the winexesvc.exe file has been copied to the target and the service registered, however it fails to start. Check <a href="' . url_to('discoveryIssues', 8) . '">here</a>.';
             $issue->action = '';
-        } elseif ($issue->output ==='["ERROR: Failed to open connection - NT_STATUS_NOT_SUPPORTED"]') {
+        } elseif ($issue->output === '["ERROR: Failed to open connection - NT_STATUS_NOT_SUPPORTED"]') {
             # Windows connection from Linux Open-AudIT server
             $issue->description = 'Most likely this is a result of attempting to connect using SMB2 to a Windows machine that only has SMB1 enabled. You should be using SMB2 as Microsoft has deprecated SMB1 due to security vulnerabilities.';
             $issue->action = '';
-        } elseif ($issue->output ==='["",""]') {
+        } elseif ($issue->output === '["",""]') {
             # Windows connection from Windows Open-AudIT server
             $issue->description = 'Check your credentials and that they are of a machine Administrator account. Check <a href="' . url_to('discoveryIssues', 1) . '">here</a>.';
             $issue->action = 'add credentials';
@@ -974,16 +962,16 @@ class DiscoveriesModel extends BaseModel
                 log_message('error', 'Could not decode JSON. File:' . basename(__FILE__) . ', Line:' . __LINE__ . ', Error: ' . $e->getMessage());
             }
         }
-        if (empty($result[0]->match_options)) {
-            $result[0]->match_options = new \stdClass();
-        }
-        if (is_string($result[0]->match_options)) {
-            try {
-                $result[0]->match_options = json_decode($result[0]->match_options, false, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException $e) {
-                log_message('error', 'Could not decode JSON. File:' . basename(__FILE__) . ', Line:' . __LINE__ . ', Error: ' . $e->getMessage());
-            }
-        }
+        // if (empty($result[0]->match_options)) {
+        //     $result[0]->match_options = new \stdClass();
+        // }
+        // if (is_string($result[0]->match_options)) {
+        //     try {
+        //         $result[0]->match_options = json_decode($result[0]->match_options, false, 512, JSON_THROW_ON_ERROR);
+        //     } catch (\JsonException $e) {
+        //         log_message('error', 'Could not decode JSON. File:' . basename(__FILE__) . ', Line:' . __LINE__ . ', Error: ' . $e->getMessage());
+        //     }
+        // }
         if (!isset($result[0]->scan_options->id) or !is_numeric($result[0]->scan_options->id)) {
             if (!empty($instance->config->discovery_default_scan_option)) {
                 $result[0]->scan_options->id = intval($instance->config->discovery_default_scan_option);
@@ -1036,14 +1024,14 @@ class DiscoveriesModel extends BaseModel
         }
         if (is_string($result[0]->match_options)) {
             try {
-                $result[0]->match_options =json_decode($result[0]->match_options, false, 512, JSON_THROW_ON_ERROR);
+                $result[0]->match_options = json_decode($result[0]->match_options, false, 512, JSON_THROW_ON_ERROR);
             } catch (\JsonException $e) {
                 log_message('error', 'Could not decode JSON. File:' . basename(__FILE__) . ', Line:' . __LINE__ . ', Error: ' . $e->getMessage());
             }
         }
         foreach (config('Openaudit') as $key => $value) {
             if (strpos($key, 'match_') !== false) {
-                if (empty($result[0]->match_options->{$key}) && ! empty(config('Openaudit')->{$key})) {
+                if (empty($result[0]->match_options->{$key}) && !empty(config('Openaudit')->{$key})) {
                     $result[0]->match_options->{$key} = config('Openaudit')->{$key};
                 }
             }
@@ -1448,14 +1436,14 @@ class DiscoveriesModel extends BaseModel
 
         $dictionary->sentence = 'Open-AudIT Enterprise discovers every device on your network.';
 
-        $dictionary->about = '<p>Discoveries are at the very heart of what Open-AudIT does.<br /><br />How else would you know "What is on my network?"<br /><br />Discoveries are prepared data items that enable you to run a discovery upon a network in a single click, without entering the details of that network each and every time.<br /><br />' . $instance->dictionary->link . '<br /><br /></p>';
+        $dictionary->about = '<p>Discoveries are at the very heart of what Open-AudIT does.<br /><br />How else would you know "What is on my network?"<br /><br />Discoveries are prepared data items that enable you to run a discovery upon a network in a single click, without entering the details of that network each and every time.<br /><br />For more detailed information, check the Open-AudIT <a href="' . url_to('discoveriesHelp') . '">Knowledge Base</a>.<br /><br /></p>';
 
         $dictionary->notes = '<p>Some examples of valid Subnet attributes are: 192.168.1.1 (a single IP address), 192.168.1.0/24 (a subnet), 192.168.1-3.1-20 (a range of IP addresses).<br /><br /><em>NOTE</em> - Only a subnet (as per the examples - 192.168.1.0/24) will be able to automatically create a valid network for Open-AudIT. <br /><br />If you use an Active Directory type, make sure you have appropriate credentials to talk to your Domain Controller already in <a href="../credentials">credentials</a>.<br /><br /></p>';
 
         $dictionary->product = 'community';
-        $dictionary->columns->id = $instance->dictionary->id;
-        $dictionary->columns->name = $instance->dictionary->name;
-        $dictionary->columns->org_id = $instance->dictionary->org_id;
+        $dictionary->columns->id = @$instance->dictionary->id;
+        $dictionary->columns->name = @$instance->dictionary->name;
+        $dictionary->columns->org_id = @$instance->dictionary->org_id;
         $dictionary->columns->description = 'This description is auto-populated and should ideally be left as-is.';
         $dictionary->columns->ad_domain = 'The Active Directory domain to retrieve a list of subnets from.';
         $dictionary->columns->ad_server = 'The Active Directory server to retrieve a list of subnets from.';
@@ -1488,8 +1476,8 @@ class DiscoveriesModel extends BaseModel
         $dictionary->columns->status = 'The current status of the discovery.';
         $dictionary->columns->subnet = 'The network subnet to execute the discovery on.';
         $dictionary->columns->type = "Supported types are 'subnet', 'seed' and 'active directory'.";
-        $dictionary->columns->edited_by = $instance->dictionary->edited_by;
-        $dictionary->columns->edited_date = $instance->dictionary->edited_date;
+        $dictionary->columns->edited_by = @$instance->dictionary->edited_by;
+        $dictionary->columns->edited_date = @$instance->dictionary->edited_date;
 
         $dictionary->columns->match_dbus = 'Should we match a device based on its dbus id.';
         $dictionary->columns->match_fqdn = 'Should we match a device based on its fqdn.';

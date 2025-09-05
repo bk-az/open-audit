@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class ConfigurationModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -107,6 +107,21 @@ class ConfigurationModel extends BaseModel
     }
 
     /**
+     * Read an individual item from the database, by name
+     *
+     * @param int $id The ID of the requested item
+     * @return array The array of requested items
+     */
+    public function readName(string $name = ''): array
+    {
+        $query = $this->builder->getWhere(['name' => $name]);
+        if ($this->sqlError($this->db->error())) {
+            return array();
+        }
+        return format_data($query->getResult(), 'configuration');
+    }
+
+    /**
      * Reset a table
      *
      * @return bool Did it work or not?
@@ -135,6 +150,12 @@ class ConfigurationModel extends BaseModel
         $this->builder->update($data);
         if ($this->sqlError($this->db->error())) {
             return false;
+        }
+        $sql = "SELECT * FROM configuration WHERE id = ?";
+        $result = $this->db->query($sql, [$id])->getResult();
+        if (!empty($result[0]->name) and $result[0]->name === 'license_string') {
+            $sql = "UPDATE configuration SET value = '' WHERE name IN ('license', 'license_limit', 'license_eula', 'license_footer')";
+            $this->db->query($sql);
         }
         return true;
     }

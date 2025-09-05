@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -14,7 +15,7 @@ namespace App\Controllers;
  * @author    Mark Unwin <mark.unwin@firstwave.com>
  * @copyright 2023 FirstWave
  * @license   http://www.gnu.org/licenses/agpl-3.0.html aGPL v3
- * @version   GIT: Open-AudIT_5.3.0
+ * @version   GIT: Open-AudIT_5.6.5
  * @link      http://www.open-audit.org
  */
 
@@ -30,7 +31,6 @@ namespace App\Controllers;
  */
 class Summaries extends BaseController
 {
-
     /**
      * Execute a summary
      *
@@ -50,10 +50,11 @@ class Summaries extends BaseController
         }
         if (empty($this->resp->data)) {
             \Config\Services::session()->setFlashdata('error', 'No data returned when running summary.');
-            return redirect()->route($this->resp->meta->collection.'Collection');
+            return redirect()->route($this->resp->meta->collection . 'Collection');
         }
         return view('shared/header', [
             'config' => $this->config,
+            'dashboards' => filter_response($this->dashboards),
             'dictionary' => $this->queriesModel->dictionary(),
             'meta' => filter_response($this->resp->meta),
             'orgs' => filter_response($this->orgsUser),

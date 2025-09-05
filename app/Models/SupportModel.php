@@ -1,4 +1,5 @@
 <?php
+
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -6,11 +7,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use \stdClass;
+use stdClass;
 
 class SupportModel extends BaseModel
 {
-
     public function __construct()
     {
         $this->db = db_connect();
@@ -38,6 +38,7 @@ class SupportModel extends BaseModel
         $data->prereq = new stdClass();
         $data->webserver = new stdClass();
         $data->stats = new stdClass();
+        $data->license = getLicenseDetails();
 
         $config = clone $instance->config;
         if (!empty($config->modules) and is_string($config->modules)) {
@@ -66,7 +67,7 @@ class SupportModel extends BaseModel
 
         $data->os->name = 'unknown';
         $data->os->php_uname = php_uname('s');
-        $data->os->timezone = '';
+        $data->os->timezone = getOsTimezone();
         $data->os->version = '';
 
         $data->database->hostname = $this->db->hostname;
@@ -122,6 +123,8 @@ class SupportModel extends BaseModel
         $data->webserver->script_name = @$_SERVER['SCRIPT_NAME'];
         $data->webserver->server_name = @$_SERVER['SERVER_NAME'];
         $data->webserver->current_url = current_url();
+        $data->webserver->user_get_current_user = get_current_user();
+        $data->webserver->user_whoami = exec('whoami');
 
         $data->php->display_errors = ini_get('display_errors');
         $data->php->error_log = ini_get('error_log');
@@ -133,13 +136,13 @@ class SupportModel extends BaseModel
             $extensions = array('json', 'ldap', 'libxml', 'mbstring', 'mysqli', 'session', 'simplexml', 'snmp', 'xml');
         }
         foreach ($extensions as $extension) {
-            $data->php->{'ext_'.$extension} = phpversion($extension);
-            if (empty($data->php->{'ext_'.$extension}) && extension_loaded($extension)) {
-                $data->php->{'ext_'.$extension} = 'ERROR - extension unknown version.';
+            $data->php->{'ext_' . $extension} = phpversion($extension);
+            if (empty($data->php->{'ext_' . $extension}) && extension_loaded($extension)) {
+                $data->php->{'ext_' . $extension} = 'ERROR - extension unknown version.';
                 log_message('error', 'Extension with unknown version - ' . $extension);
             }
-            if (empty($data->php->{'ext_'.$extension}) && !extension_loaded($extension)) {
-                $data->php->{'ext_'.$extension} = 'ERROR - entension not loaded.';
+            if (empty($data->php->{'ext_' . $extension}) && !extension_loaded($extension)) {
+                $data->php->{'ext_' . $extension} = 'ERROR - entension not loaded.';
                 log_message('error', 'Extension not loaded - ' . $extension);
             }
         }
@@ -158,7 +161,7 @@ class SupportModel extends BaseModel
         $data->php->version = phpversion();
         $data->php->ini = php_ini_loaded_file();
 
-        $os = $this->getOs();
+        $os = getOs();
         $data->os->name = $os->os_name;
         $data->os->version = $os->os_version;
         unset($os);
@@ -168,7 +171,7 @@ class SupportModel extends BaseModel
 
         if (php_uname('s') === 'Linux') {
             $data->use = new stdClass();
-            $command_string = "grep ACCESS " . APPPATH . "../writable/logs/*.log | cut -d\" \" -f6- | sort | cut -d: -f2-3 | uniq -c | sed 's/^ *//g' | sed 's/ *$//g'";
+            $command_string = "grep ACCESS " . ROOTPATH . "writable/logs/*.log | cut -d\" \" -f6- | sort | cut -d: -f2-3 | uniq -c | sed 's/^ *//g' | sed 's/ *$//g'";
             exec($command_string, $output, $return_var);
             foreach ($output as $line) {
                 $temp = explode(' ', $line);
@@ -176,26 +179,26 @@ class SupportModel extends BaseModel
             }
             unset($output);
             // Get the oldest log file
-            $command_string = "ls " . APPPATH . "../writable/logs/*.log | sort | head -n1";
+            $command_string = "ls " . ROOTPATH . "writable/logs/*.log | sort | head -n1";
             exec($command_string, $output, $return_var);
-            $logfile = str_replace(APPPATH . '../writable/logs/log-', '', $output[0]);
+            $logfile = str_replace(ROOTPATH . 'writable/logs/log-', '', $output[0]);
             $logfile = str_replace('.log', '', $logfile);
             $data->app->oldest_logfile = $logfile;
             unset($output);
             unset($logfile);
 
             // Get the youngest log file
-            $command_string = "ls " . APPPATH . "../writable/logs/*.log | sort | tail -n1";
+            $command_string = "ls " . ROOTPATH . "writable/logs/*.log | sort | tail -n1";
             exec($command_string, $output, $return_var);
-            $logfile = str_replace(APPPATH . '../writable/logs/log-', '', $output[0]);
+            $logfile = str_replace(ROOTPATH . 'writable/logs/log-', '', $output[0]);
             $logfile = str_replace('.log', '', $logfile);
             $data->app->youngest_logfile = $logfile;
             unset($logfile);
 
             // Get any errors from the youngest logfile
-            $command_string = "grep ERROR " . APPPATH . "../writable/logs/*.log";
+            $command_string = "grep ERROR " . ROOTPATH . "writable/logs/*.log";
             exec($command_string, $output, $return_var);
-            $data->logs = new stdClass;
+            $data->logs = new stdClass();
             $data->logs = $output;
         }
 
@@ -205,11 +208,6 @@ class SupportModel extends BaseModel
             exec($command_string, $output, $return_var);
             $data->prereq->nmap = @$output[0];
             unset($output);
-
-            $command_string = 'tzutil /g';
-            exec($command_string, $output, $return_var);
-            $data->os->timezone = @$output[0];
-            unset($output);
         }
 
         if (php_uname('s') === 'Darwin') {
@@ -217,11 +215,6 @@ class SupportModel extends BaseModel
             $command_string = 'nmap --version';
             exec($command_string, $output, $return_var);
             $data->prereq->nmap = @$output[0];
-            unset($output);
-
-            $command_string = '/bin/ls -l /etc/localtime | /usr/bin/cut -d"/" -f8,9';
-            exec($command_string, $output, $return_var);
-            $data->os->timezone = @$output[0];
             unset($output);
         }
 
@@ -279,28 +272,6 @@ class SupportModel extends BaseModel
             }
             unset($output);
             unset($command_string);
-
-            // OS Timezone
-            if ($data->os->name === 'Linux (Redhat)') {
-                if (file_exists('/etc/sysconfig/clock')) {
-                    $command_string = 'cat /etc/sysconfig/clock | grep ZONE | cut -d"\"" -f2';
-                    exec($command_string, $output, $return_var);
-                    $data->os->timezone = @$output[0];
-                }
-                if ($data->os->timezone === '') {
-                    $command_string = 'timedatectl 2>/dev/null | grep zone | cut -d: -f2 | cut -d"(" -f1';
-                    exec($command_string, $output, $return_var);
-                    $data->os->timezone = @trim((string)$output[0]);
-                }
-            }
-            if ($data->os->name === 'Linux (Debian)') {
-                $command_string = 'cat /etc/timezone';
-                exec($command_string, $output, $return_var);
-                $data->os->timezone = @$output[0];
-                unset($output);
-                unset($command_string);
-            }
-            $data->os->timezone = trim((string)$data->os->timezone);
         }
 
 
@@ -366,77 +337,6 @@ class SupportModel extends BaseModel
             }
         }
         return array($data);
-    }
-
-
-    public function getOs()
-    {
-        $data = new stdClass();
-        $return = array();
-        if (php_uname('s') === 'Linux') {
-            $data->os_name = 'linux';
-            if (file_exists('/etc/os-release')) {
-                $command_string = 'grep PRETTY_NAME= /etc/os-release';
-                exec($command_string, $return['output'], $return['status']);
-                $data->os_version = str_replace('PRETTY_NAME=', '', $return['output'][0]);
-                $data->os_version = str_replace('"', '', $data->os_version);
-                if (empty($data->os_version)) {
-                    $command_string = 'grep ^NAME= /etc/os-release';
-                    exec($command_string, $return['output'], $return['status']);
-                    $data->os_version = str_replace('NAME=', '', $return['output'][0]);
-                    $data->os_version = str_replace('"', '', $data->os_version);
-                }
-            } elseif (file_exists('/etc/issue.net')) {
-                $file_contents = file('/etc/issue.net');
-                $data->os_version = trim((string)$file_contents[0]);
-                unset($file_contents);
-            } elseif (file_exists('/etc/redhat-release')) {
-                // RedHat 6 doesn't have /etc/os-release
-                $data->os_version = 'RedHat';
-            }
-            if ((stripos($data->os_version, 'red') !== false) && (stripos($data->os_version, 'hat') !== false)) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-            if (stripos($data->os_version, 'centos') !== false) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-            if (stripos($data->os_version, 'fedora') !== false) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-            if (stripos($data->os_version, 'alma') !== false) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-            if (stripos($data->os_version, 'oracle') !== false) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-            if (stripos($data->os_version, 'rocky') !== false) {
-                $data->os_name = 'Linux (Redhat)';
-            }
-
-            if (stripos($data->os_version, 'debian') !== false) {
-                $data->os_name = 'Linux (Debian)';
-            }
-            if (stripos($data->os_version, 'ubuntu') !== false) {
-                $data->os_name = 'Linux (Debian)';
-            }
-            if (stripos($data->os_version, 'mint') !== false) {
-                $data->os_name = 'Linux (Debian)';
-            }
-        }
-        if (php_uname('s') === 'Darwin') {
-            $data->os_name = 'OSX';
-            $command_string = 'sw_vers | grep "ProductVersion:" | cut -f2';
-            @exec($command_string, $return['output'], $return['status']);
-            $data->os_version = $return['output'][0];
-        }
-        if (php_uname('s') === 'Windows NT') {
-            $data->os_name = 'Windows';
-            exec('echo. |WMIC OS Get Caption', $output);
-            if (isset($output[1])) {
-                $data->os_version = $output[1];
-            }
-        }
-        return $data;
     }
 
     /**
@@ -558,7 +458,7 @@ class SupportModel extends BaseModel
         $dictionary->attributes->collection = array();
         $dictionary->attributes->create = array();
         $dictionary->attributes->fields = array();
-        $dictionary->attributes->fieldsMeta =array();
+        $dictionary->attributes->fieldsMeta = array();
         $dictionary->attributes->update = array();
 
         $dictionary->sentence = "Amazing support from FirstWave - or the community if you like. It's the no excuses, no exceptions, can-do way of thinking that our staff bring to work every day. Your complete satisfaction is our priority. Anything less is simply unacceptable.";
