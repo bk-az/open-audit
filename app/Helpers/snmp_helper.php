@@ -2,7 +2,7 @@
 
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Patch Version: 1.0
+# Patch Version: 1.1
 
 declare(strict_types=1);
 
@@ -2902,7 +2902,7 @@ if (!function_exists('snmp_audit')) {
                 if (!empty($value)) {
                     $item = new stdClass();
                     $explode = explode('.', $key);
-		    if (count($explode) < 11) continue;
+		    if (count($explode) < 12) continue;
                     $item->ip = implode('.', array_splice($explode, -4));
                     $item->interface = (!empty($connection_ids['.1.3.6.1.2.1.31.1.1.1.1.' . $explode[11]])) ? $connection_ids['.1.3.6.1.2.1.31.1.1.1.1.' . $explode[11]] : '';
                     $item->interface_id = @$explode[11];

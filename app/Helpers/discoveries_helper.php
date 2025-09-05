@@ -2,6 +2,7 @@
 
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Patch Version: 1.0
 
 declare(strict_types=1);
 
@@ -990,7 +991,25 @@ if (! function_exists('ip_audit')) {
                     $device->snmp_version .= 'c';
                 }
             }
-            $temp_array = snmp_audit($device->ip, $credentials_snmp, $discovery->id, $discovery->type);
+
+            $temp_array = array();
+
+            try {
+                $temp_array = snmp_audit($device->ip, $credentials_snmp, $discovery->id, $discovery->type);
+            } catch (Throwable $e) {
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $ip_scan->ip;
+                $errorLog->message = "Error occurred while performing SNMP Audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'snmp_audit';
+                $discoveryLogModel->create($errorLog);
+            }
             if (!empty($temp_array['details'])) {
                 foreach ($temp_array['details'] as $key => $value) {
                     if (!empty($value)) {
@@ -1069,7 +1088,23 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Palo Alto for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_palo_alto');
-            $ssh_device = ssh_palo_alto_audit($device->ip, intval($discovery->id), $credentials);
+            try {
+                $ssh_device = ssh_palo_alto_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $ip_scan->ip;
+                $errorLog->message = "Error occurred while performing Palo Alto SSH audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'ssh_palo_alto_audit';
+                $discoveryLogModel->create($errorLog);
+                $ssh_device = new \StdClass();
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1088,7 +1123,23 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Cisco for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_cisco');
-            $ssh_device = ssh_cisco_audit($device->ip, intval($discovery->id), $credentials);
+            try {
+                $ssh_device = ssh_cisco_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $ip_scan->ip;
+                $errorLog->message = "Error occurred while performing Cisco SSH audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'ssh_cisco_audit';
+                $discoveryLogModel->create($errorLog);
+                $ssh_device = new \StdClass();
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1107,7 +1158,23 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Ubiquiti for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_ubiquiti');
-            $ssh_device = ssh_ubiquiti_audit($device->ip, intval($discovery->id), $credentials);
+            try {
+                $ssh_device = ssh_ubiquiti_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $ip_scan->ip;
+                $errorLog->message = "Error occurred while performing Ubiquiti SSH audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'ssh_ubiquiti_audit';
+                $discoveryLogModel->create($errorLog);
+                $ssh_device = new \StdClass();
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1135,7 +1202,25 @@ if (! function_exists('ip_audit')) {
             $parameters->credentials = $credentials;
             $parameters->ssh_port = $ip_scan->ssh_port;
             $parameters->type = $discovery->type;
-            $ssh_details = ssh_audit($parameters);
+
+            try {
+                $ssh_details = ssh_audit($parameters);
+            } catch (Throwable $e) {
+                $ssh_details = false;
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $ip_scan->ip;
+                $errorLog->message = "Error occurred while performing SSH Audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'ssh_audit';
+                $discoveryLogModel->create($errorLog);
+            }
+            
             if (!empty($ssh_details)) {
                 if (!empty($ssh_details->credentials)) {
                     $ip_discovered_count = 1;
@@ -1193,7 +1278,23 @@ if (! function_exists('ip_audit')) {
         }
 
         if ($ip_scan->wmi_status === 'true' and $credentials_windows) {
-            $windows_details = wmi_audit($device->ip, $credentials_windows, $discovery->id);
+            try {
+                $windows_details = wmi_audit($device->ip, $credentials_windows, $discovery->id);
+            } catch (Throwable $e) {
+                $errorLog = new \StdClass();
+                $errorLog->command_status = 'error';
+                $errorLog->discovery_id = $discovery->id;
+                $errorLog->file = 'discoveries_helper';
+                $errorLog->function = 'ip_audit';
+                $errorLog->ip = $device->ip;
+                $errorLog->message = "Error occurred while performing WMI Audit: " . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+                $errorLog->pid = getmypid();
+                $errorLog->severity = 7;
+                $errorLog->command_output = 'N/A';
+                $errorLog->command = 'wmi_audit';
+                $discoveryLogModel->create($errorLog);
+                $windows_details = false;
+            }
             if (!empty($windows_details)) {
                 $device->last_seen_by = 'windows';
                 $device->audits_ip = '127.0.0.1';

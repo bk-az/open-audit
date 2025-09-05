@@ -22,7 +22,7 @@ tar -xzvf open-audit-patch.tar.gz
 Change to the patch directory:
 
 ```sh
-cd open-audit-patch
+cd patch
 ```
 
 ### 3. Mark the Script as Executable
