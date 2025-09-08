@@ -6,9 +6,16 @@ PATCH_DIR="$SCRIPT_DIR/patch_files"
 INSTALL_DIR="/usr/local/open-audit"
 BACKUP_DIR="$INSTALL_DIR/backup_$(date '+%Y%m%d%H%M%S')"
 APACHE_SERVICE="apache2"
-FILES_TO_BACKUP=(
-    "app/Helpers/discoveries_helper.php"
-)
+# Build list of files to backup from the patch directory (relative paths)
+FILES_TO_BACKUP=()
+while IFS= read -r -d '' file; do
+    rel="${file#$PATCH_DIR/}"
+    # Skip files whose name or any path component starts with ._
+    if [[ "$rel" == ._* || "$rel" == */._* ]]; then
+        continue
+    fi
+    FILES_TO_BACKUP+=( "$rel" )
+done < <(find "$PATCH_DIR" -type f -print0)
 
 # Function to display messages
 log() {
@@ -80,4 +87,4 @@ else
     exit 1
 fi
 
-log "Patch installation completed successfully."
+log "Patch installation completed successfully ✅."
