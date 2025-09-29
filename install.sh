@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="5.6.4"
+VERSION="5.6.5"
 LOGFILE="/tmp/install.log"
 UNATTENDED="$1"
 #UNATTENDED=""
