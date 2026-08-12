@@ -9,7 +9,7 @@ if (!empty($config->feature_news) and $config->feature_news === 'y') {
     }
 }
 
-$title = APP_DISPLAY_NAME . ' ' . ucfirst($config->product_name) . ' ' . $config->display_version;
+$title = APP_DISPLAY_NAME . ' ' . $config->display_version;
 
 // sort our queries, summaries and reports
 $reports = array();
