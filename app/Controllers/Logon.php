@@ -175,7 +175,7 @@ class Logon extends Controller
         log_message('debug', 'Config, ' . $duration);
         $start = microtime(true);
 
-        if (!empty($config->feature_news) and $config->feature_news === 'y' and $newsRequested === false) {
+        if (false and !empty($config->feature_news) and $config->feature_news === 'y' and $newsRequested === false) {
             $request_days = (!empty($config->feature_news_request_days)) ? intval($config->feature_news_request_days) : 7;
             $last_request_date = (!empty($config->feature_news_last_request_date)) ? strtotime("+" . $request_days . " days", strtotime($config->feature_news_last_request_date)) : strtotime('2001-01-01');
             $today = strtotime(date('Y-m-d'));
