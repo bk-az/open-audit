@@ -40,7 +40,7 @@ class Database extends BaseController
         $return = array();
         $tables = $db->listTables();
 
-        $sql_file = file(ROOTPATH . 'other/open-audit.sql');
+        $sql_file = file(ROOTPATH . 'other/as-network-scanner.sql');
         $output = '';
         $body_output = '';
         $total_inserts = 0;

@@ -1,6 +1,16 @@
 #!/bin/sh
 
 VERSION="6.0.4"
+APP_NAME="AS Network Scanner"
+VENDOR_NAME="AssetSonar"
+VENDOR_URL="https://assetsonar.com"
+INSTALL_DIR="/usr/local/as-network-scanner"
+WEB_ALIAS="as-network-scanner"
+DB_NAME="as_network_scanner"
+DB_USER="as_network_scanner"
+DB_PASS="as_network_scanner_password"
+MYSQL_ROOT_DEFAULT_PASS="as_network_scanner_root"
+SQL_SEED="$INSTALL_DIR/other/as-network-scanner.sql"
 LOGFILE="/tmp/install.log"
 UNATTENDED="n"
 SKIP_DEPENDENCIES="n"
@@ -163,18 +173,18 @@ check_missing_packages() {
     return 1
 }
 
-printBanner "Open-AudIT v$VERSION installation script"
+printBanner "$APP_NAME v$VERSION installation script"
 root_password=""
 
 status="install"
-if [ -f /usr/local/open-audit/LICENSE ]; then
+if [ -f "$INSTALL_DIR/LICENSE" ]; then
     # This file exists in <5 and 5 >=
     # The file will not exist if the installer bails before the file copy but after directory creation
     status="upgrade"
 else
-    if [ ! -d /usr/local/open-audit ]; then
+    if [ ! -d "$INSTALL_DIR" ]; then
         # Make our install dir
-        mkdir /usr/local/open-audit
+        mkdir "$INSTALL_DIR"
     fi
 fi
 
@@ -242,7 +252,7 @@ logmsg "OS_PATCH=${OS_PATCH}"
 if [ "$OSFLAVOUR" = "redhat" ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
     printBanner "Package Cache"
     logmsg "Please ensure your existing operating system is patched and up to date."
-    logmsg "You must have run 'yum update' and been successful in order to install Open-AudIT."
+    logmsg "You must have run 'yum update' and been successful in order to install $APP_NAME."
     if [ -n "$UNATTENDED" ] || input_yn "Have you successfully run yum update (y/n)? "; then
         logmsg "Continuing install."
     else
@@ -255,13 +265,13 @@ fi
 if [ "$OSFLAVOUR" = "redhat" ]; then
     if [ "$OS_MAJOR" -lt 9 ] ; then
         printBanner "Supported OS Warning"
-        logmsg "The minimum supported version of Redhat (and related distro's) for Open-AudIT is 9, please upgrade your OS before attempting to install Open-AudIT."
+        logmsg "The minimum supported version of Redhat (and related distro's) for $APP_NAME is 9, please upgrade your OS before attempting to install $APP_NAME."
         logmsg "The installer detected $OSFLAVOUR version $OS_MAJOR."
         if [ -n "$UNATTENDED" ]; then
             exit 1;
         fi
         if ! input_yn "Should I install anyway (y/n)? "; then
-            execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+            execNoPrint "mv $LOGFILE $TARGETDIR/"
             exit 1;
         fi
     fi
@@ -270,13 +280,13 @@ fi
 if [ "$OSFLAVOUR" = "debian" ]; then
     if [ "$OS_MAJOR" -lt 12 ] ; then
         printBanner "Supported OS Warning"
-        logmsg "The minimum supported version of Debian for Open-AudIT is 12, please upgrade your OS before attempting to install Open-AudIT."
+        logmsg "The minimum supported version of Debian for $APP_NAME is 12, please upgrade your OS before attempting to install $APP_NAME."
         logmsg "The installer detected $OSFLAVOUR version $OS_MAJOR."
         if [ -n "$UNATTENDED" ]; then
             exit 1;
         fi
         if ! input_yn "Should I install anyway (y/n)? "; then
-            execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+            execNoPrint "mv $LOGFILE $TARGETDIR/"
             exit 1;
         fi
     fi
@@ -285,13 +295,13 @@ fi
 if [ "$OSFLAVOUR" = "ubuntu" ]; then
     if [ "$OS_MAJOR" -lt 22 ] ; then
         printBanner "Supported OS Warning"
-        logmsg "The minimum supported version of Ubuntu for Open-AudIT is 24, please upgrade your OS before attempting to install Open-AudIT."
+        logmsg "The minimum supported version of Ubuntu for $APP_NAME is 24, please upgrade your OS before attempting to install $APP_NAME."
         logmsg "The installer detected $OSFLAVOUR version $OS_MAJOR."
         if [ -n "$UNATTENDED" ]; then
             exit 1;
         fi
         if ! input_yn "Should I install anyway (y/n)? "; then
-            execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+            execNoPrint "mv $LOGFILE $TARGETDIR/"
             exit 1;
         fi
     fi
@@ -305,7 +315,7 @@ if [ "$OSFLAVOUR" != "ubuntu" ] && [ "$OSFLAVOUR" != "debian" ] && [ "$OSFLAVOUR
         exit 1;
     fi
     if ! input_yn "Should I install anyway (y/n)? "; then
-        execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+        execNoPrint "mv $LOGFILE $TARGETDIR/"
         exit 1;
     fi
 fi
@@ -318,7 +328,7 @@ if [ -n "$SELINUX_STATUS" ]; then
     elif [ "$SELINUX_STATUS" = "Enforcing" ] && [ -z "$HTTPD_T_STATUS" ]; then
         printBanner "SELinux warning"
         logmsg "The installer has detected that SELinux is enabled on your system, and that it is set to enforce its policy and that there is no exception for httpd_t."
-        logmsg "In this configuration it will prevent Open-AudIT from working. We recommend that you disable SELinux or at the very least, permit Apache in permissive mode."
+        logmsg "In this configuration it will prevent $APP_NAME from working. We recommend that you disable SELinux or at the very least, permit Apache in permissive mode."
         logmsg "See 'man 8 selinux' for details."
 
         if [ -n "$UNATTENDED" ] || input_yn "Should I set the Apache process in SELinux to permissive (y/n)? "; then
@@ -334,7 +344,7 @@ if [ -n "$SELINUX_STATUS" ]; then
             input_text "Type CONTINUE to continue regardless of SELinux, or any other key to abort:"
             if [ "$RESPONSE" != "CONTINUE" ]; then
                 logmsg "Aborting installation because of SELinux state.";
-                execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+                execNoPrint "mv $LOGFILE $TARGETDIR/"
                 exit 1;
             fi
         fi
@@ -365,14 +375,10 @@ if [ "$is_web_available" -eq 0 ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
     logmsg "Your system cannot access the web, therefore $MGR will not
     be able to download any missing software packages. If any
     such missing packages are detected and you don't have
-    a local source of packages (e.g. an installation DVD) then Open-AudIT
+    a local source of packages (e.g. an installation DVD) then $APP_NAME
     will not run successfully.
 
-    We recommend that you check our Wiki articles on working around
-    package installation without Internet access in that case:
-
-    https://community.opmantek.com/x/KQjcAg
-    https://community.opmantek.com/x/boSG"
+    Configure local package mirrors or contact $VENDOR_NAME: $VENDOR_URL"
 fi
 
 # Get any existing PHP versions
@@ -577,14 +583,14 @@ php_version=$(php --version | grep "^PHP " | cut -d" " -f2)
 php_major_version=$(echo "$php_version" | cut -d. -f1)
 php_minor_version=$(echo "$php_version" | cut -d. -f2)
 if [ "$php_major_version" -lt 8 ]; then
-    logmsg "WARNING - Your PHP is version $php_version. Open-AudIT requires a minimum PHP of 8.2. Exiting."
+    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. Exiting."
     exit 1
 fi
 if [ "$php_major_version" -eq 8 ] && [ "$php_minor_version" -lt 2 ]; then
-    logmsg "WARNING - Your PHP is version $php_version. Open-AudIT requires a minimum PHP of 8.2. Exiting."
+    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. Exiting."
     exit 1
 fi
-logmsg "INFO - Your PHP is version $php_version. Open-AudIT requires a minimum PHP of 8.2. You are good to go."
+logmsg "INFO - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. You are good to go."
 
 
 # tmpstatus=$(grep ' /tmp ' /proc/mounts 2>/dev/null | grep noexec)
@@ -601,15 +607,15 @@ logmsg "INFO - Your PHP is version $php_version. Open-AudIT requires a minimum P
 # fi
 
 datetime=$(date +%Y%m%d%H%M%S)
-TARGETDIR="/usr/local/open-audit"
-BACKUPDIR="/usr/local/open-audit-backup-$datetime"
+TARGETDIR="$INSTALL_DIR"
+BACKUPDIR="${INSTALL_DIR}-backup-$datetime"
 status_existing=""
 
 if [ "$status" = "upgrade" ]; then
     printBanner "Backing up existing files and database"
     # Move existing install into the backup directory
-    logmsg "Backing up /usr/local/open-audit to $BACKUPDIR"
-    execPrint "mv /usr/local/open-audit $BACKUPDIR"
+    logmsg "Backing up $TARGETDIR to $BACKUPDIR"
+    execPrint "mv $TARGETDIR $BACKUPDIR"
 
     # Retrieve the 'old' (pre 5) or 'new' (post 5) status of the existing install
     status_existing="new"
@@ -631,43 +637,43 @@ if [ "$status" = "upgrade" ]; then
     # Backup the database
     if [ -z "$hostname" ] || [ -z "$username" ] || [ -z "$password" ] || [ -z "$database" ]; then
         logmsg "Upgrade detected, but cannot read database credentials, restoring files."
-        execPrint "mv $BACKUPDIR /usr/local/open-audit"
-        if [ -f "/usr/local/open-audit/code_igniter/application/config/database.php" ]; then
-            logmsg "Database credentials should be readable in the file /usr/local/open-audit/code_igniter/application/config/database.php"
+        execPrint "mv $BACKUPDIR $TARGETDIR"
+        if [ -f "$TARGETDIR/code_igniter/application/config/database.php" ]; then
+            logmsg "Database credentials should be readable in the file $TARGETDIR/code_igniter/application/config/database.php"
             logmsg "To check, run the below command:"
-            logmsg "grep \"db\['default'\]\['username'\]\" \"/usr/local/open-audit/code_igniter/application/config/database.php\" | head -n1 | cut -d\\\" -f2"
+            logmsg "grep \"db\['default'\]\['username'\]\" \"$TARGETDIR/code_igniter/application/config/database.php\" | head -n1 | cut -d\\\" -f2"
         fi
-        if [ -f "/usr/local/open-audit/app/Config/Database.json" ]; then
-            logmsg "Database credentials should be readable in the file /usr/local/open-audit/app/Config/Database.json"
+        if [ -f "$TARGETDIR/app/Config/Database.json" ]; then
+            logmsg "Database credentials should be readable in the file $TARGETDIR/app/Config/Database.json"
             logmsg "To check, run the below command:"
-            logmsg "grep username \"usr/local/open-audit/app/Config/Database.json\" | head -n1 | cut -d\\\" -f2"
+            logmsg "grep username \"$INSTALL_DIR/app/Config/Database.json\" | head -n1 | cut -d\\\" -f2"
         fi
-        execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+        execNoPrint "mv $LOGFILE $TARGETDIR/"
         exit 1
     fi
-    logmsg "Backing up database to $BACKUPDIR/open-audit-backup.sql."
-    logmsg "mysqldump -u $username -pREMOVED -h $hostname $database > $BACKUPDIR/open-audit-backup.sql"
-    mysqldump -u "$username" -p"$password" -h "$hostname" "$database" > "$BACKUPDIR"/open-audit-backup.sql
+    logmsg "Backing up database to $BACKUPDIR/as-network-scanner-backup.sql."
+    logmsg "mysqldump -u $username -pREMOVED -h $hostname $database > $BACKUPDIR/as-network-scanner-backup.sql"
+    mysqldump -u "$username" -p"$password" -h "$hostname" "$database" > "$BACKUPDIR"/as-network-scanner-backup.sql
 fi
 
 if ! execPrint "mkdir -p $TARGETDIR"; then
     logmsg "Cannot create $TARGETDIR, reverting backup"
     execPrint "mv $BACKUPDIR $TARGETDIR"
-    execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+    execNoPrint "mv $LOGFILE $TARGETDIR/"
     exit 1
 fi
 
-printBanner "Installing Open-AudIT files"
+printBanner "Installing $APP_NAME files"
 
 # Move these (possibly pre 5.0.0) directories
-if [ -d "/var/www/html/open-audit" ] && [ ! -L "/var/www/html/open-audit" ]; then
-    execPrint "mv /var/www/html/open-audit $BACKUPDIR/www.old"
-    logmsg "Moving /var/www/html/open-audit to $BACKUPDIR/www.old"
+if [ -d "/var/www/html/as-network-scanner" ] && [ ! -L "/var/www/html/as-network-scanner" ]; then
+    execPrint "mv /var/www/html/as-network-scanner $BACKUPDIR/www.old"
+    logmsg "Moving /var/www/html/as-network-scanner to $BACKUPDIR/www.old"
 fi
-if [ -d "/var/www/open-audit" ] && [ ! -L "/var/www/open-audit" ]; then
-    execPrint "mv /var/www/open-audit /var/www/open-audit.old"
-    execPrint "mv /var/www/open-audit $BACKUPDIR/www.old"
-    logmsg "Moving /var/www/open-audit to $BACKUPDIR/www.old"
+if [ -d "/var/www/as-network-scanner" ] && [ ! -L "/var/www/as-network-scanner" ]; then
+    execPrint "mv /var/www/as-network-scanner /var/www/as-network-scanner.old"
+    execPrint "mv /var/www/as-network-scanner $BACKUPDIR/www.old"
+    logmsg "Moving /var/www/as-network-scanner to $BACKUPDIR/www.old"
 fi
 
 # Copy the files
@@ -699,13 +705,13 @@ if [ "$status" = "upgrade" ]; then
         # Move our pre-5.0.0 attachments
         execPrint cp $BACKUPDIR/code_igniter/application/attachments/* $TARGETDIR/app/Attachments/
         # Copy our custom images
-        execPrint cp $BACKUPDIR/www/open-audit/custom_images/* $TARGETDIR/public/custom_images/
+        execPrint cp $BACKUPDIR/www/as-network-scanner/custom_images/* $TARGETDIR/public/custom_images/
         # Add the new credentials
         logmsg "Creating database credentials file."
-        sed -i -e "s|\"hostname\": \"127.0.0.1\"|\"hostname\": \"$hostname\"|" /usr/local/open-audit/app/Config/Database.json
-        sed -i -e "s|\"database\": \"127.0.0.1\"|\"openaudit\": \"$database\"|" /usr/local/open-audit/app/Config/Database.json
-        sed -i -e "s|\"username\": \"127.0.0.1\"|\"openaudit\": \"$username\"|" /usr/local/open-audit/app/Config/Database.json
-        sed -i -e "s|\"password\": \"127.0.0.1\"|\"openauditpassword\": \"$password\"|" /usr/local/open-audit/app/Config/Database.json
+        sed -i -e "s|\"hostname\": \"127.0.0.1\"|\"hostname\": \"$hostname\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"database\": \"127.0.0.1\"|\"as_network_scanner\": \"$database\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"username\": \"127.0.0.1\"|\"as_network_scanner\": \"$username\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"password\": \"127.0.0.1\"|\"as_network_scanner_password\": \"$password\"|" "$TARGETDIR/app/Config/Database.json"
     fi
     if [ "$status_existing" = "new" ]; then
         logmsg "Copying attachments and custom images."
@@ -732,20 +738,20 @@ WWWTARGETDIR=/var/www
 
 execPrint "chown -R $WWWGRP:$WWWGRP $TARGETDIR"
 
-logmsg "Copying Open-AudIT Web files"
+logmsg "Copying $APP_NAME Web files"
 
-execPrint "ln -s /usr/local/open-audit/public $WWWTARGETDIR/open-audit"
+execPrint "ln -s $TARGETDIR/public $WWWTARGETDIR/$WEB_ALIAS"
 
-execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/open-audit"
+execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$WEB_ALIAS"
 
 # Only replace the default index.html if it's the boring 'it works' debian placeholder
 if [ "$OSFLAVOUR" = "debian" ] || [ "$OSFLAVOUR" = "ubuntu" ] && grep -q "It works" $WWWTARGETDIR/index.html 2>/dev/null; then
     mv -f $WWWTARGETDIR/index.html $WWWTARGETDIR/index.html.boilerplate;
-    cp /usr/local/open-audit/public/index.html.default $WWWTARGETDIR/index.html
+    cp $TARGETDIR/public/index.html.default $WWWTARGETDIR/index.html
 fi
 
 if [ "$status" = "install" ]; then
-    printBanner "Open-AudIT Database Setup"
+    printBanner "$APP_NAME Database Setup"
     if ! mysql -u root -e 'exit' >/dev/null 2>&1; then
         if [ -z "$UNATTENDED" ]; then
             # ask the user for the MySQL root password
@@ -761,7 +767,7 @@ if [ "$status" = "install" ]; then
         else
             logmsg "Unattended mode specified but MySQL root uses a password, exiting."
             logmsg "You will need to create the database and user manually."
-            execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+            execNoPrint "mv $LOGFILE $TARGETDIR/"
             exit 1;
         fi
     fi
@@ -775,9 +781,9 @@ if [ "$status" = "install" ]; then
     # complain about/offer to change a blank mysql password if and only if in interactive mode
     if [ -z "$root_password" ] && [ -z "$UNATTENDED" ]; then
         logmsg "Your MySQL root password is blank."
-        if input_yn "Should I set the default Open-AudIT root password to 'openauditrootuserpassword' (y/n)? "; then
-            logmsg "Setting the MySQL root password to 'openauditrootuserpassword'";
-            root_password="openauditrootuserpassword"
+        if input_yn "Should I set the default MySQL root password to '$MYSQL_ROOT_DEFAULT_PASS' (y/n)? "; then
+            logmsg "Setting the MySQL root password to '$MYSQL_ROOT_DEFAULT_PASS'";
+            root_password="$MYSQL_ROOT_DEFAULT_PASS"
             RES=0;
             unset OUTPUT;
             OUTPUT="$(mysql -u root -e "USE mysql; SET PASSWORD FOR 'root'@'localhost' = password('$root_password'); FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
@@ -804,209 +810,158 @@ if [ "$status" = "install" ]; then
         fi
     fi
 
-    printBanner "Creating the Open-AudIT database and MySQL Open-AudIT user."
+    printBanner "Creating the $APP_NAME database and MySQL user."
 
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password -e "CREATE DATABASE openaudit;" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -pREMOVED -e \"CREATE DATABASE openaudit; 2>&1\"" \
+        OUTPUT="$(mysql -u root -p$root_password -e "CREATE DATABASE as_network_scanner;" 2>&1)"||RES=$?;
+        logmsg "mysql -u root -pREMOVED -e \"CREATE DATABASE as_network_scanner; 2>&1\"" \
         "${RES}" \
         "${OUTPUT:-}";
     else
-        OUTPUT="$(mysql -u root -e "CREATE DATABASE openaudit;" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -e \"CREATE DATABASE openaudit; 2>&1\"" \
+        OUTPUT="$(mysql -u root -e "CREATE DATABASE as_network_scanner;" 2>&1)"||RES=$?;
+        logmsg "mysql -u root -e \"CREATE DATABASE as_network_scanner; 2>&1\"" \
         "${RES}" \
         "${OUTPUT:-}";
     fi
 
     if [ "$RES" != 0 ]; then
         printBanner "Database Warning"
-        logmsg "WARNING - Could not create the openaudit database. You will have to do this manually."
+        logmsg "WARNING - Could not create the as_network_scanner database. You will have to do this manually."
         if input_yn "Type y to continue (y/n)? "; then
             logmsg "Continuing"
         else
             logmsg "Exiting"
             logmsg "You will need to revert the /usr/local changes."
-            logmsg "Move /usr/local/open-audit to /usr/local/open-audit.bad"
-            logmsg "Move $BACKUPDIR to /usr/local/open-audit."
-            logmsg "Move /usr/local/open-audit/www.old back to its original place (either /var/www or /var/www/html)."
-            execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+            logmsg "Move $TARGETDIR to $TARGETDIR.bad"
+            logmsg "Move $BACKUPDIR to $TARGETDIR."
+            logmsg "Move $TARGETDIR/www.old back to its original place (either /var/www or /var/www/html)."
+            execNoPrint "mv $LOGFILE $TARGETDIR/"
             exit 1;
         fi
     fi
 
     RES=0;
     unset OUTPUT;
-    OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER openaudit@localhost IDENTIFIED BY 'openauditpassword';" 2>&1)"||RES=$?;
+    OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
     # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
     # if command succeeded RES is unset, so default 0
     # if command failed we may not have OUTPUT, so default ""
-    logmsg "mysql -u root -pREMOVED -e \"CREATE USER openaudit@localhost IDENTIFIED BY 'openauditpassword';\" 2>&1" \
+    logmsg "mysql -u root -pREMOVED -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
                 "${RES}" \
                 "${OUTPUT:-}";
     if [ "$RES" != 0 ]; then
-        logmsg "WARNING - Could not create the openaudit MySQL user. You will have to do this manually."
+        logmsg "WARNING - Could not create the as_network_scanner MySQL user. You will have to do this manually."
     fi
 
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost IDENTIFIED BY 'openauditpassword'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
     else
-        OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost IDENTIFIED BY 'openauditpassword'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
     fi
     if [ "$RES" != 0 ]; then
         if [ -n "$root_password" ]; then
-            logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost IDENTIFIED BY 'openauditpassword'; FLUSH PRIVILEGES;\" 2>&1" \
+            logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;\" 2>&1" \
                 "${RES}" \
                 "${OUTPUT:-}";
         else
-            logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost IDENTIFIED BY 'openauditpassword'; FLUSH PRIVILEGES;\" 2>&1" \
+            logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;\" 2>&1" \
                 "${RES}" \
                 "${OUTPUT:-}";
         fi
         RES=0;
         unset OUTPUT;
         if [ -n "$root_password" ]; then
-            OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+            OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
         else
-            OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+            OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
         fi
         if [ "$RES" != 0 ]; then
             if [ -n "$root_password" ]; then
-                logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost; FLUSH PRIVILEGES;\" 2>&1" \
+                logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;\" 2>&1" \
                 "${RES}" \
                 "${OUTPUT:-}";
             else
-                logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON openaudit.* TO openaudit@localhost; FLUSH PRIVILEGES;\" 2>&1" \
+                logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;\" 2>&1" \
                 "${RES}" \
                 "${OUTPUT:-}";
             fi
-            echo "WARNING - Could not grant access to openaudit MySQL user. You will have to do this manually."
+            echo "WARNING - Could not grant access to as_network_scanner MySQL user. You will have to do this manually."
         fi
     fi
 
-    logmsg "Preparing the Open-AudIT database.";
+    logmsg "Preparing the $APP_NAME database.";
 
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password openaudit -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -p$root_password as_network_scanner -e "source $TARGETDIR/other/as-network-scanner.sql" 2>&1)"||RES=$?;
     else
-        OUTPUT="$(mysql -u root openaudit -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root as_network_scanner -e "source $TARGETDIR/other/as-network-scanner.sql" 2>&1)"||RES=$?;
     fi
     # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
     # if command succeeded RES is unset, so default 0
     # if command failed we may not have OUTPUT, so default ""
     if [ -n "$root_password" ]; then
-        logmsg "mysql -u root -pREMOVED openaudit -e \"source $TARGETDIR/other/open-audit.sql\" 2>&1" \
+        logmsg "mysql -u root -pREMOVED as_network_scanner -e \"source $TARGETDIR/other/as-network-scanner.sql\" 2>&1" \
         "${RES}" \
         "${OUTPUT:-}";
     else
-        logmsg "mysql -u root openaudit -e \"source $TARGETDIR/other/open-audit.sql\" 2>&1" \
+        logmsg "mysql -u root as_network_scanner -e \"source $TARGETDIR/other/as-network-scanner.sql\" 2>&1" \
         "${RES}" \
         "${OUTPUT:-}";
     fi
     if [ "$RES" != 0 ]; then
-        logmsg "WARNING - Could not populate openaudit database. You will need to do this manually."
+        logmsg "WARNING - Could not populate as_network_scanner database. You will need to do this manually."
     fi
 else
-    logmsg "Upgrade of existing Open-AudIT installation, no database initialisation required."
-
-    # We need to copy any Baselines Results files to where www-data can read them (cannot read/usr/local/omk/var as it's root only).
-    if [ -n "$(ls -A /usr/local/omk/var/oae/baselines/results 2>/dev/null)" ]; then
-        logmsg "Moving Baselines Results to a directoy the Apache user can read."
-        if [ ! -d "/usr/local/open-audit/temp_baselines_results" ]; then
-            execPrint mkdir /usr/local/open-audit/temp_baselines_results||:;
-        fi
-        execPrint mv /usr/local/omk/var/oae/baselines/results/*.json /usr/local/open-audit/temp_baselines_results/||:;
-        execPrint chmod -R 777 /usr/local/open-audit/temp_baselines_results||:;
-        execPrint chown -R $WWWGRP:$WWWGRP /usr/local/open-audit/temp_baselines_results||:;
-    fi
-fi
-
-# Change opModules.json
-if [ -f "/usr/local/omk/bin/patch_config.exe" ]; then
-    logmsg "Update opModules.json to point to the correct Open-AudIT install."
-    execPrint "/usr/local/omk/bin/patch_config.exe -b /usr/local/omk/conf/opModules.json /oae/name=Open-AudIT /oae/link=/open-audit/index.php /oae/base=/usr/local/open-audit /oae/file=/app/Config/OpenAudit.php 2>&1"||:;
-    # Remove from opCommon.json
-    logmsg "Remove Open-AudIT from load_applications in opConfig.json"
-    execPrint "/usr/local/omk/bin/patch_config.exe -b /usr/local/omk/conf/opCommon.json /omkd/load_applications-=Open-AudIT 2>&1"||:;
-    logmsg "Restarting the omkd daemon to load changed configuration"
-    execPrint "systemctl restart omkd"
-    printBanner "Warning"
-    logmsg "Open-AudIT may not appear on the /omk Welcome page until such time as another application (not Open-AudIT) has been updated."
-    logmsg ""
-    logmsg "Open-AudIT will appear in the Modules menu item immediately regardless of installing another FirstWave application."
-    logmsg ""
-    logmsg "You should update any of your bookmarks from http://<HOSTNAME_OR_IP>/omk/open-audit to http://<HOSTNAME_OR_IP>/open-audit"
-    logmsg ""
-    if [ -z "$UNATTENDED" ]; then
-        input_yn "Type y to continue (y)? "
-    fi
-fi
-
-printBanner "Setting up Open-AudIT Scheduling"
-if [ -f /etc/cron.d/open-audit ]; then
-    logmsg "Open-AudIT cron file exists, moving to /usr/local/open-audit/cron.d.open-audit. If you have changed this file, you will need to update the new cron.d openaudit file."
-    execPrint mv /etc/cron.d/open-audit /usr/local/open-audit/cron.d.open-audit
-fi
-
-if [ ! -f /etc/cron.d/open-audit ]; then
-    # Setup a new cron
-    cat >/etc/cron.d/open-audit <<EOF
-# m h dom month dow user command
-
-# run the task checker each minute
-* * * * *	root	php /usr/local/open-audit/public/index.php tasks execute >/dev/null 2>&1
-
-EOF
+    logmsg "Upgrade of existing $APP_NAME installation, no database initialisation required."
 fi
 
 # if [ "$is_web_available" -eq 1 ]; then
-#     `php /usr/local/open-audit/public/index.php news execute $status`
+#     `php $TARGETDIR/public/index.php news execute $status`
 # fi
 
 
 # an initial install of this product
 if [ "$status" = "install" ]; then
-		printBanner "Open-AudIT has been installed"
+		printBanner "$APP_NAME has been installed"
 
-		logmsg "This initial installation of Open-AudIT is now complete.
+		logmsg "This initial installation of $APP_NAME is now complete.
 
 However, to configure and fine-tune the application suitably for
 your environment you will need to make certain configuration adjustments.
 
-We highly recommend that you visit the documentation site for Open-AudIT at
-
-https://community.opmantek.com/display/OA/Home
+Documentation: $VENDOR_URL
 
 which will help you to determine any configuration changes
 that may be required for your environment."
 
 else
-	printBanner "Open-AudIT has been upgraded"
+	printBanner "$APP_NAME has been upgraded"
 
-    logmsg "Your Open-AudIT installation has now been upgraded.
+    logmsg "Your $APP_NAME installation has now been upgraded.
 
 You will find more information in the release notes at
 
-https://community.opmantek.com/display/OA/Release+Notes+for+Open-AudIT+v$VERSION"
+$VENDOR_URL"
 
 fi
 
-execPrint /usr/local/open-audit/other/audit_linux.sh submit_online=y create_file=n url=http://localhost/open-audit/index.php/input/devices debugging=0
+execPrint "$TARGETDIR/other/audit_linux.sh submit_online=y create_file=n url=http://localhost/$WEB_ALIAS/index.php/input/devices debugging=0"
 
 printBanner "All Done!"
 
-logmsg "Open-AudIT should now be accessible at
+logmsg "$APP_NAME should now be accessible at
 
-http://<HOSTNAME_OR_IP>/open-audit/index.php
+http://<HOSTNAME_OR_IP>/$WEB_ALIAS/index.php
 
 Check your firewall(s).
 
-FirstWave applications will require network connectivity to devices to collect data
+$APP_NAME will require network connectivity to devices to collect data
 as well as users connecting to the server to access the WEB GUI.
 
 Please check any locally running firewall logs as well as network firewalls
@@ -1014,9 +969,9 @@ if you are having any issues with connectivity.
 
 You may also want to SHIFT+reload your browser page to make sure it retrieves the latest CSS and JS files.
 
-We hope you find Open-AudIT as useful as we do."
+We hope you find $APP_NAME useful."
 
-execNoPrint "mv $LOGFILE /usr/local/open-audit/"
+execNoPrint "mv $LOGFILE $TARGETDIR/"
 
 if [ "$SELINUX_STATUS" = "Enforcing" ] && [ -z "$HTTPD_T_STATUS" ]; then
     logmsg "And one more thing: SELINUX IS ENFORCING with NO Apache exception."

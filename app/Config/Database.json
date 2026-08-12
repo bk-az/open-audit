@@ -1,7 +1,7 @@
 {
     "hostname": "127.0.0.1",
-    "database": "openaudit",
-    "username": "openaudit",
-    "password": "openauditpassword",
+    "database": "as_network_scanner",
+    "username": "as_network_scanner",
+    "password": "as_network_scanner_password",
     "port": 3306
 }
