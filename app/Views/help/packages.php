@@ -7,4 +7,4 @@ $intro = '<p>' . __('A package is a piece of installed software. A package has a
 <br>
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>' . __('Packages are used to report on things such as <i>banned software</i>, AntiVirus on servers, etc.<br><br>Open-AudIT provides widgets that build upon also supplied repots to determine the status of antivirus, firewall and other software.') . '</p>';
+<p>' . __('Packages are used to report on things such as <i>banned software</i>, AntiVirus on servers, etc.<br><br>' . APP_DISPLAY_NAME . ' provides widgets that build upon also supplied repots to determine the status of antivirus, firewall and other software.') . '</p>';

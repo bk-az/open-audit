@@ -306,9 +306,9 @@ class AuthModel extends BaseModel
 
         $dictionary->sentence = '';
 
-        $dictionary->about = '<p>Open-AudIT can be configured to use different methods to authenticate a user and in addition, to create a user account using assigned roles and orgs based on group membership.<br> <br></p>';
+        $dictionary->about = '<p>' . APP_DISPLAY_NAME . ' can be configured to use different methods to authenticate a user and in addition, to create a user account using assigned roles and orgs based on group membership.<br> <br></p>';
 
-        $dictionary->notes = '<p>If the user logging on to Open-AudIT does not have the access to search LDAP (and you are using OpenLDAP), you can use another account which does have this access. Use the <code>ldap_dn_account</code> and <code>ldap_dn_password</code> to configure this.<br> <br><strong>Helpful Documentation</strong><br> <br>
+        $dictionary->notes = '<p>If the user logging on to ' . APP_DISPLAY_NAME . ' does not have the access to search LDAP (and you are using OpenLDAP), you can use another account which does have this access. Use the <code>ldap_dn_account</code> and <code>ldap_dn_password</code> to configure this.<br> <br><strong>Helpful Documentation</strong><br> <br>
         <a href="' . $authHelp . '">General Auth Help</a><br> <br>
         <a href="' . $helpFAQ . '?name=Using Entra for Auth">Using Entra for Auth</a><br> <br>
         <a href="' . $helpFAQ . '?name=Using OKTA for Auth">Using OKTA for Auth</a><br> <br>
@@ -331,7 +331,7 @@ class AuthModel extends BaseModel
         $dictionary->columns->type = 'One of either <code>active directory</code> or <code>openldap</code>.';
         $dictionary->columns->version = 'Default of <code>3</code> for LDAP and Active Directory.';
         $dictionary->columns->ldap_base_dn = 'The base path from which to search for Users.';
-        $dictionary->columns->ldap_dn_account = 'If the user logging on to Open-AudIT does not have the access to search LDAP, you can use another account which does have this access.';
+        $dictionary->columns->ldap_dn_account = 'If the user logging on to ' . APP_DISPLAY_NAME . ' does not have the access to search LDAP, you can use another account which does have this access.';
         $dictionary->columns->ldap_dn_password = 'The password for the dn_account attribute.';
         $dictionary->columns->openldap_user_dn = 'Used by OpenLDAP only.';
         $dictionary->columns->openldap_user_membership_attribute = 'Used when searching OpenLDAP to match a users uid to a groups members. Default of <code>memberUid</code>. Used by OpenLDAP only.';

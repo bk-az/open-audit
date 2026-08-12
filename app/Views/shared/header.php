@@ -9,7 +9,7 @@ if (!empty($config->feature_news) and $config->feature_news === 'y') {
     }
 }
 
-$title = 'Open-AudIT ' . ucfirst($config->product_name) . ' ' . $config->display_version;
+$title = APP_DISPLAY_NAME . ' ' . ucfirst($config->product_name) . ' ' . $config->display_version;
 
 // sort our queries, summaries and reports
 $reports = array();
@@ -45,10 +45,10 @@ if (!empty($config->servers)) {
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Open-AudIT">
+        <meta name="description" content="<?= esc(APP_DISPLAY_NAME) ?>">
         <meta name="author" content="Mark Unwin">
         <link rel="shortcut icon" href="<?= base_url('favicon.png') ?>" type="image/x-icon">
-        <title>Open-AudIT</title>
+        <title><?= esc(APP_DISPLAY_NAME) ?></title>
 
         <!-- JS -->
         <script {csp-script-nonce} src="<?= base_url('js/jquery.min.js') ?>"></script>
@@ -102,54 +102,14 @@ if (!empty($config->servers)) {
         <nav class="navbar navbar-expand-md">
             <div class="container-fluid">
                 <a class="navbar-brand" style="color: white;" href="<?= $homepage ?>">
-                    <img class="rounded-circle border border-white border-0" style="width:25px; height: 25px; margin-right:6px;" src="<?= base_url('images/Open-AudIT.svg') ?>" alt="Open-AudIT Logo">
+                    <img class="rounded-circle border border-white border-0" style="width:25px; height: 25px; margin-right:6px;" src="<?= base_url('images/Open-AudIT.svg') ?>" alt="<?= esc(APP_DISPLAY_NAME) ?>">
                     <?= $title . "\n" ?>
                 </a>
                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarView" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Dashboards') ?></a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarView">
-                                <?php if (!empty($config->servers) and $config->product === 'enterprise') {
-                                    echo "                                <li><a class=\"dropdown-item\" href=\"" . url_to('dashboardCollector') . "\">" . __('Collector Dashboard') . "</a></li>\n";
-                                }
-                                if (!empty($dashboards)) {
-                                    echo "\n";
-                                    foreach ($dashboards as $dashboard) {
-                                        if ($dashboard->type === 'dashboards' and $dashboard->attributes->name === 'Summary Dashboard') {
-                                            if ($config->product === 'enterprise' or $config->product === 'professional') {
-                                                echo "                                <li><a class=\"dropdown-item\" href=\"" . url_to('dashboardsExecute', $dashboard->id) . "\">" . $dashboard->attributes->name . "</a></li>\n";
-                                            } else {
-                                                echo "                                <li><a class=\"dropdown-item greyout toastEnterprise\" href=\"#\">" . $dashboard->attributes->name . "</a></li>\n";
-                                            }
-                                        }
-                                    }
-                                } ?>
-                                <li><a class="dropdown-item" href="<?= url_to('welcome') ?>"><?= __('Welcome Dashboard') ?></a></li>
-                                <li>&nbsp;</li><?php if (!empty($dashboards)) {
-                                    echo "\n";
-                                    foreach ($dashboards as $dashboard) {
-                                        if ($dashboard->type === 'dashboards' and $dashboard->attributes->name !== 'Summary Dashboard') {
-                                            if ($config->product === 'enterprise' or $config->product === 'professional') {
-                                                echo "                                <li><a class=\"dropdown-item\" href=\"" . url_to('dashboardsExecute', $dashboard->id) . "\">" . $dashboard->attributes->name . "</a></li>\n";
-                                            } else {
-                                                echo "                                <li><a class=\"dropdown-item greyout toastEnterprise\" href=\"#\">" . $dashboard->attributes->name . "</a></li>\n";
-                                            }
-                                        }
-                                    }
-                                               } ?>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDiscover" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Discover') ?></a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDiscover">
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('cloudsCollection') ?>"><?= __('Clouds') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('clouds', 'r', $user, 'cloudsCollection', __('List') . ' ' . __('Clouds')) ?>
-                                        <?= menuItem('clouds', 'c', $user, 'cloudsCreateForm', __('Create') . ' ' . __('Clouds')) ?>
-                                        <?= menuItem('clouds', '', $user, 'cloudsHelp', __('Learn About') . ' ' . __('Clouds')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('credentialsCollection') ?>"><?= __('Credentials') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('credentials', 'r', $user, 'credentialsCollection', __('List') . ' ' . __('Credentials')) ?>
@@ -180,24 +140,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('tasks', 'c', $user, 'tasksCreateForm', __('Schedule') . ' ' . __('Discoveries'), '?type=discoveries') ?>
                                     </ul>
                                 </li>
-                                <?php if (!empty($config->feature_executables) and $config->feature_executables === 'y') { ?>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('executablesCollection') ?>"><?= __('Executables') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('executables', 'r', $user, 'executablesCollection', __('List') . ' ' . __('Executables')) ?>
-                                        <?= menuItem('executables', 'c', $user, 'executablesCreateForm', __('Create') . ' ' . __('Executables')) ?>
-                                        <?= menuItem('executables', 'c', $user, 'executablesImportForm', __('Import') . ' ' . __('Executables')) ?>
-                                        <?= menuItem('executables', '', $user, 'executablesHelp', __('Learn About') . ' ' . __('Executables')) ?>
-                                    </ul>
-                                </li>
-                                <?php } ?>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('filesCollection') ?>"><?= __('Files') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('files', 'r', $user, 'filesCollection', __('List') . ' ' . __('Files')) ?>
-                                        <?= menuItem('files', 'c', $user, 'filesCreateForm', __('Create') . ' ' . __('Files')) ?>
-                                        <?= menuItem('files', 'c', $user, 'filesImportForm', __('Import') . ' ' . __('Files')) ?>
-                                        <?= menuItem('files', '', $user, 'filesHelp', __('Learn About') . ' ' . __('Files')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('scriptsCollection') ?>"><?= __('Scripts') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('scripts', 'r', $user, 'scriptsCollection', __('List') . ' ' . __('Scripts')) ?>
@@ -214,12 +156,15 @@ if (!empty($config->servers)) {
                             <ul class="dropdown-menu" aria-labelledby="navbarReport">
                             <?php
                             foreach ($categories as $category) {
+                                if ($category === 'Discovery') {
+                                    continue;
+                                }
                                 echo "
                             <li><a class=\"dropdown-item dropdown-toggle first-level-dropdown-toggle\" href=\"#\">" . __($category) . "</a>\n                            <ul class=\"dropdown-menu\">\n";
                                 foreach ($reports as $report) {
                                     if ($report->{'attributes'}->{'menu_category'} === $category) {
                                         if (!empty($report->{'attributes'}->{'commercial'}) and $report->{'attributes'}->{'commercial'} === 'y' and (empty($config->product) or $config->product === 'community')) {
-                                            echo "                                <li><a class=\"dropdown-item greyout toastProfessional\" href=\"#\">" . $report->{'attributes'}->{'name'} . "</a></li>\n";
+                                            // Omit commercial reports from community UI (no upgrade toast)
                                         } else {
                                             echo "                                <li><a class=\"dropdown-item\" href=\"" . url_to($report->type . 'Execute', $report->id) . "\">" . $report->{'attributes'}->{'name'} . "</a></li>\n";
                                         }
@@ -234,20 +179,6 @@ if (!empty($config->servers)) {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarManage" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Manage') ?></a>
                             <ul class="dropdown-menu" aria-labelledby="navbarManage">
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('agentsCollection') ?>"><?= __('Agents') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('agents', 'r', $user, 'agentsCollection', __('List') . ' ' . __('Agents')) ?>
-                                        <?= menuItem('agents', 'c', $user, 'agentsCreateForm', __('Create') . ' ' . __('Agents')) ?>
-                                        <?= menuItem('agents', '', $user, 'agentsHelp', __('Learn About') . ' ' . __('Agents')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('applicationsCollection') ?>"><?= __('Applications') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('applications', 'r', $user, 'applicationsCollection', __('List') . ' ' . __('Applications')) ?>
-                                        <?= menuItem('applications', 'c', $user, 'applicationsCreateForm', __('Create') . ' ' . __('Applications')) ?>
-                                        <?= menuItem('applications', '', $user, 'applicationsHelp', __('Learn About') . ' ' . __('Applications')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('attributesCollection') ?>"><?= __('Attributes') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('attributes', 'r', $user, 'attributesCollection', __('List') . ' ' . __('Attributes')) ?>
@@ -257,49 +188,11 @@ if (!empty($config->servers)) {
                                         <?= menuItem('attributes', '', $user, 'attributesHelp', __('Learn About') . ' ' . __('Attributes')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('baselinesCollection') ?>"><?= __('Baselines') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('baselines', 'r', $user, 'baselinesCollection', __('List') . ' ' . __('Baselines')) ?>
-                                        <?= menuItem('baselines', 'c', $user, 'baselinesCreateForm', __('Create') . ' ' . __('Baselines')) ?>
-                                        <?= menuItem('baselines', '', $user, 'baselinesHelp', __('Learn About') . ' ' . __('Baselines')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('benchmarksCollection') ?>"><?= __('Benchmarks') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('benchmarks', 'r', $user, 'benchmarksCollection', __('List') . ' ' . __('Benchmarks')) ?>
-                                        <?= menuItem('benchmarks', 'c', $user, 'benchmarksCreateForm', __('Create') . ' ' . __('Benchmarks')) ?>
-                                        <?= menuItem('benchmarks', 'c', $user, 'benchmarksImportForm', __('Import') . ' ' . __('Benchmarks')) ?>
-                                        <?= menuItem('benchmarks', '', $user, 'benchmarksDefaults', __('Default') . ' ' . __('Benchmarks')) ?>
-                                        <?= menuItem('benchmarks', '', $user, 'benchmarksHelp', __('Learn About') . ' ' . __('Benchmarks')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('certificatesCollection') ?>"><?= __('Certificates') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('certificates', 'r', $user, 'certificatesCollection', __('List') . ' ' . __('Certificates')) ?>
-                                        <?= menuItem('certificates', 'c', $user, 'certificatesCreateForm', __('Create') . ' ' . __('Certificates')) ?>
-                                        <?= menuItem('certificates', '', $user, 'certificatesHelp', __('Learn About') . ' ' . __('Certificates')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('clustersCollection') ?>"><?= __('Clusters') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('clusters', 'r', $user, 'clustersCollection', __('List') . ' ' . __('Clusters')) ?>
-                                        <?= menuItem('clusters', 'c', $user, 'clustersCreateForm', __('Create') . ' ' . __('Clusters')) ?>
-                                        <?= menuItem('clusters', '', $user, 'clustersHelp', __('Learn About') . ' ' . __('Clusters')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('connectionsCollection') ?>"><?= __('Connections') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('connections', 'r', $user, 'connectionsCollection', __('List') . ' ' . __('Connections')) ?>
                                         <?= menuItem('connections', 'c', $user, 'connectionsCreateForm', __('Create') . ' ' . __('Connections')) ?>
                                         <?= menuItem('connections', '', $user, 'connectionsHelp', __('Learn About') . ' ' . __('Connections')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('dashboardsCollection') ?>"><?= __('Dashboards') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('dashboards', 'r', $user, 'dashboardsCollection', __('List') . ' ' . __('Dashboards')) ?>
-                                        <?= menuItem('dashboards', 'c', $user, 'dashboardsCreateForm', __('Create') . ' ' . __('Dashboards')) ?>
-                                        <?= menuItem('dashboards', '', $user, 'dashboardsDefaults', __('Default') . ' ' . __('Dashboards')) ?>
-                                        <?= menuItem('dashboards', '', $user, 'dashboardsHelp', __('Learn About') . ' ' . __('Dashboards')) ?>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('devicesCollection') ?>"><?= __('Devices') ?></a>
@@ -334,14 +227,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('groups', '', $user, 'groupsHelp', __('Learn About') . ' ' . __('Groups')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('integrationsCollection') ?>"><?= __('Integrations') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('integrations', 'r', $user, 'integrationsCollection', __('List') . ' ' . __('Integrations')) ?>
-                                        <?= menuItem('integrations', 'c', $user, 'integrationsCreateForm', __('Create') . ' ' . __('Integrations')) ?>
-                                        <?= menuItem('integrations', '', $user, 'integrationsDefaults', __('Default') . ' ' . __('Integrations')) ?>
-                                        <?= menuItem('integrations', '', $user, 'integrationsHelp', __('Learn About') . ' ' . __('Integrations')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('licensesCollection') ?>"><?= __('Licenses') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('licenses', 'r', $user, 'licensesCollection', __('List') . ' ' . __('Licenses')) ?>
@@ -357,11 +242,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('locations', 'c', $user, 'locationsImportForm', __('Import') . ' ' . __('Locations')) ?>
                                         <?= menuItem('locations', '', $user, 'locationsDefaults', __('Default') . ' ' . __('Locations')) ?>
                                         <?= menuItem('locations', '', $user, 'locationsHelp', __('Learn About') . ' ' . __('Locations')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('mapsCollection') ?>"><?= __('Maps') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('maps', 'r', $user, 'mapsCollection', __('View') . ' ' . __('Map')) ?>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('networksCollection') ?>"><?= __('Networks') ?></a>
@@ -404,14 +284,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('queries', '', $user, 'queriesHelp', __('Learn About') . ' ' . __('Queries')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('racksCollection') ?>"><?= __('Racks') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('racks', 'r', $user, 'racksCollection', __('List') . ' ' . __('Racks')) ?>
-                                        <?= menuItem('racks', 'c', $user, 'racksCreateForm', __('Create') . ' ' . __('Racks')) ?>
-                                        <?= menuItem('racks', 'c', $user, 'racksImportForm', __('Import') . ' ' . __('Racks')) ?>
-                                        <?= menuItem('racks', '', $user, 'racksHelp', __('Learn About') . ' ' . __('Racks')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('rulesCollection') ?>"><?= __('Rules') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('rules', 'r', $user, 'rulesCollection', __('List') . ' ' . __('Rules')) ?>
@@ -421,13 +293,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('rules', '', $user, 'rulesHelp', __('Learn About') . ' ' . __('Rules')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('standardsCollection') ?>"><?= __('Standards') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('standards', 'r', $user, 'standardsCollection', __('List') . ' ' . __('Standards')) ?>
-                                        <?= menuItem('standards', 'c', $user, 'standardsCreateForm', __('Create') . ' ' . __('Standards')) ?>
-                                        <?= menuItem('standards', '', $user, 'standardsHelp', __('Learn About') . ' ' . __('Standards')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('summariesCollection') ?>"><?= __('Summaries') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('summaries', 'r', $user, 'summariesCollection', __('List') . ' ' . __('Summaries')) ?>
@@ -435,14 +300,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('summaries', 'c', $user, 'summariesImportForm', __('Import') . ' ' . __('Summaries')) ?>
                                         <?= menuItem('summaries', '', $user, 'summariesDefaults', __('Default') . ' ' . __('Summaries')) ?>
                                         <?= menuItem('summaries', '', $user, 'summariesHelp', __('Learn About') . ' ' . __('Summaries')) ?>
-                                    </ul>
-                                </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('vulnerabilitiesCollection') ?>"><?= __('Vulnerabilities') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('vulnerabilities', 'r', $user, 'vulnerabilitiesCollection', __('List') . ' ' . __('Vulnerabilities')) ?>
-                                        <?= menuItem('vulnerabilities', 'c', $user, 'configurationCollection', __('Configure') . ' ' . __('Vulnerabilities'), '?configuration.name=likefeature_vulnerabilities') ?>
-                                        <?= menuItem('vulnerabilities', '', $user, 'vulnerabilitiesDefaults', __('Default') . ' ' . __('Vulnerabilities')) ?>
-                                        <?= menuItem('vulnerabilities', '', $user, 'vulnerabilitiesHelp', __('Learn About') . ' ' . __('Vulnerabilities')) ?>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('widgetsCollection') ?>"><?= __('Widgets') ?></a>
@@ -469,13 +326,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('auth', '', $user, 'authHelp', __('Learn About') . ' ' . __('Auth Methods')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('collectorsCollection') ?>"><?= __('Collectors') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('collectors', 'r', $user, 'collectorsCollection', __('List') . ' ' . __('collectors')) ?>
-                                        <?= menuItem('collectors', 'c', $user, 'collectorsCreateForm', __('Make this install a Collector')) ?>
-                                        <?= menuItem('collectors', '', $user, 'collectorsHelp', __('Learn About') . ' ' . __('Collectors')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('configurationCollection') ?>"><?= __('Configuration') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('configuration', 'r', $user, 'configurationCollection', __('List') . ' ' . __('Configuration')) ?>
@@ -498,14 +348,6 @@ if (!empty($config->servers)) {
                                         <?= menuItem('roles', '', $user, 'rolesHelp', __('Learn About') . ' ' . __('Roles')) ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('tasksCollection') ?>"><?= __('Tasks') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('tasks', 'r', $user, 'tasksCollection', __('List') . ' ' . __('Tasks')) ?>
-                                        <?= menuItem('tasks', 'c', $user, 'tasksCreateForm', __('Create') . ' ' . __('Tasks')) ?>
-                                        <?= menuItem('tasks', 'c', $user, 'tasksImportForm', __('Import') . ' ' . __('Tasks')) ?>
-                                        <?= menuItem('tasks', '', $user, 'tasksHelp', __('Learn About') . ' ' . __('Tasks')) ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('usersCollection') ?>"><?= __('Users') ?></a>
                                     <ul class="dropdown-menu">
                                         <?= menuItem('users', 'r', $user, 'usersCollection', __('List') . ' ' . __('Users')) ?>
@@ -521,8 +363,6 @@ if (!empty($config->servers)) {
                             <a class="nav-link dropdown-toggle" href="#" id="navbarHelp" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Help') ?></a>
                             <!-- Community -->
                             <ul class="dropdown-menu" aria-labelledby="navbarHelp">
-                                <li><a class="dropdown-item" href="<?= url_to('about') ?>"><?= __('About') ?></a></li>
-                                <li><a class="dropdown-item" href="<?= url_to('appLicenses') ?>"><?= __('Application Licenses') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('api') ?>"><?= __('API Documentation') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('audit_my_pc') ?>"><?= __('Audit My PC') ?></a></li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="#"><?= __('Defaults') ?></a>
@@ -548,49 +388,10 @@ if (!empty($config->servers)) {
                                         <?= menuItem('widgets', '', $user, 'widgetsDefaults', 'Widgets') ?>
                                     </ul>
                                 </li>
-                                <li><a class="dropdown-item" href="https://docs.community.firstwave.com/wiki/spaces/OA" target="_blank"><?= __('Documentation') ?></a></li>
-                                <li><a class="dropdown-item" href="<?= url_to('helpFAQ') ?>?name=FAQ"><?= __('FAQ') ?></a></li>
-                                <li><a class="dropdown-item" href="<?= url_to('features') ?>"><?= __('Features') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('welcome') ?>"><?= __('Getting Started') ?></a></li>
-                                <?php if (!empty($config->feature_news)) { ?>
-                                <li><a class="dropdown-item" href="<?= url_to('newsCollection') ?>"><?= __('News') ?></a></li>
-                                <?php } ?>
                                 <li><a class="dropdown-item" href="<?= url_to('supportCollection') ?>"><?= __('Support') ?></a></li>
-                                <li><a class="dropdown-item" href="<?= url_to('welcome') ?>"><?= __('Welcome Dashboard') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('util/test_windows_client') ?>"><?= __('Windows Test Script') ?></a></li>
                             </ul>
-
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarModules" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Modules') ?></a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarModules">
-<?php
-if (!empty($config->modules)) {
-    foreach ($config->modules as $module) {
-        if (!empty($module->url)) {
-            echo "                              <li><a class=\"dropdown-item\" target=\"_blank\" href=\"" . $module->url . "\">" . $module->name . "</a></li>\n";
-        }
-    }
-}
-?>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarLicenses" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: white;"><?= __('Licenses') ?></a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarLicenses">
-                                <li><a class="dropdown-item" href="<?= url_to('appLicenses') ?>?license=eula"><?= __('EULA') ?></a></li>
-<?php if (empty($config->product) or $config->product === 'community') { ?>
-                                <li><a class="dropdown-item" href='#' data-bs-toggle="modal" data-bs-target="#modalCompareLicense"><?= __('Activate Free License')?></a></li>
-<?php } else { ?>
-                                <li><a class="dropdown-item" href='#' data-bs-toggle="modal" data-bs-target="#modalCompareLicense"><?= __('Buy More Licenses')?></a></li>
-<?php } ?>
-                                <li><a class="dropdown-item" href='<?= url_to('configurationReadLicense') ?>'><?= __('Manage Licenses')?></a></li>
-                                <?php if (empty($config->product) || $config->product === 'community'): ?>
-                                    <li><a class="dropdown-item" target="_blank" href="https://open-audit.com/buy"><?= __('Buy a License')?></a></li>
-                                <?php elseif ($config->product === 'professional'): ?>
-                                    <li><a class="dropdown-item" target="_blank" href="https://open-audit.com/buy"><?= __('Upgrade to Enterprise')?></a></li>
-                                <?php endif; ?>
-                            </ul>
-                        </li>
 
                         <!-- User -->
                         <li class="nav-item dropdown">
@@ -681,7 +482,7 @@ if (!empty($config->modules)) {
         <?php if (!empty($config->server_os) and $config->server_os === 'Windows NT' and !stripos($config->server_platform, 'server')) { ?>
         <div class="container-fluid">
             <div class="alert alert-danger alert-dismissable fade show" role="alert">
-                Warning - Running Open-AudIT on Windows on a non-server OS will cause discoveries to fail. Please install on Windows Server. More information <a href="<?= url_to('helpFAQ') ?>?name=Windows Server">here</a>.
+                Warning - Running <?= esc(APP_DISPLAY_NAME) ?> on Windows on a non-server OS will cause discoveries to fail. Please install on Windows Server. More information <a href="<?= url_to('helpFAQ') ?>?name=Windows Server">here</a>.
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         </div>
@@ -749,7 +550,7 @@ if (!empty($config->modules)) {
 
         <!-- Toasts -->
         <?php
-        $extra = 'Please download Open-AudIT from <a target="_blank" href="https://firstwave.com">FirstWave</a> to access a free license and additional functionality.';
+        $extra = 'Please download ' . APP_DISPLAY_NAME . ' from <a target="_blank" href="https://assetsonar.com">AssetSonar</a> to access a free license and additional functionality.';
         $license = (!empty($config->license)) ? strtolower($config->license) : 'none';
         if ($license !== 'commercial' and (is_file(ROOTPATH . 'other/enterprise.bin') or is_file(ROOTPATH . 'other/enterprise.exe'))) {
             $extra = 'For a free license, click <a href="#" data-bs-toggle="modal" data-bs-target="#modalCompareLicense">here</a>.';
@@ -807,6 +608,10 @@ if (!empty($config->modules)) {
 function menuItem($collection = '', $permission = '', $user = null, $route = '', $title = '', $routeExtra = '')
 {
     if (empty($permission)) {
+        $instance = & get_instance();
+        if (!empty($instance->collections->{$collection}) && empty($instance->collections->{$collection}->actions->{$instance->config->product})) {
+            return '';
+        }
         return "<li><a class=\"dropdown-item\" href=\"" . url_to($route) . "{$routeExtra}\">" . $title . "</a></li>\n";
         log_message('error', "menuItem, nothing in permission.");
     }
@@ -815,12 +620,15 @@ function menuItem($collection = '', $permission = '', $user = null, $route = '',
     $return = "<li><a class=\"dropdown-item greyout toastPermission\" href=\"#\">" . $title . "</a></li>\n";
     if (empty($instance->collections->{$collection})) {
         log_message('error', "menuItem, nothing in instance->collections->{$collection}.");
-        return $return;
+        return '';
     }
     if (!isset($instance->collections->{$collection}->actions->{$instance->config->product})) {
         log_message('error', "menuItem, nothing in instance->collections->{$collection}->actions->{$instance->config->product}.");
-        $return = "<li><a class=\"dropdown-item greyout toast" . $instance->collections->{$collection}->edition . "\" href=\"#\">" . $title . "</a></li>\n";
-        return $return;
+        return '';
+    }
+    $productActions = $instance->collections->{$collection}->actions->{$instance->config->product};
+    if (!str_contains($productActions, $permission)) {
+        return '';
     }
     if (empty($instance->resp->meta->permission_requested)) {
         // log_message('error', "menuItem, no permission requested for " . $collection);
@@ -846,5 +654,3 @@ function get_user_permission($collection, $action, $user)
     }
     return false;
 }
-
-include('modalCompareLicense.php');

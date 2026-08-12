@@ -8,10 +8,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Open-AudIT Community">
+        <meta name="description" content="<?= esc(APP_DISPLAY_NAME) ?>">
         <meta name="author" content="Mark Unwin">
         <link rel="shortcut icon" href="<?= base_url('favicon.png') ?>" type="image/x-icon">
-        <title>Open-AudIT</title>
+        <title><?= esc(APP_DISPLAY_NAME) ?></title>
 
         <!-- JS -->
         <script {csp-script-nonce} src="<?= base_url('js/jquery.min.js') ?>"></script>
@@ -55,7 +55,7 @@
                             // console.log("request fail");
                         } else {
                             // console.log("out of date");
-                            $("#default_text").html("Open-AudIT " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"https://firstwave.com\">https://firstwave.com</a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
+                            $("#default_text").html(<?= json_encode(APP_DISPLAY_NAME) ?> + " " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"https://assetsonar.com\">https://assetsonar.com</a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
                         }
                     });
 
@@ -122,7 +122,7 @@
                             <div class="row">
                                 <div class="col-12">
                                     <div class="col-12 text-center">
-                                        <h1><span class="text-secondary">Open-AudIT</span></h1>
+                                        <h1><span class="text-secondary"><?= esc(APP_DISPLAY_NAME) ?></span></h1>
                                     </div>
 
                                     <?php if (!empty($config->message_of_the_day)) { ?>
@@ -210,7 +210,7 @@
 
                                     <div class="row">
                                         <div class="offset-2 col-8" style="position:relative;">
-                                        <br><span id="default_text" class="text-secondary"><?= __('Do not forget about the Open-AudIT wiki for all your documentation.') ?><br><a target='_blank' href='https://docs.community.firstwave.com/wiki/spaces/OA'>https://docs.community.firstwave.com/wiki/spaces/OA</a></span>
+                                        <br><span id="default_text" class="text-secondary"><?= __('Do not forget about the') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('documentation.') ?></span>
                                         </div>
                                         <span align='center'>
                                             <br>
@@ -237,7 +237,7 @@
                                                 <br>
                                                 <?= __('The direct link for the script is') ?>&nbsp;<a href="#" id="go_link">#</a><br>
                                                 <?php if (stripos(base_url(), 'localhost') !== false or stripos(base_url(), '127.0.0') !== false) {
-                                                    echo '<br> ' . __('<strong>NOTE</strong> - You are accessing this URL from the local Open-AudIT server. The downloaded script will not be able to submit when run on any other machine. If you need to audit other machines, please download the script from any remote machine, not using a browser on the Open-AudIT server itself.');
+                                                    echo '<br> ' . __('<strong>NOTE</strong> - You are accessing this URL from the local') . ' ' . APP_DISPLAY_NAME . ' ' . __('server. The downloaded script will not be able to submit when run on any other machine. If you need to audit other machines, please download the script from any remote machine, not using a browser on the') . ' ' . APP_DISPLAY_NAME . ' ' . __('server itself.');
                                                 } else {
                                                     echo __('You may want to copy and paste this URL in an email to your staff.');
                                                 }

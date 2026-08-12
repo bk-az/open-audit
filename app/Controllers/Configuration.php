@@ -85,7 +85,7 @@ class Configuration extends BaseController
     public function readLicense()
     {
         if (empty($this->config->enterprise_binary)) {
-            $_SESSION['error'] = 'The enterprise binary from FirstWave is required for a license. Please download Open-AudIT from <a href="https://firstwave.com">https://firstwave.com</a>.';
+            $_SESSION['error'] = 'The enterprise binary from AssetSonar is required for a license. Please download ' . APP_DISPLAY_NAME . ' from <a href="https://assetsonar.com">https://assetsonar.com</a>.';
             return redirect()->route('summariesCollection');
         }
 
@@ -197,8 +197,8 @@ class Configuration extends BaseController
         $email = service('email', $email_config);
         $email->setFrom($this->config->mail_from);
         $email->setTo($email_to);
-        $email->setSubject('Email Test from Open-AudIT');
-        $email->setMessage('This is an email test from your Open-AudIT Server.');
+        $email->setSubject('Email Test from ' . APP_DISPLAY_NAME);
+        $email->setMessage('This is an email test from your ' . APP_DISPLAY_NAME . ' server.');
         $output = new stdClass();
         $output->status = 'success';
         $output->message = 'An email was successfully sent.';

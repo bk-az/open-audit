@@ -1518,8 +1518,8 @@ class ComponentsModel extends BaseModel
                             $log_item = $data_item->{$match_columns[0]};
                         }
                     }
-                    openlog("Open-AudIT[" . getmypid() . "]", 0, LOG_LOCAL0);
-                    $message = 'CEF:0|FirstWave|Open-AudIT|' . $instance->config->display_version . '|2|' . $table . ' Created|5|id=' . $id . ' name=' . $log_item . ' type=' . $table . ' device_id=' . $device->id;
+                    openlog(APP_DISPLAY_NAME . "[" . getmypid() . "]", 0, LOG_LOCAL0);
+                    $message = 'CEF:0|FirstWave|' . APP_DISPLAY_NAME . '|' . $instance->config->display_version . '|2|' . $table . ' Created|5|id=' . $id . ' name=' . $log_item . ' type=' . $table . ' device_id=' . $device->id;
                     syslog(LOG_INFO, $message);
                     closelog();
                     unset($log_item);
@@ -1613,8 +1613,8 @@ class ComponentsModel extends BaseModel
             }
 
             if (!empty($instance->config->feature_syslog_components) and $instance->config->feature_syslog_components === 'y' and php_uname('s') === 'Linux') {
-                openlog("Open-AudIT[" . getmypid() . "]", 0, LOG_LOCAL0);
-                $message = 'CEF:0|FirstWave|Open-AudIT|' . $instance->config->display_version . '|4|' . $table . ' Removed|5|id=' . $id . ' name=' . @$data_item->name . ' type=' . $table . ' device_id=' . $device->id;
+                openlog(APP_DISPLAY_NAME . "[" . getmypid() . "]", 0, LOG_LOCAL0);
+                $message = 'CEF:0|FirstWave|' . APP_DISPLAY_NAME . '|' . $instance->config->display_version . '|4|' . $table . ' Removed|5|id=' . $id . ' name=' . @$data_item->name . ' type=' . $table . ' device_id=' . $device->id;
                 syslog(LOG_INFO, $message);
                 closelog();
             }

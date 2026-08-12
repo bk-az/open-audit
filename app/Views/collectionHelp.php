@@ -19,8 +19,6 @@ $execute = false;
 if (in_array($meta->collection, ['dashboards', 'discoveries', 'groups', 'integrations', 'queries', 'summaries'])) {
     $execute = true;
 }
-$instance = & get_instance();
-$edition = $instance->collections->{$meta->collection}->edition;
 ?>
         <main class="container-fluid">
             <div class="card">
@@ -32,23 +30,7 @@ $edition = $instance->collections->{$meta->collection}->edition;
                         <div class="col-8 offset-2">
                             <h2><?= __('Introduction') ?></h2>
                             <br>
-                            <div class="row">
-                                <div class="col-8">
-                                    <?= @$intro ?>
-                                </div>
-                                <div class="col-4 text-center">
-                                    <?php
-                                    if ($edition === 'Enterprise') { ?>
-                                        <button class="btn btn-success">Open-AudIT <?= __('Enterprise') ?></button>
-                                    <?php } elseif ($edition === 'Professional') { ?>
-                                        <button class="btn btn-primary">Open-AudIT <?= __('Professional') ?></button>
-                                    <?php } else { ?>
-                                        <button class="btn btn-warning">Open-AudIT <?= __('Community') ?></button>
-                                    <?php } ?>
-                                    <br><br>
-                                    <img class="img-fluid helpImage" src="<?= base_url() . 'images/' . $meta->collection ?>.png" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                                </div>
-                            </div>
+                            <?= @$intro ?>
 
                             <?= @$body ?>
 
@@ -76,7 +58,7 @@ $edition = $instance->collections->{$meta->collection}->edition;
                             <p><?= __('The database schema can be found in the application if the user has database::read permission by going to menu: Admin -> Database ->') ?> <a href="<?= url_to('databaseCollection') ?>"><?= __('List Tables') ?></a>, <?= __('then clicking on the details button for the table.') ?></p>
                             <br>
                             <h2><?= __('API / Web Access') ?></h2>
-                            <p><?= __('You can access the collection using the normal Open-AudIT JSON based API. Just like any other collection. Please see') ?> <a href="<?= url_to('api') ?>">The Open-AudIT API</a> <?= __('documentation for further details.') ?></p>
+                            <p><?= __('You can access the collection using the normal') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('JSON based API. Just like any other collection. Please see') ?> <a href="<?= url_to('api') ?>"><?= __('The') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('API') ?></a> <?= __('documentation for further details.') ?></p>
                             <br>
                                 <?php if ($defaults) { ?>
                                 <h2><?= __('Default Items') ?></h2>
@@ -129,20 +111,10 @@ $edition = $instance->collections->{$meta->collection}->edition;
                                     </tbody>
                                 </table>
                             </div>
-                            <p><br><span style="color: #dc3545;">*</span>&nbsp;<?= __('Note') ?> - <?= __('This column is required by') ?> Open-AudIT <?= __('to create an item of this type') ?></p>
+                            <p><br><span style="color: #dc3545;">*</span>&nbsp;<?= __('Note') ?> - <?= __('This column is required by') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('to create an item of this type') ?></p>
                             <?php } ?>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
-
-<div class="modal fade modal-xl" id="exampleModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-body">
-        <p><img class="helpImage" src="<?= base_url() . 'images/' . $meta->collection ?>.png"></p>
-      </div>
-    </div>
-  </div>
-</div>

@@ -411,7 +411,7 @@ class NetworksModel extends BaseModel
         $dictionary->attributes->fieldsMeta = $this->db->getFieldData($collection); # The meta data about all fields - name, type, max_length, primary_key, nullable, default
         $dictionary->attributes->update = $this->updateFields($collection); # We MAY update any of these listed fields
 
-        $dictionary->sentence = 'Open-AudIT stores your networks and in addition, provides a secure mechanism for accepting input data.';
+        $dictionary->sentence = APP_DISPLAY_NAME . ' stores your networks and in addition, provides a secure mechanism for accepting input data.';
 
         $dictionary->about = '<p>A network is derived from discovery entries and device attributes.<br> <br></p>';
         $dictionary->notes = '<p>The network should be in the format 192.168.1.0/24.<br> <br></p>';
@@ -426,7 +426,7 @@ class NetworksModel extends BaseModel
         $dictionary->columns->network = 'The network in the format 192.168.1.0/24.';
         $dictionary->columns->type = 'One of Campus Area Network, Cloud Network, Enterprise Private Network, Home Area Network, Local Area Network, Metropolitan Area Network, Passive Optical Local Area Network, Personal Area Network, Storage-Area Network, System-Area Network, Virtual Private Network, Wide Area Network, Wireless Local Area Network.';
         $dictionary->columns->external_ident = 'The ID retrieved from a Cloud discovery.';
-        $dictionary->columns->cloud_id = 'The Open-AudIT id of the linked cloud. Links to <code>clouds.id</code>.';
+        $dictionary->columns->cloud_id = 'The ' . APP_DISPLAY_NAME . ' id of the linked cloud. Links to <code>clouds.id</code>.';
         $dictionary->columns->environment = 'One of Development, Disaster Recovery, Evaluation, Pre-Production, Production, Testing, Training, User Acceptance Testing';
         $dictionary->columns->gateways = 'Populated from device audits.';
         $dictionary->columns->network_domain = 'A routing domain or address space where the IP addresses and MAC addresses are unique.';

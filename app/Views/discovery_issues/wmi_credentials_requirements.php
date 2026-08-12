@@ -15,7 +15,7 @@
 
     <li class="list-group-item"><?= __('The account must have a password; WMI does not allow blank passwords.') ?></li>
 
-    <li class="list-group-item"><?= __('The account password must NOT contain " (double quotes). This is because cscript (and wscript) cannot parse argument values containing double quotes. They are simply stripped. No (before you ask) escaping will not work. This is a cscript limitation and nothing to do with Open-AudIT.') ?></li>
+    <li class="list-group-item"><?= __('The account password must NOT contain " (double quotes). This is because cscript (and wscript) cannot parse argument values containing double quotes. They are simply stripped. No (before you ask) escaping will not work. This is a cscript limitation and nothing to do with ' . APP_DISPLAY_NAME . '.') ?></li>
 </ul>
 <strong><?= __('NOTE') ?></strong> - <?= __('To enable a remote machine (Vista or above) to be audited that is not on a domain, by an account in the Administrators group, other than the actual Administrator account see the below section on UAC.') ?><br>
 

@@ -314,8 +314,8 @@ class PackagesModel extends BaseModel
         $dictionary->columns->purchase_count  = 'The number of purchased licenses.';
         $dictionary->columns->used_count  = 'Populated dynamically.';
         $dictionary->columns->match_string  = 'Unused.';
-        $dictionary->columns->software_name  = 'The name of the software package, as audited by Open-AudIT. Use the percent sign % as a wildcard.';
-        $dictionary->columns->software_version  = 'Optional version as audited by Open-AudIT. Use the percent sign % as a wildcard.';
+        $dictionary->columns->software_name  = 'The name of the software package, as audited by ' . APP_DISPLAY_NAME . '. Use the percent sign % as a wildcard.';
+        $dictionary->columns->software_version  = 'Optional version as audited by ' . APP_DISPLAY_NAME . '. Use the percent sign % as a wildcard.';
         $dictionary->columns->expiry_date  = 'The date of license expiration.';
         $dictionary->columns->end_of_life  = 'The software end-of-life date.';
         $dictionary->columns->end_of_service_life  = 'The software end-of-service-life date.';

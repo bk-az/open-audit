@@ -378,6 +378,9 @@ function read_column_name(string $name = ''): string
     $name = str_replace('.', ' ', $name);
     $name = str_replace('_', ' ', $name);
     $name = ucwords($name);
+    if ($name === 'Firstwave') {
+        $name = 'Additional Details';
+    }
     if ($name === 'Orgs Name') {
         $name = 'Organisation';
     }

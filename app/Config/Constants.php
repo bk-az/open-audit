@@ -98,4 +98,8 @@ if (!empty($_SERVER['HTTP_HOST'])){
     $host = $_SERVER['HTTP_HOST'];
 }
 $base = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https://'.$host.dirname($_SERVER['SCRIPT_NAME']) : 'http://'.$host.dirname($_SERVER['SCRIPT_NAME']);
-defined('BASEURL') || define('BASEURL', $base); 
+defined('BASEURL') || define('BASEURL', $base);
+
+/** User-visible product name (white-label). */
+define('APP_DISPLAY_NAME', 'AS Network Scanner');
+

@@ -24,7 +24,7 @@ foreach ($ips as $ip) {
                 <div class="card-body text-center">
                     <div class="row">
                         <div class="col-8 offset-2 text-center">
-                            <h1><?= __('Welcome to') ?> FirstWave Open-AudIT</h1>
+                            <h1><?= __('Welcome to') ?> <?= esc(APP_DISPLAY_NAME) ?></h1>
                             <p><?= __('Thank you for starting your journey with the best discovery and inventory tool around.') ?></p>
                         </div>
                     </div>
@@ -33,7 +33,7 @@ foreach ($ips as $ip) {
                             <div class="row">
                                 <div class="col-12 text-center align-self-center">
                                     <h2><?= __('Want to know more?') ?></h2>
-                                    <p><?= __('Follow any of the links below and discover how to use Open-AudIT to find out <b>What\'s On Your Network?</b>') ?><br><br></p>
+                                    <p><?= __('Follow any of the links below and discover how to use') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('to find out <b>What\'s On Your Network?</b>') ?><br><br></p>
                                 </div>
                             </div>
                             <div class="row">
@@ -51,33 +51,13 @@ foreach ($ips as $ip) {
                             </div>
                             <br>
                             <div class="row">
-                                <div class="col-4">
+                                <div class="col-4 offset-4">
                                     <div class="card text-center">
                                         <div class="card-body">
                                             <?= __('Import example device data.') ?>
                                         </div>
                                         <div class="card-footer">
                                             <a role="button" class="btn btn-default btn-lg" href="<?= url_to('devicesExampleForm') ?>"><?= __('Import Example Data') ?></a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="card text-center">
-                                        <div class="card-body">
-                                            <?= __('Visit our YouTube channel for instructional videos.') ?>
-                                        </div>
-                                        <div class="card-footer">
-                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://www.youtube.com/playlist?list=PLw8YUAEwGTSVPYKFo7O9FEf0ZwXWqA1vl"><?= __('YouTube Tutorials') ?></a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="card text-center">
-                                        <div class="card-body">
-                                            <?= __('Read our online documentation on the Open-AudIT Wiki.') ?>
-                                        </div>
-                                        <div class="card-footer">
-                                            <a target="_blank" role="button" class="btn btn-default btn-lg" href="https://docs.community.firstwave.com/wiki/spaces/OA"><?= __('Online Documentation') ?></a>
                                         </div>
                                     </div>
                                 </div>
@@ -121,7 +101,7 @@ foreach ($ips as $ip) {
                                     <img class="img-fluid" alt="debian" src="<?= base_url() ?>logos/debian.svg" style="width:4rem;" />
                                 </div>
                                 <div class="col-1">
-                                    <span class="text-center"><a target="_blank" href="https://docs.community.firstwave.com/wiki/spaces/OA"><?= __('And so much more.') ?></a></span>
+                                    <span class="text-center"><?= __('And so much more.') ?></span>
                                 </div>
                             </div>
                         </div>

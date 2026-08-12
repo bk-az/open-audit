@@ -2,7 +2,7 @@
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-$intro = '<p>' . __('Open-AudIT has a powerful change detection engine. Any device attributes that are added, removed or changed will be detected and stored. These changes can be reported upon and the relevant data confirmed as to what was expected from your company change and release process.<br>
+$intro = '<p>' . __(APP_DISPLAY_NAME . ' has a powerful change detection engine. Any device attributes that are added, removed or changed will be detected and stored. These changes can be reported upon and the relevant data confirmed as to what was expected from your company change and release process.<br>
 <br>
 When a device is audited, attributes are divided into sections which correspond to tables in the database.<br>
 <br>

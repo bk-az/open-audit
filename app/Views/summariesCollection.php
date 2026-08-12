@@ -20,6 +20,9 @@ include 'shared/collection_functions.php';
                         if ($name === 'collectors' and $collection->count === 0) {
                             continue;
                         }
+                        if (empty($collection->actions->community)) {
+                            continue;
+                        }
                         $i++;
                         $color = 'darkgrey';
                         $link = '#';

@@ -7,7 +7,7 @@ $intro = '<p>' . __('Discoveries are entries that enable you to run a discovery 
 
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>' . __('When you create a new discovery if you click the Advanced button, you have many more options to change, one of them being the type of discovery.Types have always been Subnet (encompassing the above range, subnet, ip options) and Active Directory. As at v4.1, Open-AudIT has a new discovery type called Seed.') . '<br>
+<p>' . __('When you create a new discovery if you click the Advanced button, you have many more options to change, one of them being the type of discovery.Types have always been Subnet (encompassing the above range, subnet, ip options) and Active Directory. As at v4.1, ' . APP_DISPLAY_NAME . ' has a new discovery type called Seed.') . '<br>
 
 <br>' . __('A Subnet discovery will scan the IPs provided.') . '<br>
 
@@ -27,7 +27,7 @@ $body = '<br>
 __('Discovery Scan Options') . '</a> ' . 
 __('chosen. From there if a port for WMI, SSH or SNMP is detected responding the device is further queried using ') . ' <a href="' . url_to('credentialsHelp') . '">' . __('Credentials') . '</a>.</p>
 
-<p>' . __('Once you click the execute button, Open-AudIT will spawn a process to initiate the discovery and return the user to the discovery details page. The newly spawned process takes the configured discovery options and executes Nmap commands to determine the initial list of IP addresses to be scanned (or queries Active Directory if that type is used). Each IP to be scanned is placed into a queue. Once the initial process has completed (and there are IPs to be scanned in the queue) a number of processes will be spawned to further scan each IP in parallel. This number of processes is configurable in the configuration, edit the attribute <i>queue_limit</i>. By default this is set to 20.') . '</p>
+<p>' . __('Once you click the execute button, ' . APP_DISPLAY_NAME . ' will spawn a process to initiate the discovery and return the user to the discovery details page. The newly spawned process takes the configured discovery options and executes Nmap commands to determine the initial list of IP addresses to be scanned (or queries Active Directory if that type is used). Each IP to be scanned is placed into a queue. Once the initial process has completed (and there are IPs to be scanned in the queue) a number of processes will be spawned to further scan each IP in parallel. This number of processes is configurable in the configuration, edit the attribute <i>queue_limit</i>. By default this is set to 20.') . '</p>
 
 <p>' . __('For each spawned process, the below occurs.') . '</p>
 
@@ -38,12 +38,12 @@ __('chosen. From there if a port for WMI, SSH or SNMP is detected responding the
 <br>
 <h4>SNMP</h4>
 
-<p>' . __('For SNMP Open-AudIT can use v1, v2 and v3 credentials. The device is queried regardless of it being a router, switch (regular network devices) or a computer (Linux and Windows often run SNMP for monitoring tools).') . '</p>
+<p>' . __('For SNMP ' . APP_DISPLAY_NAME . ' can use v1, v2 and v3 credentials. The device is queried regardless of it being a router, switch (regular network devices) or a computer (Linux and Windows often run SNMP for monitoring tools).') . '</p>
 
 <br>
 <h4>SSH</h4>
 
-<p>SSH ' . __('is next on the list and Open-AudIT can use password and key authentication. Open-AudIT can also use a sudo enabled user as opposed to the root use directly (although it can also use root). For best results, the root user or a sudo enabled user should be used (see Auditing Linux without root and Target Client Configuration on the wiki). Windows devices can also run ssh, however if Open-AudIT detects this it will stop the SSH queries and instead use WMI (assuming working WMI credentials).') . '</p>
+<p>SSH ' . __('is next on the list and ' . APP_DISPLAY_NAME . ' can use password and key authentication. ' . APP_DISPLAY_NAME . ' can also use a sudo enabled user as opposed to the root use directly (although it can also use root). For best results, the root user or a sudo enabled user should be used (see Auditing Linux without root and Target Client Configuration on the wiki). Windows devices can also run ssh, however if ' . APP_DISPLAY_NAME . ' detects this it will stop the SSH queries and instead use WMI (assuming working WMI credentials).') . '</p>
 
 <br>
 <h4>WMI</h4>
@@ -53,7 +53,7 @@ __('chosen. From there if a port for WMI, SSH or SNMP is detected responding the
 <br>
 <h4>' . __('Scripts') . '</h4>
 
-<p>' . __('Once those initial queries (snmp, ssh, wmi) are complete, if the device is a supported by the audit scripts (Windows, Linux, OSX, AIX, HP-UX, Solaris and ESXi), the correct audit script will be copied to the target and executed. The audit script will self delete upon completion. The result will be stored on the target machine as an XML file. The Open-AudIT server will then retrieve the result file for processing and delete the result file on the target. The location the audit script is copied to on the target device (at least for SSH audits) is configurable by editing the discovery_linux_script_directory config item. By default it is set to /tmp/. This may need changing if /tmp has noexec set. The result file is then processed and the device details updated within Open-AudIT.') . '</p>
+<p>' . __('Once those initial queries (snmp, ssh, wmi) are complete, if the device is a supported by the audit scripts (Windows, Linux, OSX, AIX, HP-UX, Solaris and ESXi), the correct audit script will be copied to the target and executed. The audit script will self delete upon completion. The result will be stored on the target machine as an XML file. The ' . APP_DISPLAY_NAME . ' server will then retrieve the result file for processing and delete the result file on the target. The location the audit script is copied to on the target device (at least for SSH audits) is configurable by editing the discovery_linux_script_directory config item. By default it is set to /tmp/. This may need changing if /tmp has noexec set. The result file is then processed and the device details updated within ' . APP_DISPLAY_NAME . '.') . '</p>
 
 <br>
 <h2>' . __('Seed Discoveries') . '</h2>
@@ -103,7 +103,7 @@ ipRouteEntry (1.3.6.1.2.1.4.21.1.1)<br>
 <br>
 <h2>' . __('How Long Does it Take') . '</h2>
 
-<p>' . __('We are often asked this question and the answer most definitely is <i>it depends</i>. It depends on the number of IPs to be scanned, the network connection speed, the speed of the devices being scanned, the type of devices being scanned, the number of different credentials being tested and the speed of the Open-AudIT server. We do not have a calculator that would allow us to input those variables and return a value. It is simply too complex. Generally I limit my discoveries to 256 IP addresses - ie, a /24 subnet. We have had customers scan /16 subnets (65k addresses) and it does work - but it can take a long time. You are much better off scanning in /24 blocks. If you simply do not know what your address ranges are, then this is a good case for a Seed discovery.') . '</p>
+<p>' . __('We are often asked this question and the answer most definitely is <i>it depends</i>. It depends on the number of IPs to be scanned, the network connection speed, the speed of the devices being scanned, the type of devices being scanned, the number of different credentials being tested and the speed of the ' . APP_DISPLAY_NAME . ' server. We do not have a calculator that would allow us to input those variables and return a value. It is simply too complex. Generally I limit my discoveries to 256 IP addresses - ie, a /24 subnet. We have had customers scan /16 subnets (65k addresses) and it does work - but it can take a long time. You are much better off scanning in /24 blocks. If you simply do not know what your address ranges are, then this is a good case for a Seed discovery.') . '</p>
 
 <br>
 <h2>' . __('Notes') . '</h2>

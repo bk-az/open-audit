@@ -404,8 +404,8 @@ class DevicesModel extends BaseModel
         $config = config('OpenAudit');
         $feature_syslog_devices = $config->feature_syslog_devices;
         if (!empty($feature_syslog_devices) and $feature_syslog_devices === 'y' and php_uname('s') === 'Linux') {
-            openlog("Open-AudIT[" . getmypid() . "]", 0, LOG_LOCAL0);
-            $message = 'CEF:0|FirstWave|Open-AudIT|' . $config->display_version . '|1|Device Created|5|id=' . $id . ' ip=' . @$data->ip . ' name=' . $data->name . ' type=' . $data->type;
+            openlog(APP_DISPLAY_NAME . "[" . getmypid() . "]", 0, LOG_LOCAL0);
+            $message = 'CEF:0|FirstWave|' . APP_DISPLAY_NAME . '|' . $config->display_version . '|1|Device Created|5|id=' . $id . ' ip=' . @$data->ip . ' name=' . $data->name . ' type=' . $data->type;
             syslog(LOG_INFO, $message);
             closelog();
         }
@@ -1490,9 +1490,9 @@ class DevicesModel extends BaseModel
         $dictionary->attributes->update = $this->updateFields($collection); # We MAY update any of these listed fields
         $dictionary->attributes->fieldsMeta = $this->db->getFieldData($collection); # The meta data about all fields - name, type, max_length, primary_key, nullable, default
 
-        $dictionary->sentence = 'Open-AudIT tracks every device on your network. Change a device - see it. Move a device - see it. Remove a device - see it.';
+        $dictionary->sentence = APP_DISPLAY_NAME . ' tracks every device on your network. Change a device - see it. Move a device - see it. Remove a device - see it.';
 
-        $dictionary->about = '<p>Devices on your network need to be managed. But how do you keep your records up to date? A spreadsheet - definitely not. That will be out of date in hours, if not days. Why manually try to keep up. Use Open-AudIT to automatically scan your networks and record your devices - manufacturer, model, serial and more than 100 other attributes. Full lists of software, services, disks, open ports, users, etc. Automatically see if an attribute has been added, removed or changed.<br> <br>Once Open-AudIT is set up, you can sit back and relax. Have change reports emailed to you on a schedule, for example - what new devices did we discover this week? What new software was installed this week? Were there any hardware changes last month?<br> <br>Expand on the stored fields easily with your own custom attributes.<br> <br>Even add devices that are not connected to your network or those devices your Open-AudIT server cannot reach.<br> <br>Computers, switches, routers, printers or any other device on your network - Open-AudIT can audit them all.<br> <br></p>';
+        $dictionary->about = '<p>Devices on your network need to be managed. But how do you keep your records up to date? A spreadsheet - definitely not. That will be out of date in hours, if not days. Why manually try to keep up. Use ' . APP_DISPLAY_NAME . ' to automatically scan your networks and record your devices - manufacturer, model, serial and more than 100 other attributes. Full lists of software, services, disks, open ports, users, etc. Automatically see if an attribute has been added, removed or changed.<br> <br>Once ' . APP_DISPLAY_NAME . ' is set up, you can sit back and relax. Have change reports emailed to you on a schedule, for example - what new devices did we discover this week? What new software was installed this week? Were there any hardware changes last month?<br> <br>Expand on the stored fields easily with your own custom attributes.<br> <br>Even add devices that are not connected to your network or those devices your ' . APP_DISPLAY_NAME . ' server cannot reach.<br> <br>Computers, switches, routers, printers or any other device on your network - ' . APP_DISPLAY_NAME . ' can audit them all.<br> <br></p>';
 
         $dictionary->notes = '';
 
@@ -1599,15 +1599,15 @@ class DevicesModel extends BaseModel
         $dictionary->columns->unlock_pin = 'Manually set by user.';
         $dictionary->columns->serial_imei = 'Manually set by user.';
         $dictionary->columns->serial_sim = 'Manually set by user.';
-        $dictionary->columns->nmis_group = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_name = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_role = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_manage = 'Used with Integrations and FirstWave monitoring applications. Set to y if working SNMP detected by discovery.';
-        $dictionary->columns->nmis_notes = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_business_service = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_poller = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_poller_uuid = 'Used with Integrations and FirstWave monitoring applications.';
-        $dictionary->columns->nmis_customer = 'Used with Integrations and FirstWave monitoring applications.';
+        $dictionary->columns->nmis_group = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_name = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_role = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_manage = 'Used with Integrations and AssetSonar monitoring applications. Set to y if working SNMP detected by discovery.';
+        $dictionary->columns->nmis_notes = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_business_service = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_poller = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_poller_uuid = 'Used with Integrations and AssetSonar monitoring applications.';
+        $dictionary->columns->nmis_customer = 'Used with Integrations and AssetSonar monitoring applications.';
         $dictionary->columns->oae_manage = 'Unused.';
         $dictionary->columns->criticality = 'extreme - Without which, the organisation would fail.
 
@@ -1645,12 +1645,12 @@ unassigned - The default until set.';
         $dictionary->columns->snmp_version = 'Populated from SNMP discovery.';
         $dictionary->columns->snmp_enterprise_id = 'Populated from SNMP discovery.';
         $dictionary->columns->snmp_enterprise_name = 'Populated from SNMP discovery.';
-        $dictionary->columns->first_seen = 'The first time that Open-AudIT retrieved details of this device.';
-        $dictionary->columns->last_seen = 'The last time that Open-AudIT retrieved details of this device.';
+        $dictionary->columns->first_seen = 'The first time that ' . APP_DISPLAY_NAME . ' retrieved details of this device.';
+        $dictionary->columns->last_seen = 'The last time that ' . APP_DISPLAY_NAME . ' retrieved details of this device.';
         $dictionary->columns->last_seen_by = 'The process that was used last to retrieve details about the device';
         $dictionary->columns->last_user = 'Populated by audit.';
         $dictionary->columns->last_os_update = 'Populated by audit.';
-        $dictionary->columns->omk_uuid = 'Used with Integrations and FirstWave monitoring applications.';
+        $dictionary->columns->omk_uuid = 'Used with Integrations and AssetSonar monitoring applications.';
         $dictionary->columns->collector_uuid = 'Derived from Collector discovery.';
         $dictionary->columns->credentials = 'Derived from discovery.';
         $dictionary->columns->cloud_id = 'Derived from cloud discovery.';

@@ -298,7 +298,7 @@ class ConnectionsModel extends BaseModel
 
         $dictionary->sentence = 'Track your connections to branch offices, the internet, where-ever else you need to. Simple, easy, intuitive.';
 
-        $dictionary->about = '<p>Applications are defined by you, the user and stored for Open-AudIT to use and associate with devices.<br> <br></p>';
+        $dictionary->about = '<p>Applications are defined by you, the user and stored for ' . APP_DISPLAY_NAME . ' to use and associate with devices.<br> <br></p>';
 
         $dictionary->notes = '';
 

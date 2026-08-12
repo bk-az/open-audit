@@ -2,7 +2,7 @@
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-$intro = '<p>' . __('Open-AudIT can store information in additional fields that are associated with each device.') . '</p>
+$intro = '<p>' . __(APP_DISPLAY_NAME . ' can store information in additional fields that are associated with each device.') . '</p>
 
 <p>' . __('Once an Additional Field has been created it can be used in queries and groups just like any other attribute in the database.') . '</p>';
 
