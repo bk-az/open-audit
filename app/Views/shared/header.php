@@ -102,7 +102,7 @@ if (!empty($config->servers)) {
         <nav class="navbar navbar-expand-md">
             <div class="container-fluid">
                 <a class="navbar-brand" style="color: white;" href="<?= $homepage ?>">
-                    <img class="rounded-circle border border-white border-0" style="width:25px; height: 25px; margin-right:6px;" src="<?= base_url('images/Open-AudIT.svg') ?>" alt="<?= esc(APP_DISPLAY_NAME) ?>">
+                    <img class="border border-white border-0" style="width:25px; height: 25px; margin-right:6px;" src="<?= base_url('images/app-logo.png') ?>" alt="<?= esc(APP_DISPLAY_NAME) ?>">
                     <?= $title . "\n" ?>
                 </a>
                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
