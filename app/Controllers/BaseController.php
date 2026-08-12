@@ -196,7 +196,7 @@ abstract class BaseController extends Controller
 
         if (!empty($this->resp->meta->collection)) {
             // $this->dictionary->link = 'For more detailed information, check the Open-AudIT <a href="' . url_to($this->resp->meta->collection . 'Help') . '">Knowledge Base</a>.';
-            $this->dictionary->link = 'For more detailed information, check the Open-AudIT Knowledge Base.';
+            $this->dictionary->link = 'For more detailed information, check the ' . APP_DISPLAY_NAME . ' Knowledge Base.';
         }
 
         $this->licenses = new stdClass();
