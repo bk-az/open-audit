@@ -5,7 +5,9 @@ APP_NAME="AS Network Scanner"
 VENDOR_NAME="AssetSonar"
 VENDOR_URL="https://assetsonar.com"
 INSTALL_DIR="/usr/local/as-network-scanner"
+FALLBACK_INSTALL_DIR="/usr/local/open-audit"
 WEB_ALIAS="as-network-scanner"
+FALLBACK_WEB_ALIAS="open-audit"
 DB_NAME="as_network_scanner"
 DB_USER="as_network_scanner"
 DB_PASS="as_network_scanner_password"
@@ -738,11 +740,27 @@ WWWTARGETDIR=/var/www
 
 execPrint "chown -R $WWWGRP:$WWWGRP $TARGETDIR"
 
+logmsg "Creating filesystem fallback symlink $FALLBACK_INSTALL_DIR -> $TARGETDIR"
+if [ -d "$FALLBACK_INSTALL_DIR" ] && [ ! -L "$FALLBACK_INSTALL_DIR" ]; then
+    if [ -d "$BACKUPDIR" ]; then
+        execPrint "mv $FALLBACK_INSTALL_DIR $BACKUPDIR/open-audit.fs.old"
+        logmsg "Moving existing $FALLBACK_INSTALL_DIR to $BACKUPDIR/open-audit.fs.old"
+    else
+        execPrint "mv $FALLBACK_INSTALL_DIR ${FALLBACK_INSTALL_DIR}.old.$datetime"
+        logmsg "Moving existing $FALLBACK_INSTALL_DIR to ${FALLBACK_INSTALL_DIR}.old.$datetime"
+    fi
+fi
+execPrint "ln -sfn $TARGETDIR $FALLBACK_INSTALL_DIR"
+
 logmsg "Copying $APP_NAME Web files"
 
 execPrint "ln -s $TARGETDIR/public $WWWTARGETDIR/$WEB_ALIAS"
 
 execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$WEB_ALIAS"
+
+execPrint "ln -s $TARGETDIR/public $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
+
+execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
 
 # Only replace the default index.html if it's the boring 'it works' debian placeholder
 if [ "$OSFLAVOUR" = "debian" ] || [ "$OSFLAVOUR" = "ubuntu" ] && grep -q "It works" $WWWTARGETDIR/index.html 2>/dev/null; then
@@ -951,7 +969,7 @@ $VENDOR_URL"
 
 fi
 
-execPrint "$TARGETDIR/other/audit_linux.sh submit_online=y create_file=n url=http://localhost/$WEB_ALIAS/index.php/input/devices debugging=0"
+execPrint "$TARGETDIR/other/audit_linux.sh submit_online=y create_file=y url=http://localhost/$WEB_ALIAS/index.php/input/devices debugging=0"
 
 printBanner "All Done!"
 
