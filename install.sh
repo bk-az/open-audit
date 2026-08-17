@@ -3,7 +3,7 @@
 VERSION="6.0.4"
 APP_NAME="AS Network Scanner"
 VENDOR_NAME="AssetSonar"
-VENDOR_URL="http://ezo.io/assetsonar/"
+VENDOR_URL="https://ezo.io/assetsonar/"
 INSTALL_DIR="/usr/local/as-network-scanner"
 FALLBACK_INSTALL_DIR="/usr/local/open-audit"
 WEB_ALIAS="as-network-scanner"
@@ -754,11 +754,11 @@ execPrint "ln -sfn $TARGETDIR $FALLBACK_INSTALL_DIR"
 
 logmsg "Copying $APP_NAME Web files"
 
-execPrint "ln -s $TARGETDIR/public $WWWTARGETDIR/$WEB_ALIAS"
+execPrint "ln -sfn $TARGETDIR/public $WWWTARGETDIR/$WEB_ALIAS"
 
 execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$WEB_ALIAS"
 
-execPrint "ln -s $TARGETDIR/public $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
+execPrint "ln -sfn $TARGETDIR/public $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
 
 execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
 
