@@ -7,12 +7,12 @@ include 'shared/common_functions.php';
         <main class="container-fluid">
             <div class="card">
                 <div class="card-header">
-                    <?= read_card_header($meta->collection, $meta->id, $meta->icon, $user, 'EULA') ?>
+                    <?= read_card_header($meta->collection, $meta->id, $meta->icon, $user, 'License') ?>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-8 offset-2">
-                            <h3>You must accept this End User License Agreement (EULA) to use Open-AudIT.</h3>
+                            <h3>You must accept the GNU Affero General Public License v3 to use <?= esc(APP_DISPLAY_NAME) ?>.</h3>
                             <br>
                             <?= $message ?>
                             <br><br><br>
@@ -57,7 +57,7 @@ window.onload = function () {
                 data: {data : data},
                 success: function (data) {
                     $("#liveToastSuccess-header").text("Update Succeeded");
-                    $("#liveToastSuccess-body").text("EULA has been accepted.");
+                    $("#liveToastSuccess-body").text("License has been accepted.");
                     var toastElList = [].slice.call(document.querySelectorAll('.toast-success'));
                     var toastList = toastElList.map(function(toastEl) {
                         return new bootstrap.Toast(toastEl)

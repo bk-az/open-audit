@@ -46,14 +46,14 @@ class Configuration extends BaseController
             // Update the EULA
         }
 
-        $eulaText = file_get_contents(ROOTPATH . 'other/licenses/eula.txt');
+        $eulaText = file_get_contents(ROOTPATH . 'other/licenses/agpl.txt');
         $acceptedBy = '';
         $acceptedOn = '';
         $rows = $this->configurationModel->listAll();
         $message = '';
         foreach ($rows as $row) {
             if ($row->name === 'license_eula' and $row->value !== '') {
-                $message = 'EULA accepted on ' . $row->edited_date . ', by ' . $row->edited_by . '.';
+                $message = 'License accepted on ' . $row->edited_date . ', by ' . $row->edited_by . '.';
             }
         }
         if ($message !== '') {
