@@ -3,7 +3,7 @@
 VERSION="6.0.4"
 APP_NAME="AS Network Scanner"
 VENDOR_NAME="AssetSonar"
-VENDOR_URL="https://assetsonar.com"
+VENDOR_URL="http://ezo.io/assetsonar/"
 INSTALL_DIR="/usr/local/as-network-scanner"
 FALLBACK_INSTALL_DIR="/usr/local/open-audit"
 WEB_ALIAS="as-network-scanner"
@@ -13,7 +13,7 @@ DB_USER="as_network_scanner"
 DB_PASS="as_network_scanner_password"
 MYSQL_ROOT_DEFAULT_PASS="as_network_scanner_root"
 SQL_SEED="$INSTALL_DIR/other/as-network-scanner.sql"
-LOGFILE="/tmp/install.log"
+LOGFILE="/tmp/as-network-scanner-install.log"
 UNATTENDED="n"
 SKIP_DEPENDENCIES="n"
 
@@ -360,14 +360,14 @@ logmsg "Checking if Web is accessible."
 
 # curl is available even on minimal centos install
 if [ "$SKIP_DEPENDENCIES" = "n" ]; then
-    if type curl >/dev/null 2>&1 && execNoPrint "curl --insecure -s -m 10 --retry 2 -o /dev/null https://services.opmantek.com/ping 2>/dev/null"; then
+    if type curl >/dev/null 2>&1 && execNoPrint "curl --insecure -s -m 10 --retry 2 -o /dev/null $VENDOR_URL 2>/dev/null"; then
             logmsg "Web access is OK."
             is_web_available=1
     fi
 fi
 
 if [ "$is_web_available" -eq 0 ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
-    if type wget >/dev/null 2>&1 && execNoPrint "wget --no-check-certificate -q -T 10 --tries=3 -O /dev/null https://services.opmantek.com/ping 2>/dev/null"; then
+    if type wget >/dev/null 2>&1 && execNoPrint "wget --no-check-certificate -q -T 10 --tries=3 -O /dev/null $VENDOR_URL 2>/dev/null"; then
             logmsg "Web access is OK."
             is_web_available=1
     fi
@@ -969,8 +969,6 @@ $VENDOR_URL"
 
 fi
 
-execPrint "$TARGETDIR/other/audit_linux.sh submit_online=y create_file=y url=http://localhost/$WEB_ALIAS/index.php/input/devices debugging=0"
-
 printBanner "All Done!"
 
 logmsg "$APP_NAME should now be accessible at
@@ -996,3 +994,4 @@ if [ "$SELINUX_STATUS" = "Enforcing" ] && [ -z "$HTTPD_T_STATUS" ]; then
     logmsg "Don't forget to disable SELinux or allow an exception for Apache."
 fi
 
+exit 0
