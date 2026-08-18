@@ -2,14 +2,6 @@
 # Copyright © 2023 FirstWave. All Rights Reserved.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 include 'shared/collection_functions.php';
-if (empty($config->product) or $config->product === 'community') {
-    echo '        <div class="container-fluid">
-            <div class="alert alert-danger alert-dismissable fade show" role="alert">
-                Note that there are actually ' . count($data) . ' reports available for Open-AudIT Professional and Enterprise. Click here to <a href="#"" data-bs-toggle="modal" data-bs-target="#modalCompareLicense">get a free license.</a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        </div>';
-}
 ?>
         <main class="container-fluid">
             <div class="card">
