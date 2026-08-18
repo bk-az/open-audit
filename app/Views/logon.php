@@ -55,7 +55,7 @@
                             // console.log("request fail");
                         } else {
                             // console.log("out of date");
-                            $("#default_text").html(<?= json_encode(APP_DISPLAY_NAME) ?> + " " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"https://assetsonar.com\">https://assetsonar.com</a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
+                            $("#default_text").html(<?= json_encode(APP_DISPLAY_NAME) ?> + " " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"<?= APP_VENDOR_URL ?>\"><?= APP_VENDOR_URL ?></a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
                         }
                     });
 

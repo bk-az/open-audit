@@ -85,7 +85,7 @@ class Configuration extends BaseController
     public function readLicense()
     {
         if (empty($this->config->enterprise_binary)) {
-            $_SESSION['error'] = 'The enterprise binary from AssetSonar is required for a license. Please download ' . APP_DISPLAY_NAME . ' from <a href="https://assetsonar.com">https://assetsonar.com</a>.';
+            $_SESSION['error'] = 'The enterprise binary from ' . APP_VENDOR_NAME . ' is required for a license. Please download ' . APP_DISPLAY_NAME . ' from <a href="' . APP_VENDOR_URL . '">' . APP_VENDOR_URL . '</a>.';
             return redirect()->route('summariesCollection');
         }
 

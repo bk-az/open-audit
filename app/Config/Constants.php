@@ -103,3 +103,9 @@ defined('BASEURL') || define('BASEURL', $base);
 /** User-visible product name (white-label). */
 define('APP_DISPLAY_NAME', 'AS Network Scanner');
 
+/** Commercial vendor name (license / upgrade contact). */
+define('APP_VENDOR_NAME', 'AssetSonar');
+
+/** Vendor marketing / license URL. */
+define('APP_VENDOR_URL', 'https://ezo.io/assetsonar/');
+
