@@ -6,18 +6,18 @@ include 'shared/collection_functions.php';
         <main class="container-fluid">
             <div class="card">
                 <div class="card-header">
-                    <h6 style="padding-top:10px;"><span class="icon-life-buoy oa-icon"></span><?= __('The Open-AudIT API') ?></h6>
+                    <h6 style="padding-top:10px;"><span class="icon-life-buoy oa-icon"></span><?= __('The') ?> <?= esc(APP_DISPLAY_NAME) ?> <?= __('API') ?></h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-8 offset-2">
 
 <h2><?= __('Introduction') ?></h2>
-<p><?= __('Open-AudIT has a JSON Restful API to be used both in the web interface and via JSON requests.') ?></p>
+<p><?= esc(APP_DISPLAY_NAME) ?> <?= __('has a JSON Restful API to be used both in the web interface and via JSON requests.') ?></p>
 
 <br>
-<h2>Open-AudIT's API</h2>
-<p>Open-AudIT's API <?= __('is based upon') ?> <a href="http://jsonapi.org" target="_blank">http://jsonapi.org</a> <?= __('with the intention of providing simple and intuitive access in a manner familiar to developers. In addition to this API, the web interface will use the same request format and supply some additional actions (eg: HTML forms for creating items).') ?></p>
+<h2><?= esc(APP_DISPLAY_NAME) ?> <?= __('API') ?></h2>
+<p><?= esc(APP_DISPLAY_NAME) ?> <?= __('API') ?> <?= __('is based upon') ?> <a href="http://jsonapi.org" target="_blank">http://jsonapi.org</a> <?= __('with the intention of providing simple and intuitive access in a manner familiar to developers. In addition to this API, the web interface will use the same request format and supply some additional actions (eg: HTML forms for creating items).') ?></p>
 
 <br>
 <h2><?= __('Access Model') ?></h2>

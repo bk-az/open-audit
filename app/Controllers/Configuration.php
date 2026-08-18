@@ -46,14 +46,14 @@ class Configuration extends BaseController
             // Update the EULA
         }
 
-        $eulaText = file_get_contents(ROOTPATH . 'other/licenses/eula.txt');
+        $eulaText = file_get_contents(ROOTPATH . 'other/licenses/agpl.txt');
         $acceptedBy = '';
         $acceptedOn = '';
         $rows = $this->configurationModel->listAll();
         $message = '';
         foreach ($rows as $row) {
             if ($row->name === 'license_eula' and $row->value !== '') {
-                $message = 'EULA accepted on ' . $row->edited_date . ', by ' . $row->edited_by . '.';
+                $message = 'License accepted on ' . $row->edited_date . ', by ' . $row->edited_by . '.';
             }
         }
         if ($message !== '') {
@@ -85,7 +85,7 @@ class Configuration extends BaseController
     public function readLicense()
     {
         if (empty($this->config->enterprise_binary)) {
-            $_SESSION['error'] = 'The enterprise binary from AssetSonar is required for a license. Please download ' . APP_DISPLAY_NAME . ' from <a href="https://assetsonar.com">https://assetsonar.com</a>.';
+            $_SESSION['error'] = 'The enterprise binary from ' . APP_VENDOR_NAME . ' is required for a license. Please download ' . APP_DISPLAY_NAME . ' from <a href="' . APP_VENDOR_URL . '">' . APP_VENDOR_URL . '</a>.';
             return redirect()->route('summariesCollection');
         }
 

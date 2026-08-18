@@ -263,16 +263,16 @@ if (!empty($config->servers)) {
                                 </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('packagesCollection') ?>"><?= __('Packages') ?></a>
                                     <ul class="dropdown-menu">
-                                        <?= menuItem('orgs', 'r', $user, 'packagesCollection', __('List') . ' ' . __('AntiVirus Packages'), '?packages.type=antivirus') ?>
-                                        <?= menuItem('orgs', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Firewall Packages'), '?packages.type=firewall') ?>
-                                        <?= menuItem('orgs', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Approved Packages'), '?packages.type=approved') ?>
-                                        <?= menuItem('orgs', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Banned Packages'), '?packages.type=banned') ?>
-                                        <?= menuItem('orgs', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('Linux Packages'), '?os=Linux&range=a') ?>
-                                        <?= menuItem('orgs', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('MacOS Packages'), '?os=Apple&range=a') ?>
-                                        <?= menuItem('orgs', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('Windows Packages'), '?os=Windows&range=a') ?>
-                                        <?= menuItem('orgs', 'c', $user, 'packagesImportForm', __('Import') . ' ' . __('Packages')) ?>
-                                        <?= menuItem('orgs', '', $user, 'packagesDefaults', __('Default') . ' ' . __('Packages')) ?>
-                                        <?= menuItem('orgs', '', $user, 'packagesHelp', __('Learn About') . ' ' . __('Packages')) ?>
+                                        <?= menuItem('packages', 'r', $user, 'packagesCollection', __('List') . ' ' . __('AntiVirus Packages'), '?packages.type=antivirus') ?>
+                                        <?= menuItem('packages', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Firewall Packages'), '?packages.type=firewall') ?>
+                                        <?= menuItem('packages', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Approved Packages'), '?packages.type=approved') ?>
+                                        <?= menuItem('packages', 'r', $user, 'packagesCollection', __('List') . ' ' . __('Banned Packages'), '?packages.type=banned') ?>
+                                        <?= menuItem('packages', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('Linux Packages'), '?os=Linux&range=a') ?>
+                                        <?= menuItem('packages', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('MacOS Packages'), '?os=Apple&range=a') ?>
+                                        <?= menuItem('packages', 'c', $user, 'packagesCreateForm', __('Create') . ' ' . __('Windows Packages'), '?os=Windows&range=a') ?>
+                                        <?= menuItem('packages', 'c', $user, 'packagesImportForm', __('Import') . ' ' . __('Packages')) ?>
+                                        <?= menuItem('packages', '', $user, 'packagesDefaults', __('Default') . ' ' . __('Packages')) ?>
+                                        <?= menuItem('packages', '', $user, 'packagesHelp', __('Learn About') . ' ' . __('Packages')) ?>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="<?= url_to('queriesCollection') ?>"><?= __('Queries') ?></a>
@@ -550,7 +550,7 @@ if (!empty($config->servers)) {
 
         <!-- Toasts -->
         <?php
-        $extra = 'Please download ' . APP_DISPLAY_NAME . ' from <a target="_blank" href="https://assetsonar.com">AssetSonar</a> to access a free license and additional functionality.';
+        $extra = 'Please download ' . APP_DISPLAY_NAME . ' from <a target="_blank" href="' . APP_VENDOR_URL . '">' . APP_VENDOR_NAME . '</a> to access a free license and additional functionality.';
         $license = (!empty($config->license)) ? strtolower($config->license) : 'none';
         if ($license !== 'commercial' and (is_file(ROOTPATH . 'other/enterprise.bin') or is_file(ROOTPATH . 'other/enterprise.exe'))) {
             $extra = 'For a free license, click <a href="#" data-bs-toggle="modal" data-bs-target="#modalCompareLicense">here</a>.';

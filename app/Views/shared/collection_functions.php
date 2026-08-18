@@ -139,6 +139,18 @@ function collection_card_header(string $collection = '', string $icon = '', ?obj
         }
     }
 
+    $instance = & get_instance();
+    if (
+        empty($instance->collections->{$collection}) ||
+        empty($instance->config->product) ||
+        empty($instance->collections->{$collection}->actions->{$instance->config->product}) ||
+        !str_contains($instance->collections->{$collection}->actions->{$instance->config->product}, 'c')
+    ) {
+        $create_button = "\n";
+        $import_csv_button = "\n";
+        $import_json_button = "\n";
+    }
+
     $return = "<div class=\"row\">
                         <div class=\"col-3 clearfix\">
                                 <h5 style=\"padding-top:10px;\"><span class=\"{$icon} oa-icon\"></span>{$label}</h5>

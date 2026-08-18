@@ -44,7 +44,7 @@ class Reports extends BaseController
         if (!str_contains($this->collections->{$this->resp->meta->collection}->actions->{$this->config->product}, $this->resp->meta->permission_requested[$this->resp->meta->action])) {
             log_message('error', $this->resp->meta->collection . '::' . $this->resp->meta->action . ' not permitted with a ' . $this->config->product . ' license.');
             if ($this->resp->meta->format === 'html') {
-                \Config\Services::session()->setFlashdata('error', $this->resp->meta->collection . '::' . $this->resp->meta->action . ' is limited to ' . $this->collections->{$this->resp->meta->collection}->edition . ' licenses. Please contact <a href="https://firstwave.com" target="_blank">FirstWave</a> for a license.');
+                \Config\Services::session()->setFlashdata('error', $this->resp->meta->collection . '::' . $this->resp->meta->action . ' is limited to ' . $this->collections->{$this->resp->meta->collection}->edition . ' licenses. Please contact <a href="' . APP_VENDOR_URL . '" target="_blank">' . APP_VENDOR_NAME . '</a> for a license.');
                 header('Location: ' . url_to($this->resp->meta->collection . 'Help'));
                 exit();
             }
