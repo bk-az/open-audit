@@ -45,7 +45,7 @@ include 'shared/common_functions.php';
                             </tbody>
                         </table>
                     </div>
-                    <p><br><span style="color: #dc3545;">*</span>&nbsp;<?= __('Note') ?> - <?= __('This column is required by ') ?> Open-AudIT <?= __('to create an item of this type') ?></p>
+                    <p><br><span style="color: #dc3545;">*</span>&nbsp;<?= __('Note') ?> - <?= __('This column is required by ') ?><?= esc(APP_DISPLAY_NAME) ?> <?= __('to create an item of this type') ?></p>
                 </div>
             </div>
             <br>
