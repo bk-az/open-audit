@@ -109,3 +109,6 @@ define('APP_VENDOR_NAME', 'AssetSonar');
 /** Vendor marketing / license URL. */
 define('APP_VENDOR_URL', 'https://ezo.io/assetsonar/');
 
+/** Product install / web directory name (mirrors install.sh WEB_ALIAS). */
+define('APP_WEB_ALIAS', 'as-network-scanner');
+
