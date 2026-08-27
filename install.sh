@@ -862,13 +862,17 @@ if [ "$status" = "install" ]; then
 
     RES=0;
     unset OUTPUT;
-    OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
-    # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
-    # if command succeeded RES is unset, so default 0
-    # if command failed we may not have OUTPUT, so default ""
-    logmsg "mysql -u root -pREMOVED -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
-                "${RES}" \
-                "${OUTPUT:-}";
+    if [ -n "$root_password" ]; then
+        OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
+        logmsg "mysql -u root -pREMOVED -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
+                    "${RES}" \
+                    "${OUTPUT:-}";
+    else
+        OUTPUT="$(mysql -u root -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
+        logmsg "mysql -u root -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
+                    "${RES}" \
+                    "${OUTPUT:-}";
+    fi
     if [ "$RES" != 0 ]; then
         logmsg "WARNING - Could not create the as_network_scanner MySQL user. You will have to do this manually."
     fi
