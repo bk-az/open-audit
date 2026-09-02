@@ -8,11 +8,11 @@ INSTALL_DIR="/usr/local/as-network-scanner"
 FALLBACK_INSTALL_DIR="/usr/local/open-audit"
 WEB_ALIAS="as-network-scanner"
 FALLBACK_WEB_ALIAS="open-audit"
-DB_NAME="as_network_scanner"
-DB_USER="as_network_scanner"
-DB_PASS="as_network_scanner_password"
+DB_NAME="openaudit"
+DB_USER="openaudit"
+DB_PASS="openauditpassword"
 MYSQL_ROOT_DEFAULT_PASS="as_network_scanner_root"
-SQL_SEED="$INSTALL_DIR/other/as-network-scanner.sql"
+SQL_SEED="$INSTALL_DIR/other/open-audit.sql"
 LOGFILE="/tmp/as-network-scanner-install.log"
 UNATTENDED="n"
 SKIP_DEPENDENCIES="n"
@@ -597,7 +597,7 @@ logmsg "INFO - Your PHP is version $php_version. $APP_NAME requires a minimum PH
 
 # tmpstatus=$(grep ' /tmp ' /proc/mounts 2>/dev/null | grep noexec)
 # if [ -n "$tmpstatus" ]; then
-#     logmsg "Your /tmp is mounted noexec. Open-AudIT requires /tmp to be writable."
+#     logmsg "Your /tmp is mounted noexec. $APP_NAME requires /tmp to be writable."
 #     if [ -n "$UNATTENDED" ] || input_yn "Install anyway (y/n)? "; then
 #         logmsg "Installing even though /tmp detected as noexec."
 #     else
@@ -682,7 +682,8 @@ fi
 execPrint "cp -far ./* $TARGETDIR"
 
 # permissions
-execPrint "chmod 0660 $TARGETDIR/app/Config/OpenAudit.php"
+logmsg "Setting permissions on application configuration."
+execNoPrint "chmod 0660 $TARGETDIR/app/Config/OpenAudit.php"
 execPrint "chmod 0777 $TARGETDIR/other/scripts"
 execPrint "chmod 0777 $TARGETDIR/other/ssg-results"
 execPrint "chmod 0777 $TARGETDIR/public/ssg-definitions"
@@ -711,9 +712,9 @@ if [ "$status" = "upgrade" ]; then
         # Add the new credentials
         logmsg "Creating database credentials file."
         sed -i -e "s|\"hostname\": \"127.0.0.1\"|\"hostname\": \"$hostname\"|" "$TARGETDIR/app/Config/Database.json"
-        sed -i -e "s|\"database\": \"127.0.0.1\"|\"as_network_scanner\": \"$database\"|" "$TARGETDIR/app/Config/Database.json"
-        sed -i -e "s|\"username\": \"127.0.0.1\"|\"as_network_scanner\": \"$username\"|" "$TARGETDIR/app/Config/Database.json"
-        sed -i -e "s|\"password\": \"127.0.0.1\"|\"as_network_scanner_password\": \"$password\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"database\": \"openaudit\"|\"database\": \"$database\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"username\": \"openaudit\"|\"username\": \"$username\"|" "$TARGETDIR/app/Config/Database.json"
+        sed -i -e "s|\"password\": \"openauditpassword\"|\"password\": \"$password\"|" "$TARGETDIR/app/Config/Database.json"
     fi
     if [ "$status_existing" = "new" ]; then
         logmsg "Copying attachments and custom images."
@@ -740,17 +741,17 @@ WWWTARGETDIR=/var/www
 
 execPrint "chown -R $WWWGRP:$WWWGRP $TARGETDIR"
 
-logmsg "Creating filesystem fallback symlink $FALLBACK_INSTALL_DIR -> $TARGETDIR"
+logmsg "Creating compatibility install symlink for $APP_NAME."
 if [ -d "$FALLBACK_INSTALL_DIR" ] && [ ! -L "$FALLBACK_INSTALL_DIR" ]; then
     if [ -d "$BACKUPDIR" ]; then
-        execPrint "mv $FALLBACK_INSTALL_DIR $BACKUPDIR/open-audit.fs.old"
-        logmsg "Moving existing $FALLBACK_INSTALL_DIR to $BACKUPDIR/open-audit.fs.old"
+        logmsg "Relocating previous legacy install directory into backup area."
+        execNoPrint "mv $FALLBACK_INSTALL_DIR $BACKUPDIR/open-audit.fs.old"
     else
-        execPrint "mv $FALLBACK_INSTALL_DIR ${FALLBACK_INSTALL_DIR}.old.$datetime"
-        logmsg "Moving existing $FALLBACK_INSTALL_DIR to ${FALLBACK_INSTALL_DIR}.old.$datetime"
+        logmsg "Relocating previous legacy install directory (timestamped backup)."
+        execNoPrint "mv $FALLBACK_INSTALL_DIR ${FALLBACK_INSTALL_DIR}.old.$datetime"
     fi
 fi
-execPrint "ln -sfn $TARGETDIR $FALLBACK_INSTALL_DIR"
+execNoPrint "ln -sfn $TARGETDIR $FALLBACK_INSTALL_DIR"
 
 logmsg "Copying $APP_NAME Web files"
 
@@ -758,9 +759,10 @@ execPrint "ln -sfn $TARGETDIR/public $WWWTARGETDIR/$WEB_ALIAS"
 
 execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$WEB_ALIAS"
 
-execPrint "ln -sfn $TARGETDIR/public $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
+logmsg "Creating compatibility web symlink for $APP_NAME."
+execNoPrint "ln -sfn $TARGETDIR/public $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
 
-execPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
+execNoPrint "chown -h $WWWGRP:$WWWGRP $WWWTARGETDIR/$FALLBACK_WEB_ALIAS"
 
 # Only replace the default index.html if it's the boring 'it works' debian placeholder
 if [ "$OSFLAVOUR" = "debian" ] || [ "$OSFLAVOUR" = "ubuntu" ] && grep -q "It works" $WWWTARGETDIR/index.html 2>/dev/null; then
@@ -833,20 +835,20 @@ if [ "$status" = "install" ]; then
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password -e "CREATE DATABASE as_network_scanner;" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -pREMOVED -e \"CREATE DATABASE as_network_scanner; 2>&1\"" \
+        OUTPUT="$(mysql -u root -p$root_password -e "CREATE DATABASE $DB_NAME;" 2>&1)"||RES=$?;
+        logmsg "CREATE DATABASE for $APP_NAME (exit ${RES})" \
         "${RES}" \
         "${OUTPUT:-}";
     else
-        OUTPUT="$(mysql -u root -e "CREATE DATABASE as_network_scanner;" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -e \"CREATE DATABASE as_network_scanner; 2>&1\"" \
+        OUTPUT="$(mysql -u root -e "CREATE DATABASE $DB_NAME;" 2>&1)"||RES=$?;
+        logmsg "CREATE DATABASE for $APP_NAME (exit ${RES})" \
         "${RES}" \
         "${OUTPUT:-}";
     fi
 
     if [ "$RES" != 0 ]; then
         printBanner "Database Warning"
-        logmsg "WARNING - Could not create the as_network_scanner database. You will have to do this manually."
+        logmsg "WARNING - Could not create the database. You will have to do this manually."
         if input_yn "Type y to continue (y/n)? "; then
             logmsg "Continuing"
         else
@@ -863,55 +865,55 @@ if [ "$status" = "install" ]; then
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -pREMOVED -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
+        OUTPUT="$(mysql -u root -p$root_password -e "CREATE USER ${DB_USER}@localhost IDENTIFIED BY '${DB_PASS}';" 2>&1)"||RES=$?;
+        logmsg "CREATE USER for $APP_NAME (exit ${RES})" \
                     "${RES}" \
                     "${OUTPUT:-}";
     else
-        OUTPUT="$(mysql -u root -e "CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';" 2>&1)"||RES=$?;
-        logmsg "mysql -u root -e \"CREATE USER as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password';\" 2>&1" \
+        OUTPUT="$(mysql -u root -e "CREATE USER ${DB_USER}@localhost IDENTIFIED BY '${DB_PASS}';" 2>&1)"||RES=$?;
+        logmsg "CREATE USER for $APP_NAME (exit ${RES})" \
                     "${RES}" \
                     "${OUTPUT:-}";
     fi
     if [ "$RES" != 0 ]; then
-        logmsg "WARNING - Could not create the as_network_scanner MySQL user. You will have to do this manually."
+        logmsg "WARNING - Could not create the MySQL user. You will have to do this manually."
     fi
 
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO ${DB_USER}@localhost IDENTIFIED BY '${DB_PASS}'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
     else
-        OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO ${DB_USER}@localhost IDENTIFIED BY '${DB_PASS}'; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
     fi
     if [ "$RES" != 0 ]; then
         if [ -n "$root_password" ]; then
-            logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;\" 2>&1" \
+            logmsg "GRANT privileges for $APP_NAME database user (exit ${RES})" \
                 "${RES}" \
                 "${OUTPUT:-}";
         else
-            logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost IDENTIFIED BY 'as_network_scanner_password'; FLUSH PRIVILEGES;\" 2>&1" \
+            logmsg "GRANT privileges for $APP_NAME database user (exit ${RES})" \
                 "${RES}" \
                 "${OUTPUT:-}";
         fi
         RES=0;
         unset OUTPUT;
         if [ -n "$root_password" ]; then
-            OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+            OUTPUT="$(mysql -u root -p$root_password -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO ${DB_USER}@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
         else
-            OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
+            OUTPUT="$(mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO ${DB_USER}@localhost; FLUSH PRIVILEGES;" 2>&1)"||RES=$?;
         fi
         if [ "$RES" != 0 ]; then
             if [ -n "$root_password" ]; then
-                logmsg "mysql -u root -pREMOVED -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;\" 2>&1" \
+                logmsg "GRANT privileges for $APP_NAME database user (exit ${RES})" \
                 "${RES}" \
                 "${OUTPUT:-}";
             else
-                logmsg "mysql -u root -e \"GRANT ALL PRIVILEGES ON as_network_scanner.* TO as_network_scanner@localhost; FLUSH PRIVILEGES;\" 2>&1" \
+                logmsg "GRANT privileges for $APP_NAME database user (exit ${RES})" \
                 "${RES}" \
                 "${OUTPUT:-}";
             fi
-            echo "WARNING - Could not grant access to as_network_scanner MySQL user. You will have to do this manually."
+            echo "WARNING - Could not grant access to the application MySQL user. You will have to do this manually."
         fi
     fi
 
@@ -920,24 +922,24 @@ if [ "$status" = "install" ]; then
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password as_network_scanner -e "source $TARGETDIR/other/as-network-scanner.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -p$root_password $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
     else
-        OUTPUT="$(mysql -u root as_network_scanner -e "source $TARGETDIR/other/as-network-scanner.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
     fi
     # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
     # if command succeeded RES is unset, so default 0
     # if command failed we may not have OUTPUT, so default ""
     if [ -n "$root_password" ]; then
-        logmsg "mysql -u root -pREMOVED as_network_scanner -e \"source $TARGETDIR/other/as-network-scanner.sql\" 2>&1" \
+        logmsg "Load database schema for $APP_NAME (exit ${RES})" \
         "${RES}" \
         "${OUTPUT:-}";
     else
-        logmsg "mysql -u root as_network_scanner -e \"source $TARGETDIR/other/as-network-scanner.sql\" 2>&1" \
+        logmsg "Load database schema for $APP_NAME (exit ${RES})" \
         "${RES}" \
         "${OUTPUT:-}";
     fi
     if [ "$RES" != 0 ]; then
-        logmsg "WARNING - Could not populate as_network_scanner database. You will need to do this manually."
+        logmsg "WARNING - Could not populate the $APP_NAME database. You will need to do this manually."
     fi
 else
     logmsg "Upgrade of existing $APP_NAME installation, no database initialisation required."

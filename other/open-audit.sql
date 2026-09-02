@@ -1,6 +1,6 @@
 -- MariaDB dump 10.19-12.0.2-MariaDB, for osx10.20 (arm64)
 --
--- Host: localhost    Database: as_network_scanner
+-- Host: localhost    Database: openaudit
 -- ------------------------------------------------------
 -- Server version      12.0.2-MariaDB
 
@@ -5296,7 +5296,7 @@ UNLOCK TABLES;
 
 DELIMITER ;;
 DROP FUNCTION IF EXISTS `cidr_to_mask`;
-CREATE DEFINER=`as_network_scanner`@`localhost` FUNCTION `cidr_to_mask`(cidr INT(2)) RETURNS char(15) CHARSET latin1 COLLATE latin1_swedish_ci
+CREATE DEFINER=`openaudit`@`localhost` FUNCTION `cidr_to_mask`(cidr INT(2)) RETURNS char(15) CHARSET latin1 COLLATE latin1_swedish_ci
     DETERMINISTIC
 RETURN INET_NTOA(CONV(CONCAT(REPEAT(1,cidr),REPEAT(0,32-cidr)),2,10)) ;;
 DELIMITER ;
