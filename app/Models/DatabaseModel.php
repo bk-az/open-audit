@@ -211,7 +211,7 @@ class DatabaseModel extends BaseModel
         $item->attributes->columns = $this->db->getFieldData($table);
         foreach ($item->attributes->columns as &$column) {
             if ($column->type === 'enum') {
-                $sql = "SELECT SUBSTRING(COLUMN_TYPE,5) AS `values` FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'openaudit' AND TABLE_NAME = '" . $table . "' AND COLUMN_NAME = '" . $column->name . "'";
+                $sql = "SELECT SUBSTRING(COLUMN_TYPE,5) AS `values` FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '" . $this->db->getDatabase() . "' AND TABLE_NAME = '" . $table . "' AND COLUMN_NAME = '" . $column->name . "'";
                 $query = $this->db->query($sql);
                 $column->values = $query->getResult()[0]->values;
             }
