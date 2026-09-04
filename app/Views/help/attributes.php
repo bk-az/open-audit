@@ -11,13 +11,13 @@ $body = '<h2>' . __('Notes') . '</h2>
 <br>
 ' . __('If you add a device type, to display the associated icon you will have to manually copy the .svg formatted file to the directory') . ':<br>
 <pre>
-    Linux: /usr/local/open-audit/www/open-audit/device_images
-    Windows: c:\xampp\htdocs\open-audit\device_images
+    Linux: /usr/local/' . APP_WEB_ALIAS . '/public/device_images
+    Windows: c:\\xampp\\htdocs\\' . APP_WEB_ALIAS . '\\device_images
 </pre>
 <br>
 ' . __('If you add a Location Type, add those icons to') . ':<br>
 <pre>
-    Linux: /usr/local/open-audit/public/images/map_icons
-    Windows: c:\xampp\htdocs\open-audit\images\map_icons
+    Linux: /usr/local/' . APP_WEB_ALIAS . '/public/images/map_icons
+    Windows: c:\\xampp\\htdocs\\' . APP_WEB_ALIAS . '\\images\\map_icons
 </pre>
 <br>';

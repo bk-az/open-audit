@@ -27,6 +27,55 @@ if (! function_exists('get_php_scan_command')) {
     }
 }
 
+if (! function_exists('discovery_log_exception')) {
+    /**
+     * Record a caught exception against a discovery.
+     *
+     * Discovery calls out to a lot of code that talks to remote devices (SNMP, SSH,
+     * WMI, Nmap, LDAP) and to code that parses whatever those devices returned. Any
+     * of it can throw. Rather than let a single failure abort an entire discovery
+     * run, the callers below catch and hand the exception to this function so that it
+     * is visible in the discovery log (and the PHP log) and the run can carry on.
+     *
+     * @param  mixed     $discovery_id The discoveries.id this exception occurred under
+     * @param  string    $function     The function the exception was caught in
+     * @param  mixed     $ip           The IP address being processed at the time
+     * @param  string    $command      The call (or command line) that threw
+     * @param  string    $description  What was being attempted, used to build the message
+     * @param  Throwable $e            The caught exception
+     * @param  mixed     $device_id    The devices.id being processed, if known at this point
+     * @return void
+     */
+    function discovery_log_exception($discovery_id, string $function, $ip, string $command, string $description, Throwable $e, $device_id = null): void
+    {
+        $message = 'Error occurred while ' . $description . ': ' . $e->getMessage() . "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+
+        $log = new \StdClass();
+        $log->command_status = 'error';
+        $log->discovery_id = intval($discovery_id);
+        $log->file = 'discoveries_helper';
+        $log->function = $function;
+        $log->ip = (string)$ip;
+        $log->message = $message;
+        $log->pid = getmypid();
+        $log->severity = 3;
+        $log->command = $command;
+        $log->command_output = get_class($e) . ' thrown in ' . $e->getFile() . ':' . $e->getLine();
+        if (!empty($device_id)) {
+            $log->device_id = intval($device_id);
+        }
+
+        try {
+            $discoveryLogModel = new \App\Models\DiscoveryLogModel();
+            $discoveryLogModel->create($log);
+        } catch (Throwable $logError) {
+            // Never let a failure to log the original error take the discovery down with it.
+            log_message('error', 'discoveries_helper::' . $function . ' - could not write discovery log entry: ' . $logError->getMessage());
+        }
+        log_message('error', 'discoveries_helper::' . $function . ' - ' . $message);
+    }
+}
+
 if (!function_exists('all_ip_list')) {
     /**
      *
@@ -71,20 +120,25 @@ if (!function_exists('all_ip_list')) {
         $parser  = new NmapHostXmlParser();
         $process = new NmapProcess($options, null);
         log_message('debug', 'Command: ' . $process->getCommandLine());
-        $process->start(function (string $type, string $buffer) use ($parser, &$errors, &$ipAddresses): void {
-            if ($type === Process::ERR) {
-                $errors[] = $buffer;
-            } else {
-                foreach ($parser->feed($buffer) as $host) {
-                    $address = NmapHostHelper::getIpAddress($host);
-                    if ($address) {
-                        $ipAddresses[] = $address['addr'];
+        try {
+            $process->start(function (string $type, string $buffer) use ($parser, &$errors, &$ipAddresses): void {
+                if ($type === Process::ERR) {
+                    $errors[] = $buffer;
+                } else {
+                    foreach ($parser->feed($buffer) as $host) {
+                        $address = NmapHostHelper::getIpAddress($host);
+                        if ($address) {
+                            $ipAddresses[] = $address['addr'];
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        $process->wait();
+            $process->wait();
+        } catch (Throwable $e) {
+            $errors[] = $e->getMessage();
+            discovery_log_exception($discovery->id, 'all_ip_list', '127.0.0.1', $process->getCommandLine(), 'listing the IP addresses in ' . $discovery->subnet, $e);
+        }
 
         $output = 'Total IPs: ' . count($ipAddresses);
 
@@ -183,21 +237,26 @@ if (! function_exists('responding_ip_list')) {
         $parser  = new NmapHostXmlParser();
         $process = new NmapProcess($options, null);
         log_message('debug', 'Command: ' . $process->getCommandLine());
-        $process->start(function (string $type, string $buffer) use ($parser, &$errors, &$ipAddresses): void {
-            if ($type === Process::ERR) {
-                $errors[] = $buffer;
-            } else {
-                foreach ($parser->feed($buffer) as $host) {
-                    $state = NmapHostHelper::getState($host);
-                    $address = NmapHostHelper::getIpAddress($host);
-                    if ($state === 'up' && $address) {
-                        $ipAddresses[] = $address['addr'];
+        try {
+            $process->start(function (string $type, string $buffer) use ($parser, &$errors, &$ipAddresses): void {
+                if ($type === Process::ERR) {
+                    $errors[] = $buffer;
+                } else {
+                    foreach ($parser->feed($buffer) as $host) {
+                        $state = NmapHostHelper::getState($host);
+                        $address = NmapHostHelper::getIpAddress($host);
+                        if ($state === 'up' && $address) {
+                            $ipAddresses[] = $address['addr'];
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        $process->wait();
+            $process->wait();
+        } catch (Throwable $e) {
+            $errors[] = $e->getMessage();
+            discovery_log_exception($discovery->id, 'responding_ip_list', '127.0.0.1', $process->getCommandLine(), 'scanning ' . $discovery->subnet . ' for responding IP addresses', $e);
+        }
 
         $output = 'Responding IPs: ' . count($ipAddresses);
 
@@ -421,7 +480,11 @@ if (! function_exists('discover_subnet')) {
                 $discoveryLogModel->create($log);
                 $ping_temp = $discovery->scan_options->ping;
                 $discovery->scan_options->ping = 'y';
-                responding_ip_list($discovery, $executable);
+                try {
+                    responding_ip_list($discovery, $executable);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'discover_subnet', '127.0.0.1', 'responding_ip_list', 'pinging ' . $discovery->subnet . ' before the seed discovery', $e);
+                }
                 $discovery->scan_options->ping = $ping_temp;
                 unset($ping_temp);
             } else {
@@ -431,7 +494,12 @@ if (! function_exists('discover_subnet')) {
             $log->message = 'Assuming ' . $discovery->seed_ip . ' is responding.';
             $discoveryLogModel->create($log);
         } else {
-            $all_ip_list = all_ip_list($discovery, $executable);
+            $all_ip_list = array();
+            try {
+                $all_ip_list = all_ip_list($discovery, $executable);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'discover_subnet', '127.0.0.1', 'all_ip_list', 'retrieving the IP list for ' . $discovery->subnet, $e);
+            }
             $count = (!empty($all_ip_list)) ? count($all_ip_list) : 0;
             $log->command_status = 'notice';
             if ($discovery->scan_options->ping === 'n') {
@@ -441,14 +509,27 @@ if (! function_exists('discover_subnet')) {
             }
             $discoveryLogModel->create($log);
             $start = microtime(true);
-            $responding_ip_list = responding_ip_list($discovery, $executable);
+            $responding_ip_list = array();
+            try {
+                $responding_ip_list = responding_ip_list($discovery, $executable);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'discover_subnet', '127.0.0.1', 'responding_ip_list', 'scanning ' . $discovery->subnet . ' for responding IP addresses', $e);
+            }
             $log->command_time_to_execute = microtime(true) - $start;
             $log->message = $executable->getTitle() . ' response scanning completed.';
             $discoveryLogModel->create($log);
-            update_non_responding($discovery->id, $all_ip_list, $responding_ip_list);
+            try {
+                update_non_responding($discovery->id, $all_ip_list, $responding_ip_list);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'discover_subnet', '127.0.0.1', 'update_non_responding', 'flagging the non responding IP addresses for ' . $discovery->subnet, $e);
+            }
         }
 
-        queue_responding($discovery->id, $responding_ip_list);
+        try {
+            queue_responding($discovery->id, $responding_ip_list);
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'discover_subnet', '127.0.0.1', 'queue_responding', 'queueing the responding IP addresses for ' . $discovery->subnet, $e);
+        }
 
         $ip_all_count = 0;
         $ip_responding_count = 0;
@@ -592,7 +673,12 @@ if (! function_exists('ip_scan')) {
             $seedDiscovery = clone $discovery;
             $seedDiscovery->subnet = $ip;
             $stopwatch->start();
-            $respondingIpAddresses = responding_ip_list($seedDiscovery);
+            $respondingIpAddresses = array();
+            try {
+                $respondingIpAddresses = responding_ip_list($seedDiscovery);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'responding_ip_list', 'pinging ' . $ip . ' before the seed scan', $e);
+            }
             $stopwatch->stop();
 
             if (empty($respondingIpAddresses)) {
@@ -656,15 +742,28 @@ if (! function_exists('ip_scan')) {
             $scanOptions->topPorts = (int) $nmap->nmap_tcp_ports;
 
             if ($executable !== get_php_scan_command() && isset($nmap->exclude_tcp_ports) && $nmapVersion > 6) {
-                $scanOptions->excludeTcpPorts = PortHelper::expand($nmap->exclude_tcp_ports);
+                try {
+                    $scanOptions->excludeTcpPorts = PortHelper::expand($nmap->exclude_tcp_ports);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the excluded TCP ports "' . $nmap->exclude_tcp_ports . '"', $e);
+                }
             }
 
             $stopwatch->start();
             $process = new NmapProcess($scanOptions, null);
             log_message('debug', 'Command: ' . $process->getCommandLine());
-            $process->run();
+            try {
+                $process->run();
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'running the top TCP port scan on ' . $ip, $e);
+            }
             $stopwatch->stop();
-            $host = $parser->parse($process->getOutput())[0] ?? [];
+            $host = [];
+            try {
+                $host = $parser->parse($process->getOutput())[0] ?? [];
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'parsing the top TCP port scan output for ' . $ip, $e);
+            }
 
             $log->command_time_to_execute = $stopwatch->getElapsedTime();
             $log->message = $executable->getTitle() . ' Command (Top TCP Ports)';
@@ -672,7 +771,12 @@ if (! function_exists('ip_scan')) {
             $log->command_output = json_encode($host);
             $discoveryLogModel->create($log);
 
-            $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            $result = [];
+            try {
+                $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'check_nmap_host_array', 'processing the scan result for ' . $ip, $e);
+            }
             $ports  = $device['nmap_ports'] ?? [];
             $device = array_merge($device, $result);
 
@@ -690,15 +794,28 @@ if (! function_exists('ip_scan')) {
             $scanOptions->topPorts = (int) $nmap->nmap_tcp_ports;
 
             if ($executable !== get_php_scan_command() && isset($nmap->exclude_udp_ports) && $nmapVersion > 6) {
-                $scanOptions->excludeUdpPorts = PortHelper::expand($nmap->exclude_udp_ports);
+                try {
+                    $scanOptions->excludeUdpPorts = PortHelper::expand($nmap->exclude_udp_ports);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the excluded UDP ports "' . $nmap->exclude_udp_ports . '"', $e);
+                }
             }
 
             $stopwatch->start();
             $process = new NmapProcess($scanOptions, null);
             log_message('debug', 'Command: ' . $process->getCommandLine());
-            $process->run();
+            try {
+                $process->run();
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'running the top UDP port scan on ' . $ip, $e);
+            }
             $stopwatch->stop();
-            $host = $parser->parse($process->getOutput())[0] ?? [];
+            $host = [];
+            try {
+                $host = $parser->parse($process->getOutput())[0] ?? [];
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'parsing the top UDP port scan output for ' . $ip, $e);
+            }
 
             $log->command_time_to_execute = $stopwatch->getElapsedTime();
             $log->message = $executable->getTitle() . ' Command (Top UDP Ports)';
@@ -706,7 +823,12 @@ if (! function_exists('ip_scan')) {
             $log->command_output = json_encode($host);
             $discoveryLogModel->create($log);
 
-            $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            $result = [];
+            try {
+                $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'check_nmap_host_array', 'processing the scan result for ' . $ip, $e);
+            }
             $ports  = $device['nmap_ports'] ?? [];
             $device = array_merge($device, $result);
 
@@ -718,21 +840,42 @@ if (! function_exists('ip_scan')) {
         /**
          * Perform a custom TCP port scan
          */
+        $customTcpPorts = array();
         if (! empty($nmap->tcp_ports)) {
+            try {
+                $customTcpPorts = PortHelper::expand($nmap->tcp_ports);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the custom TCP ports "' . $nmap->tcp_ports . '"', $e);
+            }
+        }
+        if (! empty($customTcpPorts)) {
             $scanOptions = clone $options;
             $scanOptions->scanType = NmapOptions::SCAN_TYPE_TCP_SYN;
-            $scanOptions->ports = PortHelper::expand($nmap->tcp_ports);
+            $scanOptions->ports = $customTcpPorts;
 
             if ($executable !== get_php_scan_command() && isset($nmap->exclude_tcp_ports) && $nmapVersion > 6) {
-                $scanOptions->excludeTcpPorts = PortHelper::expand($nmap->exclude_tcp_ports);
+                try {
+                    $scanOptions->excludeTcpPorts = PortHelper::expand($nmap->exclude_tcp_ports);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the excluded TCP ports "' . $nmap->exclude_tcp_ports . '"', $e);
+                }
             }
 
             $stopwatch->start();
             $process = new NmapProcess($scanOptions, null);
             log_message('debug', 'Command: ' . $process->getCommandLine());
-            $process->run();
+            try {
+                $process->run();
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'running the custom TCP port scan on ' . $ip, $e);
+            }
             $stopwatch->stop();
-            $host = $parser->parse($process->getOutput())[0] ?? [];
+            $host = [];
+            try {
+                $host = $parser->parse($process->getOutput())[0] ?? [];
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'parsing the custom TCP port scan output for ' . $ip, $e);
+            }
 
             $log->command_time_to_execute = $stopwatch->getElapsedTime();
             $log->message = $executable->getTitle() . ' Command (Custom TCP Ports)';
@@ -740,7 +883,12 @@ if (! function_exists('ip_scan')) {
             $log->command_output = json_encode($host);
             $discoveryLogModel->create($log);
 
-            $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            $result = [];
+            try {
+                $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'check_nmap_host_array', 'processing the scan result for ' . $ip, $e);
+            }
             $ports = $device['nmap_ports'] ?? [];
             $device = array_merge($device, $result);
 
@@ -752,23 +900,44 @@ if (! function_exists('ip_scan')) {
         /**
          * Perform a custom UDP port scan
          */
+        $customUdpPorts = array();
         if (! empty($nmap->udp_ports)) {
+            try {
+                $customUdpPorts = PortHelper::expand($nmap->udp_ports);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the custom UDP ports "' . $nmap->udp_ports . '"', $e);
+            }
+        }
+        if (! empty($customUdpPorts)) {
             $scanOptions = clone $options;
             $scanOptions->scanType = NmapOptions::SCAN_TYPE_UDP;
-            $scanOptions->ports = PortHelper::expand($nmap->udp_ports);
+            $scanOptions->ports = $customUdpPorts;
 
             if ($executable !== get_php_scan_command() && isset($nmap->exclude_udp_ports) && $nmapVersion > 6) {
-                $scanOptions->excludeUdpPorts = PortHelper::expand($nmap->exclude_udp_ports);
+                try {
+                    $scanOptions->excludeUdpPorts = PortHelper::expand($nmap->exclude_udp_ports);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_scan', $ip, 'PortHelper::expand', 'expanding the excluded UDP ports "' . $nmap->exclude_udp_ports . '"', $e);
+                }
             }
 
             $stopwatch->start();
             $process = new NmapProcess($scanOptions, null);
             log_message('debug', 'Command: ' . $process->getCommandLine());
-            $process->run();
+            try {
+                $process->run();
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'running the custom UDP port scan on ' . $ip, $e);
+            }
             $stopwatch->stop();
-            $output = $process->getOutput();
-            log_message('debug', json_encode($output));
-            $host = $parser->parse($output)[0] ?? [];
+            $host = [];
+            try {
+                $output = $process->getOutput();
+                log_message('debug', json_encode($output));
+                $host = $parser->parse($output)[0] ?? [];
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, $process->getCommandLine(), 'parsing the custom UDP port scan output for ' . $ip, $e);
+            }
 
             $log->command_time_to_execute = $stopwatch->getElapsedTime();
             $log->message = $executable->getTitle() . ' Command (Custom UDP Ports)';
@@ -776,7 +945,12 @@ if (! function_exists('ip_scan')) {
             $log->command_output = json_encode($host);
             $discoveryLogModel->create($log);
 
-            $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            $result = [];
+            try {
+                $result = check_nmap_host_array($discovery, $host, $ip, $process->getCommandLine());
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_scan', $ip, 'check_nmap_host_array', 'processing the scan result for ' . $ip, $e);
+            }
             $ports = $device['nmap_ports'] ?? [];
             $device = array_merge($device, $result);
 
@@ -1382,12 +1556,21 @@ if (! function_exists('ip_audit')) {
         if ($instance->config->discovery_use_dns === 'y') {
             $log->message = 'Checking DNS';
             $discoveryLogModel->create($log);
-            $device = dns_validate($device);
+            try {
+                $device = dns_validate($device);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'dns_validate', 'resolving DNS for ' . $device->ip, $e, $device->id);
+            }
         }
 
         if (empty($device->id)) {
             // This may have been set on the discovery itself - a single device discovery, if not run the match code
-            $device->id = deviceMatch($device, intval($discovery->id), $discovery->match_options);
+            try {
+                $device->id = deviceMatch($device, intval($discovery->id), $discovery->match_options);
+            } catch (Throwable $e) {
+                $device->id = '';
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'deviceMatch', 'matching ' . $device->ip . ' against the existing devices', $e);
+            }
         }
 
         if (!empty($device->id) and ! empty($discovery->id)) {
@@ -1408,7 +1591,11 @@ if (! function_exists('ip_audit')) {
         unset($log->command, $log->command_time_to_execute, $log->command_error_message);
 
         $credentials = array();
-        $credentials = $instance->discoveriesModel->getDeviceDiscoveryCredentials(@intval($device->id), $discovery->id, $device->ip);
+        try {
+            $credentials = $instance->discoveriesModel->getDeviceDiscoveryCredentials(@intval($device->id), $discovery->id, $device->ip);
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'discoveriesModel::getDeviceDiscoveryCredentials', 'retrieving the credentials for ' . $device->ip, $e, $device->id);
+        }
 
         // output to log file and DEBUG the status of the three main services
         $ip_scan->ssh_port = '22';
@@ -1452,7 +1639,12 @@ if (! function_exists('ip_audit')) {
         if (extension_loaded('snmp') and $ip_scan->snmp_status === 'true') {
             $log->message = 'Testing SNMP credentials for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $credentials_snmp = snmp_credentials($device->ip, $credentials, $discovery->id);
+            try {
+                $credentials_snmp = snmp_credentials($device->ip, $credentials, $discovery->id);
+            } catch (Throwable $e) {
+                $credentials_snmp = false;
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'snmp_credentials', 'testing the SNMP credentials for ' . $device->ip, $e, $device->id);
+            }
             // Add this credential sets ID to device->credentials
             // if collection == credentials, not an individual device acssociated credential
             if (!empty($credentials_snmp)) {
@@ -1471,7 +1663,12 @@ if (! function_exists('ip_audit')) {
                     $device->snmp_version .= 'c';
                 }
             }
-            $temp_array = snmp_audit($device->ip, $credentials_snmp, $discovery->id, $discovery->type);
+            $temp_array = array();
+            try {
+                $temp_array = snmp_audit($device->ip, $credentials_snmp, $discovery->id, $discovery->type);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'snmp_audit', 'performing the SNMP audit of ' . $device->ip, $e, $device->id);
+            }
             if (!empty($temp_array['details'])) {
                 foreach ($temp_array['details'] as $key => $value) {
                     if (!empty($value)) {
@@ -1546,7 +1743,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Cisco for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_cisco');
-            $ssh_device = ssh_cisco_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_cisco_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_cisco_audit', 'performing the Cisco CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1565,7 +1767,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Extreme Networks for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_extreme');
-            $ssh_device = ssh_extreme_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_extreme_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_extreme_audit', 'performing the Extreme Networks CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1584,7 +1791,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Fortinet for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_fortinet');
-            $ssh_device = ssh_fortinet_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_fortinet_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_fortinet_audit', 'performing the Fortinet CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1603,7 +1815,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Juniper for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_juniper');
-            $ssh_device = ssh_juniper_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_juniper_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_juniper_audit', 'performing the Juniper CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1622,7 +1839,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Palo Alto for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_palo_alto');
-            $ssh_device = ssh_palo_alto_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_palo_alto_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_palo_alto_audit', 'performing the Palo Alto CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1641,7 +1863,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Procurve for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_procurve');
-            $ssh_device = ssh_procurve_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_procurve_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_procurve_audit', 'performing the Procurve CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1660,7 +1887,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'CLI Config for Ubiquiti for ' . $device->ip;
             $discoveryLogModel->create($log);
             helper('ssh_ubiquiti');
-            $ssh_device = ssh_ubiquiti_audit($device->ip, intval($discovery->id), $credentials);
+            $ssh_device = new \StdClass();
+            try {
+                $ssh_device = ssh_ubiquiti_audit($device->ip, intval($discovery->id), $credentials);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_ubiquiti_audit', 'performing the Ubiquiti CLI (SSH) audit of ' . $device->ip, $e, $device->id);
+            }
             log_message('debug', json_encode($ssh_device));
             foreach ($ssh_device as $key => $value) {
                 if (!empty($value) and $key !== 'cli_config') {
@@ -1688,7 +1920,12 @@ if (! function_exists('ip_audit')) {
             $parameters->credentials = $credentials;
             $parameters->ssh_port = $ip_scan->ssh_port;
             $parameters->type = $discovery->type;
-            $ssh_details = ssh_audit($parameters);
+            $ssh_details = false;
+            try {
+                $ssh_details = ssh_audit($parameters);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_audit', 'performing the SSH audit of ' . $device->ip, $e, $device->id);
+            }
             if (!empty($ssh_details)) {
                 if (!empty($ssh_details->credentials)) {
                     $ip_discovered_count = 1;
@@ -1731,7 +1968,12 @@ if (! function_exists('ip_audit')) {
         if ($ip_scan->wmi_status === 'true') {
             $log->message = 'Testing Windows credentials for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $credentials_windows = windows_credentials($device->ip, $credentials, $discovery->id);
+            $credentials_windows = false;
+            try {
+                $credentials_windows = windows_credentials($device->ip, $credentials, $discovery->id);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'windows_credentials', 'testing the Windows credentials for ' . $device->ip, $e, $device->id);
+            }
         } else {
             $credentials_windows = false;
         }
@@ -1746,7 +1988,12 @@ if (! function_exists('ip_audit')) {
         }
 
         if ($ip_scan->wmi_status === 'true' and $credentials_windows) {
-            $windows_details = wmi_audit($device->ip, $credentials_windows, $discovery->id);
+            $windows_details = false;
+            try {
+                $windows_details = wmi_audit($device->ip, $credentials_windows, $discovery->id);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'wmi_audit', 'performing the WMI audit of ' . $device->ip, $e, $device->id);
+            }
             if (!empty($windows_details)) {
                 $device->last_seen_by = 'windows';
                 $device->audits_ip = '127.0.0.1';
@@ -1757,7 +2004,12 @@ if (! function_exists('ip_audit')) {
                 }
             }
             if ($discovery->type === 'seed') {
-                $temp = windows_ips_found($device->ip, $credentials_windows, $discovery->id);
+                $temp = array();
+                try {
+                    $temp = windows_ips_found($device->ip, $credentials_windows, $discovery->id);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'windows_ips_found', 'retrieving the seed ARP IP addresses from ' . $device->ip, $e, $device->id);
+                }
                 if (!empty($temp)) {
                     $ips_found = array_merge($ips_found, $temp);
                     $log->message = 'Adding detected Seed ARP ip addresses from ' . $device->ip;
@@ -1804,7 +2056,12 @@ if (! function_exists('ip_audit')) {
 
         // If we don't have a device.id, check with our updated device attributes (if any)
         if (empty($device->id)) {
-            $device->id = deviceMatch($device, intval($discovery->id), $discovery->match_options);
+            try {
+                $device->id = deviceMatch($device, intval($discovery->id), $discovery->match_options);
+            } catch (Throwable $e) {
+                $device->id = '';
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'deviceMatch', 'matching ' . $device->ip . ' against the existing devices', $e);
+            }
             if (!empty($device->id)) {
                 $log->device_id = $device->id;
                 // update the previous log entries with our new device_id
@@ -1828,7 +2085,11 @@ if (! function_exists('ip_audit')) {
             $log->message = 'Start of ' . strtoupper($device->last_seen_by) . ' update for ' . $device->ip;
             $discoveryLogModel->create($log);
             $command_start = microtime(true);
-            $instance->devicesModel->update($device->id, $device);
+            try {
+                $instance->devicesModel->update($device->id, $device);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'devicesModel::update', 'updating the device entry for ' . $device->ip, $e, $device->id);
+            }
             $log->command_time_to_execute = microtime(true) - $command_start;
             $device->ip = ip_address_from_db($device->ip);
             $log->message = 'End of ' . strtoupper($device->last_seen_by) . ' update for ' . $device->ip;
@@ -1843,7 +2104,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'Start of ' . strtoupper($device->last_seen_by) . ' insert for ' . $device->ip;
             $discoveryLogModel->create($log);
             $command_start = microtime(true);
-            $device->id = $instance->devicesModel->create($device);
+            try {
+                $device->id = $instance->devicesModel->create($device);
+            } catch (Throwable $e) {
+                $device->id = '';
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'devicesModel::create', 'creating the device entry for ' . $device->ip, $e);
+            }
             $log->command_time_to_execute = microtime(true) - $command_start;
             $device->ip = ip_address_from_db($device->ip);
             $log->device_id = $device->id;
@@ -1860,6 +2126,21 @@ if (! function_exists('ip_audit')) {
         }
         unset($log->command, $log->command_time_to_execute, $log->command_error_message);
 
+        // Everything below this point requires a devices.id. If the insert or update above
+        // threw we have nothing to attach the result to, so stop here rather than fail later.
+        if (empty($device->id)) {
+            $log->severity = 3;
+            $log->command_status = 'error';
+            $log->message = 'No device ID for ' . $device->ip . ', cannot continue the IP audit of this device.';
+            $discoveryLogModel->create($log);
+            try {
+                discovery_check_finished(intval($discovery->id));
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'discovery_check_finished', 'checking whether discovery ' . $discovery->id . ' has finished', $e);
+            }
+            return false;
+        }
+
         // grab some timestamps
         $sql = "SELECT first_seen, last_seen FROM devices WHERE id = ?";
         $result = $db->query($sql, $device->id)->getResult();
@@ -1871,7 +2152,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found network interfaces for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('network', $device, $network_interfaces);
+            try {
+                $componentsModel->upsert('network', $device, $network_interfaces);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the network components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // update any ip addresses retrieved by SNMP
@@ -1879,7 +2164,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found ip addresses for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('ip', $device, $ip->item);
+            try {
+                $componentsModel->upsert('ip', $device, $ip->item);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the ip components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // create or update the entry in the ip table from non-SNMP data
@@ -1896,8 +2185,16 @@ if (! function_exists('ip_audit')) {
             if (!empty($device->mac_address)) {
                 $item->mac = (string)strtolower($device->mac_address);
             }
+            $network_details = null;
             if (!empty($discovery->subnet) and str_contains($discovery->subnet, '/')) {
-                $network_details = network_details($discovery->subnet);
+                try {
+                    $network_details = network_details($discovery->subnet);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'network_details', 'determining the network details of ' . $discovery->subnet, $e, $device->id);
+                }
+            }
+            // Fall back to a /24 derived from the IP if we have no usable subnet
+            if (!empty($network_details)) {
                 $item->netmask = $network_details->netmask;
                 $item->cidr = $network_details->network_slash;
                 $item->network = $discovery->subnet;
@@ -1914,19 +2211,31 @@ if (! function_exists('ip_audit')) {
             // $parameters->device = $device;
             // $parameters->ip = $item;
             #$CI->m_devices_components->nmap_ip($parameters);
-            $componentsModel->upsert('ip', $device, [$item]);
+            try {
+                $componentsModel->upsert('ip', $device, [$item]);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the ip components for ' . $device->ip, $e, $device->id);
+            }
             unset($item);
         }
 
         // finish off with updating any network IPs that don't have a matching interface
-        $componentsModel->updateMissingInterfaces($device->id);
+        try {
+            $componentsModel->updateMissingInterfaces($device->id);
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::updateMissingInterfaces', 'updating the network IPs without a matching interface for ' . $device->ip, $e, $device->id);
+        }
 
         // insert any arp from SNMP
         if (isset($arp) and is_array($arp) and count($arp) > 0) {
             $log->command_status = 'notice';
             $log->message = 'Processing found arp for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('arp', $device, $arp);
+            try {
+                $componentsModel->upsert('arp', $device, $arp);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the arp components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any modules from SNMP
@@ -1934,7 +2243,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found modules for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('module', $device, $modules);
+            try {
+                $componentsModel->upsert('module', $device, $modules);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the module components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any found virtual machines from SNMP
@@ -1942,7 +2255,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found VMs for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('vm', $device, $guests);
+            try {
+                $componentsModel->upsert('vm', $device, $guests);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the vm components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any found routes from SNMP
@@ -1950,7 +2267,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found routes for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('route', $device, $routes);
+            try {
+                $componentsModel->upsert('route', $device, $routes);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the route components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any found radio's from SNMP
@@ -1958,7 +2279,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found radios for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('radio', $device, $radio);
+            try {
+                $componentsModel->upsert('radio', $device, $radio);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the radio components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any found access points from SNMP
@@ -1966,7 +2291,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found access_points for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('access_point', $device, $access_points);
+            try {
+                $componentsModel->upsert('access_point', $device, $access_points);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the access_point components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // insert any found cli config from SSH
@@ -1974,7 +2303,11 @@ if (! function_exists('ip_audit')) {
             $log->command_status = 'notice';
             $log->message = 'Processing found cli_config for ' . $device->ip;
             $discoveryLogModel->create($log);
-            $componentsModel->upsert('cli_config', $device, $cli_config);
+            try {
+                $componentsModel->upsert('cli_config', $device, $cli_config);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the cli_config components for ' . $device->ip, $e, $device->id);
+            }
         }
 
         // process and store the Nmap data
@@ -1997,7 +2330,11 @@ if (! function_exists('ip_audit')) {
                 $log->command_status = 'notice';
                 $log->message = 'Processing Nmap ports for ' . $device->ip;
                 $discoveryLogModel->create($log);
-                $componentsModel->upsert('nmap', $device, $nmap_result);
+                try {
+                    $componentsModel->upsert('nmap', $device, $nmap_result);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the nmap components for ' . $device->ip, $e, $device->id);
+                }
             }
         }
 
@@ -2013,12 +2350,20 @@ if (! function_exists('ip_audit')) {
                 $log->command_status = 'notice';
                 $log->message = 'Processing Software OS for ' . $device->ip;
                 $discoveryLogModel->create($log);
-                $componentsModel->upsert('software', $device, $software);
+                try {
+                    $componentsModel->upsert('software', $device, $software);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the software components for ' . $device->ip, $e, $device->id);
+                }
             }
         }
 
         // Now run our rules to update the device if any match
-        $instance->rulesModel->execute(null, intval($discovery->id), 'update', intval($device->id));
+        try {
+            $instance->rulesModel->execute(null, intval($discovery->id), 'update', intval($device->id));
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'rulesModel::execute', 'running the rules against ' . $device->ip, $e, $device->id);
+        }
 
         if (empty($credentials_windows) and empty($credentials_ssh) and empty($credentials_snmp)) {
             if ($ip_scan->snmp_status === 'true' or $ip_scan->ssh_status === 'true' or $ip_scan->wmi_status === 'true') {
@@ -2070,7 +2415,12 @@ if (! function_exists('ip_audit')) {
             if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and $os_group === 'windows') {
                 $os_group = 'windows-ps1';
             }
-            $temp = $instance->scriptsModel->build(strtolower($os_group));
+            $temp = false;
+            try {
+                $temp = $instance->scriptsModel->build(strtolower($os_group));
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'scriptsModel::build', 'building the ' . strtolower($os_group) . ' audit script for ' . $device->ip, $e, $device->id);
+            }
             if (empty($temp)) {
                 $log->command_output = 'Could not retrieve audit script for ' . strtolower($device->os_group) . ', check ' . ROOTPATH . 'other/scripts is writable.';
                 $log->command_status = 'issue';
@@ -2127,7 +2477,12 @@ if (! function_exists('ip_audit')) {
                     $command_string = '%comspec% /c start /b cscript ' . $audit_script . ' strcomputer=' . $device->ip . ' submit_online=n create_file=w struser=' . $domain . $username . ' strpass=' . $credentials_windows->credentials->password . ' debugging=0 system_id=' . $device->id . ' last_seen_by=audit_wmi discovery_id=' . $discovery->id;
                     $log->command = '%comspec% /c start /b cscript ' . $audit_script . ' strcomputer=' . $device->ip . ' submit_online=n create_file=w struser=' . $domain . $username . ' strpass=****** debugging=0 system_id=' . $device->id . ' last_seen_by=audit_wmi discovery_id=' . $discovery->id;
                     $command_start = microtime(true);
-                    exec($command_string, $output, $return_var);
+                    $return_var = 1;
+                    try {
+                        exec($command_string, $output, $return_var);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'exec', 'running audit_windows.vbs for ' . $device->ip, $e, $device->id);
+                    }
                     $command_end = microtime(true);
                     $log->severity = 7;
                     $log->command_time_to_execute = $command_end - $command_start;
@@ -2153,10 +2508,14 @@ if (! function_exists('ip_audit')) {
                 // Unix or Windows default - Remotely run script on target device
                 // Copy the audit script to admin$
                 $copy = false;
-                if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
-                    $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.ps1', $discovery->id);
-                } else {
-                    $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.vbs', $discovery->id);
+                try {
+                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                        $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.ps1', $discovery->id);
+                    } else {
+                        $copy = copy_to_windows($device->ip, $credentials_windows, '\\admin$', $audit_script, 'audit_windows.vbs', $discovery->id);
+                    }
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'copy_to_windows', 'copying the audit script to ' . $device->ip, $e, $device->id);
                 }
                 $output = false;
                 if ($copy) {
@@ -2166,7 +2525,11 @@ if (! function_exists('ip_audit')) {
                         // $command = 'cscript ' . $device->install_dir . '\\audit_windows.vbs submit_online=n create_file=w debugging=0 self_delete=y last_seen_by=audit_wmi system_id=' . $device->id . ' discovery_id=' . $discovery->id;
                         $command = 'cscript ' . $device->install_dir . '\\audit_windows.vbs submit_online=n create_file=w debugging=0 last_seen_by=audit_wmi system_id=' . $device->id . ' discovery_id=' . $discovery->id;
                     }
-                    $output = execute_windows($device->ip, $credentials_windows, $command, $discovery->id);
+                    try {
+                        $output = execute_windows($device->ip, $credentials_windows, $command, $discovery->id);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'execute_windows', 'running the audit script on ' . $device->ip, $e, $device->id);
+                    }
                     if (empty($output)) {
                         $log->severity = 3;
                         $log->command_time_to_execute = '';
@@ -2207,33 +2570,46 @@ if (! function_exists('ip_audit')) {
                     $destination = $filepath . '\\scripts\\' . $audit_file;
                 }
                 if (php_uname('s') === 'Windows NT' and exec('whoami') === 'nt authority\system' and ! empty($instance->config->discovery_use_vintage_service) and $instance->config->discovery_use_vintage_service === 'y') {
-                    if (rename($audit_file, $destination)) {
-                        $copy = true;
+                    try {
+                        if (rename($audit_file, $destination)) {
+                            $copy = true;
+                        }
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'rename', 'moving the audit result to ' . $destination, $e, $device->id);
                     }
                 } else {
-                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
-                        if (stripos($device->os_name, 'server') !== false) {
-                            // Servers tend to use c:\windows\syswow64
-                            $copy = copy_from_windows($device->ip, $credentials_windows, 'SysWOW64\\' . $audit_file, $destination, $discovery->id);
-                        } else {
-                            // Clients tend to use c:\windows\system32
-                            $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
-                        }
-                        if (empty($copy)) {
-                            // For some reason the copy didn't work, so try the reverse location
+                    try {
+                        if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
                             if (stripos($device->os_name, 'server') !== false) {
-                                $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
-                            } else {
+                                // Servers tend to use c:\windows\syswow64
                                 $copy = copy_from_windows($device->ip, $credentials_windows, 'SysWOW64\\' . $audit_file, $destination, $discovery->id);
+                            } else {
+                                // Clients tend to use c:\windows\system32
+                                $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
                             }
+                            if (empty($copy)) {
+                                // For some reason the copy didn't work, so try the reverse location
+                                if (stripos($device->os_name, 'server') !== false) {
+                                    $copy = copy_from_windows($device->ip, $credentials_windows, 'System32\\' . $audit_file, $destination, $discovery->id);
+                                } else {
+                                    $copy = copy_from_windows($device->ip, $credentials_windows, 'SysWOW64\\' . $audit_file, $destination, $discovery->id);
+                                }
+                            }
+                        } else {
+                            $copy = copy_from_windows($device->ip, $credentials_windows, $audit_file, $destination, $discovery->id);
                         }
-                    } else {
-                        $copy = copy_from_windows($device->ip, $credentials_windows, $audit_file, $destination, $discovery->id);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'copy_from_windows', 'copying the audit result from ' . $device->ip, $e, $device->id);
                     }
                 }
                 if ($copy === true) {
-                    $audit_result = file_get_contents($destination);
-                    unlink($destination);
+                    $audit_result = '';
+                    try {
+                        $audit_result = (string)@file_get_contents($destination);
+                        @unlink($destination);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'file_get_contents', 'reading the audit result at ' . $destination, $e, $device->id);
+                    }
                     if (empty($audit_result)) {
                         $log->severity = 3;
                         $log->command_time_to_execute = '';
@@ -2257,13 +2633,17 @@ if (! function_exists('ip_audit')) {
                     // no need to delete the remote file
                 } else {
                     // delete the remote audit result
-                    if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
-                        $del = delete_windows_result($device->ip, $credentials_windows, 'admin$', 'System32\\' . $audit_file, $discovery->id);
-                        if ($del === false) {
-                            delete_windows_result($device->ip, $credentials_windows, 'admin$', 'SysWOW64\\' . $audit_file, $discovery->id);
+                    try {
+                        if (!empty($instance->config->feature_powershell_audit) and $instance->config->feature_powershell_audit === 'y' and strtolower($device->os_group) === 'windows') {
+                            $del = delete_windows_result($device->ip, $credentials_windows, 'admin$', 'System32\\' . $audit_file, $discovery->id);
+                            if ($del === false) {
+                                delete_windows_result($device->ip, $credentials_windows, 'admin$', 'SysWOW64\\' . $audit_file, $discovery->id);
+                            }
+                        } else {
+                            delete_windows_result($device->ip, $credentials_windows, 'admin$', end($temp), $discovery->id);
                         }
-                    } else {
-                        delete_windows_result($device->ip, $credentials_windows, 'admin$', end($temp), $discovery->id);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'delete_windows_result', 'deleting the remote audit result on ' . $device->ip, $e, $device->id);
                     }
                 }
             } else {
@@ -2313,7 +2693,12 @@ if (! function_exists('ip_audit')) {
             $parameters->destination = $destination;
             $parameters->discovery_id = $discovery->id;
             $parameters->ssh_port = $ip_scan->ssh_port;
-            $temp = @scp($parameters);
+            $temp = false;
+            try {
+                $temp = @scp($parameters);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'scp', 'copying the audit script to ' . $device->ip . ' at ' . $destination, $e, $device->id);
+            }
             if (! $temp) {
                 $audit_script = '';
                 $log->severity = 3;
@@ -2334,7 +2719,12 @@ if (! function_exists('ip_audit')) {
                     $parameters->credentials = $credentials_ssh;
                     $parameters->command = $command;
                     $parameters->ssh_port = $ip_scan->ssh_port;
-                    $test = ssh_command($parameters);
+                    $test = false;
+                    try {
+                        $test = ssh_command($parameters);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_command', 'running chmod on the audit script on ' . $device->ip, $e, $device->id);
+                    }
                     if ($test === false) {
                         $log->severity = 3;
                         $log->message = 'Could not chmod script on ' . $device->ip;
@@ -2388,7 +2778,12 @@ if (! function_exists('ip_audit')) {
                 $parameters->credentials = $credentials_ssh;
                 $parameters->command = $command;
                 $parameters->ssh_port = $ip_scan->ssh_port;
-                $result = ssh_command($parameters);
+                $result = false;
+                try {
+                    $result = ssh_command($parameters);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_command', 'running the audit script on ' . $device->ip, $e, $device->id);
+                }
                 if (empty($result)) {
                     $log->severity = 4;
                     $log->message = 'Audit script not successful.';
@@ -2447,10 +2842,20 @@ if (! function_exists('ip_audit')) {
                     // Allow 20 seconds to copy the file
                     $timeout = $instance->config->discovery_ssh_timeout;
                     $instance->config->discovery_ssh_timeout = 20;
-                    $temp = scp_get($parameters);
+                    $temp = false;
+                    try {
+                        $temp = scp_get($parameters);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'scp_get', 'retrieving the audit result from ' . $device->ip, $e, $device->id);
+                    }
                     $instance->config->discovery_ssh_timeout = $timeout;
                     if ($temp) {
-                        $audit_result = file_get_contents($destination);
+                        try {
+                            $audit_result = (string)@file_get_contents($destination);
+                        } catch (Throwable $e) {
+                            $audit_result = '';
+                            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'file_get_contents', 'reading the audit result at ' . $destination, $e, $device->id);
+                        }
                         if (empty($audit_result)) {
                             $log->severity = 5;
                             $log->message = 'Could not read audit result file.';
@@ -2493,7 +2898,11 @@ if (! function_exists('ip_audit')) {
                     $parameters->credentials = $credentials_ssh;
                     $parameters->command = $command;
                     $parameters->ssh_port = $ip_scan->ssh_port;
-                    ssh_command($parameters);
+                    try {
+                        ssh_command($parameters);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'ssh_command', 'deleting the remote audit result on ' . $device->ip, $e, $device->id);
+                    }
                     if ($temp > 0) {
                         $instance->config->discovery_ssh_timeout = $temp;
                     }
@@ -2548,7 +2957,12 @@ if (! function_exists('ip_audit')) {
             $log->message = 'Converting audit result';
             $discoveryLogModel->create($log);
             $audit_result = str_replace('data=<?xml version="1.0" encoding="UTF-8"?>', '<?xml version="1.0" encoding="UTF-8"?>', $audit_result);
-            $audit = audit_convert($audit_result, $device->ip, $discovery_id);
+            try {
+                $audit = audit_convert($audit_result, $device->ip, $discovery_id);
+            } catch (Throwable $e) {
+                $audit = false;
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'audit_convert', 'converting the audit result for ' . $device->ip, $e, $device->id);
+            }
             if (!empty($audit)) {
                 $ip_audited_count = 1;
             } else {
@@ -2604,7 +3018,11 @@ if (! function_exists('ip_audit')) {
             #$parameters->input = $audit;
             $parameters->input = $audit->system;
             $parameters->ip = $device->ip;
-            $audit->system = audit_format_system($parameters);
+            try {
+                $audit->system = audit_format_system($parameters);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'audit_format_system', 'formatting the system section of the audit result for ' . $device->ip, $e, $device->id);
+            }
             // We don't care what the audit result says is the "ip", we KNOW it's the IP we just used to discover this device
             $audit->system->ip = $device->ip;
         } elseif (!empty($audit_result)) {
@@ -2614,17 +3032,30 @@ if (! function_exists('ip_audit')) {
         // Run our rules to update the device attributes
         if (!empty($audit)) {
             log_message('debug', 'rulesModel::execute::return because audit script result exists for ' . $device->ip);
-            $instance->rulesModel->execute($audit->system, intval($discovery->id), 'return', intval($audit->system->id));
+            try {
+                $instance->rulesModel->execute($audit->system, intval($discovery->id), 'return', intval($audit->system->id));
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'rulesModel::execute', 'running the rules against the audit result for ' . $device->ip, $e, $device->id);
+            }
         } else {
             log_message('debug', 'rulesModel::execute::update because audit script result does not exist for ' . $device->ip);
-            $instance->rulesModel->execute($device, intval($discovery->id), 'update');
+            try {
+                $instance->rulesModel->execute($device, intval($discovery->id), 'update');
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'rulesModel::execute', 'running the rules against ' . $device->ip, $e, $device->id);
+            }
         }
 
         if (!empty($audit)) {
             log_message('debug', $device->ip . ' - Matching device from audit result');
             $log->message = 'Matching device from audit result';
             $discoveryLogModel->create($log);
-            $audit_device = deviceMatch($audit->system, intval($discovery->id), $discovery->match_options);
+            $audit_device = null;
+            try {
+                $audit_device = deviceMatch($audit->system, intval($discovery->id), $discovery->match_options);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'deviceMatch', 'matching the audit result for ' . $device->ip . ' against the existing devices', $e, $device->id);
+            }
             $audit->system->discovery_id = $discovery->id;
             if (!empty($audit->system->id)) {
                 $log->device_id = $audit->system->id;
@@ -2666,7 +3097,11 @@ if (! function_exists('ip_audit')) {
                     $audit->system->location_id = $discovery->devices_assigned_to_location;
                 }
                 log_message('debug', 'CREATE entry for ' . $devName . ' (' . @$audit->system->ip . ')');
-                $audit->system->id = $instance->devicesModel->create($audit->system);
+                try {
+                    $audit->system->id = $instance->devicesModel->create($audit->system);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'devicesModel::create', 'creating the device entry from the audit result for ' . $device->ip, $e, $device->id);
+                }
                 $log->message = 'CREATE entry for ' . $devName . ' (' . @$audit->system->ip . '), System ID ' . $audit->system->id;
                 $discoveryLogModel->create($log);
                 $audit->system->original_last_seen = '';
@@ -2675,11 +3110,17 @@ if (! function_exists('ip_audit')) {
                 log_message('debug', 'UPDATE entry for ' . $devName . ' (' . @$audit->system->ip . '), System ID ' . $audit->system->id);
                 $log->message = 'UPDATE entry for ' . $devName . ' (' . @$audit->system->ip . '), System ID ' . $audit->system->id;
                 $discoveryLogModel->create($log);
-                $instance->devicesModel->update($audit->system->id, $audit->system);
+                try {
+                    $instance->devicesModel->update($audit->system->id, $audit->system);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'devicesModel::update', 'updating the device entry from the audit result for ' . $device->ip, $e, $device->id);
+                }
                 log_message('debug', 'UPDATE entry completed for ' . $devName . ' (' . @$audit->system->ip . '), System ID ' . $audit->system->id);
             }
-            $log->device_id = intval($audit->system->id);
-            $device->id = intval($audit->system->id);
+            if (!empty($audit->system->id)) {
+                $log->device_id = intval($audit->system->id);
+                $device->id = intval($audit->system->id);
+            }
         }
 
         $sql = 'UPDATE `discovery_log` SET device_id = ? WHERE discovery_id = ? and ip = ?';
@@ -2697,7 +3138,11 @@ if (! function_exists('ip_audit')) {
         if ($audit) {
             foreach ($audit as $key => $value) {
                 if ($key !== 'system' and $key !== 'audit_wmi_fail' and $key !== 'dns') {
-                    $instance->componentsModel->upsert($key, $audit->system, $value);
+                    try {
+                        $instance->componentsModel->upsert($key, $audit->system, $value);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'componentsModel::upsert', 'storing the ' . $key . ' components for ' . $device->ip, $e, $device->id);
+                    }
                 }
             }
         }
@@ -2841,7 +3286,12 @@ if (! function_exists('ip_audit')) {
                 )
             );
             $context  = stream_context_create($options);
-            $result = file_get_contents($url, false, $context);
+            $result = false;
+            try {
+                $result = @file_get_contents($url, false, $context);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'file_get_contents', 'sending the result for ' . $device->ip . ' to ' . $url, $e, $device->id);
+            }
             if ($result === false) {
                 // error
                 $log->severity = 4;
@@ -2868,7 +3318,11 @@ if (! function_exists('ip_audit')) {
             $discoveryLogModel->create($log);
         // }
 
-        $instance->devicesModel->setIdentification($device->id);
+        try {
+            $instance->devicesModel->setIdentification($device->id);
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'devicesModel::setIdentification', 'setting the identification for ' . $device->ip, $e, $device->id);
+        }
 
         $log->command = 'Peak Memory';
         $log->command_output = round((memory_get_peak_usage(false) / 1024 / 1024), 3) . ' MiB';
@@ -2899,9 +3353,14 @@ if (! function_exists('ip_audit')) {
             $ips_found = array_unique($ips_found);
 
             // define our subnet
-            $discovery_network = network_details($discovery->subnet);
-            $discovery_network->host_min = ip_address_to_db($discovery_network->host_min);
-            $discovery_network->host_max = ip_address_to_db($discovery_network->host_max);
+            $discovery_network = null;
+            try {
+                $discovery_network = network_details($discovery->subnet);
+                $discovery_network->host_min = ip_address_to_db($discovery_network->host_min);
+                $discovery_network->host_max = ip_address_to_db($discovery_network->host_max);
+            } catch (Throwable $e) {
+                discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'network_details', 'determining the network details of ' . $discovery->subnet, $e, $device->id);
+            }
             $sql = "SELECT `ip` FROM `ip` WHERE `device_id` = ? AND `current` = 'y'";
             $device_ips = $db->query($sql, [$device->id])->getResult();
             foreach ($ips_found as $key => $value) {
@@ -2930,7 +3389,7 @@ if (! function_exists('ip_audit')) {
                             $log->command_output = 'IP ' . $value . ' found on device ' . $device->ip;
                             $log->function = 'ip_audit';
                             $discoveryLogModel->create($log);
-                        } elseif ($discovery->seed_restrict_to_subnet === 'y' and ($testip < $discovery_network->host_min or $testip > $discovery_network->host_max)) {
+                        } elseif ($discovery->seed_restrict_to_subnet === 'y' and !empty($discovery_network) and ($testip < $discovery_network->host_min or $testip > $discovery_network->host_max)) {
                             $log->severity = 7;
                             $log->message = 'IP ' . $value . ' detected, but not adding to device list as this is not in the discovery subnet.';
                             $log->command_output = 'IP ' . $value . ' found on device ' . $device->ip;
@@ -2965,7 +3424,11 @@ if (! function_exists('ip_audit')) {
                             $details->details = json_encode($item);
                             $details->type = 'ip_scan';
                             unset($item);
-                            $instance->queueModel->create($details);
+                            try {
+                                $instance->queueModel->create($details);
+                            } catch (Throwable $e) {
+                                discovery_log_exception($discovery->id, 'ip_audit', $value, 'queueModel::create', 'queueing the seed IP ' . $value . ' found on ' . $device->ip, $e);
+                            }
                         }
                     }
                 } else {
@@ -2977,7 +3440,11 @@ if (! function_exists('ip_audit')) {
                 }
             }
         }
-        discovery_check_finished(intval($discovery->id));
+        try {
+            discovery_check_finished(intval($discovery->id));
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery->id, 'ip_audit', $device->ip, 'discovery_check_finished', 'checking whether discovery ' . $discovery->id . ' has finished', $e, $device->id);
+        }
     }
 }
 
@@ -3095,12 +3562,18 @@ if (! function_exists('discover_ad')) {
         $db->query($sql, [$discovery_id]);
 
         // We need to get the Org Children of this particular discovery run
-        $orgs = $instance->orgsModel->getDescendants(intval($discovery->org_id));
-        $orgs[] = $discovery->org_id;
-        $orgs = implode(',', $orgs);
+        $credentials = array();
+        try {
+            $orgs = $instance->orgsModel->getDescendants(intval($discovery->org_id));
+            $orgs[] = $discovery->org_id;
+            $orgs = implode(',', $orgs);
 
-        // Stored credential sets
-        $credentials = $instance->credentialsModel->listUser([], explode(',', $orgs));
+            // Stored credential sets
+            $credentials = $instance->credentialsModel->listUser([], explode(',', $orgs));
+        } catch (Throwable $e) {
+            discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'credentialsModel::listUser', 'retrieving the credentials for ' . $discovery->name, $e);
+            return false;
+        }
         // get the list of subnets from AD
         if (!str_starts_with($discovery->ad_server, 'ldap')) {
             $ldapuri = 'ldap://' . $discovery->ad_server;
@@ -3122,12 +3595,18 @@ if (! function_exists('discover_ad')) {
         $bind = false;
         foreach ($credentials as $credential) {
             if ($credential->attributes->type === 'windows') {
-                if (!empty($credential->attributes->credentials) and is_string($credential->attributes->credentials)) {
-                    $credential->attributes->credentials = json_decode(simpleDecrypt($credential->attributes->credentials, config('Encryption')->key));
+                try {
+                    if (!empty($credential->attributes->credentials) and is_string($credential->attributes->credentials)) {
+                        $credential->attributes->credentials = json_decode(simpleDecrypt($credential->attributes->credentials, config('Encryption')->key));
+                    }
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'simpleDecrypt', 'decrypting the credential set ' . $credential->attributes->name, $e);
+                    $bind = false;
+                    continue;
                 }
                 try {
                     $bind = ldap_bind($ldapconn, $credential->attributes->credentials->username, $credential->attributes->credentials->password);
-                } catch (Exception $e) {
+                } catch (Throwable $e) {
                     $log->severity = 7;
                     $log->message = 'Could not bind to AD using ' . $credential->attributes->name;
                     $log->command_status = 'warning';
@@ -3142,7 +3621,12 @@ if (! function_exists('discover_ad')) {
                 $base_dn = 'CN=Subnets,CN=Sites,CN=Configuration,dc=' . implode(', dc=', explode('.', $discovery->ad_domain));
                 $filter = '(&(objectclass=*))';
                 $justthese = array('distinguishedName', 'name', 'siteobject');
-                $search_result = @ldap_search($ldapconn, $base_dn, $filter, $justthese);
+                $search_result = false;
+                try {
+                    $search_result = @ldap_search($ldapconn, $base_dn, $filter, $justthese);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'ldap_search', 'searching ' . $discovery->ad_domain . ' on ' . $discovery->ad_server, $e);
+                }
                 if (empty($search_result)) {
                     $log->message = 'Could not perform ldap search ' . $discovery->ad_domain . ' on ' . $discovery->ad_server . ' using ' . $credential->attributes->name;
                     $log->severity = 6;
@@ -3151,7 +3635,12 @@ if (! function_exists('discover_ad')) {
                     $discoveryLogModel->create($log);
                     continue;
                 }
-                $info = ldap_get_entries($ldapconn, $search_result);
+                $info = array();
+                try {
+                    $info = ldap_get_entries($ldapconn, $search_result);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'ldap_get_entries', 'retrieving the subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server, $e);
+                }
                 if (empty($info)) {
                     $log->message = 'Could not Retrieve subnets from ' . $discovery->ad_domain . ' on ' . $discovery->ad_server . ' using ' . $credential->attributes->name;
                     $log->severity = 6;
@@ -3202,7 +3691,11 @@ if (! function_exists('discover_ad')) {
                 }
                 $log->message = 'Upserting network - ' . $network->name;
                 $discoveryLogModel->create($log);
-                $instance->networksModel->upsert($network);
+                try {
+                    $instance->networksModel->upsert($network);
+                } catch (Throwable $e) {
+                    discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'networksModel::upsert', 'storing the network ' . $network->name, $e);
+                }
 
                 $ad_discovery = new \StdClass();
                 $ad_discovery->name = $network->name;
@@ -3221,7 +3714,11 @@ if (! function_exists('discover_ad')) {
                 if (empty($result)) {
                     $log->message = 'Creating and executing discovery on subnet ' . $network->name;
                     $discoveryLogModel->create($log);
-                    $this_id = $instance->discoveriesModel->create($ad_discovery);
+                    try {
+                        $this_id = $instance->discoveriesModel->create($ad_discovery);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'discoveriesModel::create', 'creating the discovery for subnet ' . $network->name, $e);
+                    }
                 } else {
                     $this_id = $result[0]->id;
                     $log->message = 'Discovery for ' . $network->name . ' exists, running.';
@@ -3236,7 +3733,13 @@ if (! function_exists('discover_ad')) {
                     $details->details->org_id =  $discovery->org_id;
                     $details->details->discovery_id = $this_id;
                     $details->type = 'subnet';
-                    if ($instance->queueModel->create($details)) {
+                    $queued = false;
+                    try {
+                        $queued = $instance->queueModel->create($details);
+                    } catch (Throwable $e) {
+                        discovery_log_exception($discovery_id, 'discover_ad', '127.0.0.1', 'queueModel::create', 'queueing the discovery for subnet ' . $network->name, $e);
+                    }
+                    if ($queued) {
                         $log->command_status = 'success';
                         $log->message = 'Discovery ' . $network->name . ' placed in queue for execution.';
                     } else {

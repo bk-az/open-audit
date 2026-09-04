@@ -365,29 +365,6 @@ if (!empty($config->servers)) {
                             <ul class="dropdown-menu" aria-labelledby="navbarHelp">
                                 <li><a class="dropdown-item" href="<?= url_to('api') ?>"><?= __('API Documentation') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('audit_my_pc') ?>"><?= __('Audit My PC') ?></a></li>
-                                <li><a class="dropdown-item dropdown-toggle first-level-dropdown-toggle" href="#"><?= __('Defaults') ?></a>
-                                    <ul class="dropdown-menu">
-                                        <?= menuItem('attributes', '', $user, 'attributesDefaults', 'Attributes') ?>
-                                        <?= menuItem('configuration', '', $user, 'configurationDefaults', 'Configuration') ?>
-                                        <?= menuItem('dashboards', '', $user, 'dashboardsDefaults', 'Dashboards') ?>
-                                        <?= menuItem('discoveries', '', $user, 'discoveriesDefaults', 'Discoveries') ?>
-                                        <?= menuItem('discovery_scan_options', '', $user, 'discovery_scan_optionsDefaults', 'Discovery Scan Options') ?>
-                                        <?= menuItem('fields', '', $user, 'fieldsDefaults', 'Fields') ?>
-                                        <?= menuItem('groups', '', $user, 'groupsDefaults', 'Groups') ?>
-                                        <?= menuItem('integrations', '', $user, 'integrationsDefaults', 'Integrations') ?>
-                                        <?= menuItem('locations', '', $user, 'locationsDefaults', 'Locations') ?>
-                                        <?= menuItem('orgs', '', $user, 'orgsDefaults', 'Orgs') ?>
-                                        <?= menuItem('packages', '', $user, 'packagesDefaults', 'Packages') ?>
-                                        <?= menuItem('queries', '', $user, 'queriesDefaults', 'Queries') ?>
-                                        <?= menuItem('roles', '', $user, 'rolesDefaults', 'Roles') ?>
-                                        <?= menuItem('rules', '', $user, 'rulesDefaults', 'Rules') ?>
-                                        <?= menuItem('scripts', '', $user, 'scriptsDefaults', 'Scripts') ?>
-                                        <?= menuItem('summaries', '', $user, 'summariesDefaults', 'Summaries') ?>
-                                        <?= menuItem('users', '', $user, 'usersDefaults', 'Users') ?>
-                                        <?= menuItem('vulnerabilities', '', $user, 'vulnerabilitiesDefaults', 'Vulnerabilities') ?>
-                                        <?= menuItem('widgets', '', $user, 'widgetsDefaults', 'Widgets') ?>
-                                    </ul>
-                                </li>
                                 <li><a class="dropdown-item" href="<?= url_to('welcome') ?>"><?= __('Getting Started') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('supportCollection') ?>"><?= __('Support') ?></a></li>
                                 <li><a class="dropdown-item" href="<?= url_to('util/test_windows_client') ?>"><?= __('Windows Test Script') ?></a></li>
