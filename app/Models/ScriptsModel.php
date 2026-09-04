@@ -670,7 +670,7 @@ class ScriptsModel extends BaseModel
         $dictionary->attributes->fieldsMeta = $this->db->getFieldData($collection);
         $dictionary->attributes->update = $this->updateFields($collection);
 
-        $dictionary->sentence = 'Open-AudIT utilise powerful auditing scripts to avoid installing an agent while at the same time, gathering an incredible amount of configuration data from your devices.';
+        $dictionary->sentence = APP_DISPLAY_NAME . ' utilise powerful auditing scripts to avoid installing an agent while at the same time, gathering an incredible amount of configuration data from your devices.';
 
         $dictionary->about = '<p>You can create a script with all the options for any of the existing audit scripts - not just Windows. AIX, ESX, Linux, OSX and Windows are all covered.<br> <br></p>';
 
@@ -841,7 +841,7 @@ class ScriptsModel extends BaseModel
         $options['submit_online'] = new stdClass();
         $options['submit_online']->name = 'submit_online';
         $options['submit_online']->default = 'y';
-        $options['submit_online']->help = 'Should we submit the completed audit result to the Open-AudIT server.';
+        $options['submit_online']->help = 'Should we submit the completed audit result to the ' . APP_DISPLAY_NAME . ' server.';
         $options['submit_online']->type = 'select';
         $options['submit_online']->values = 'y,n';
 
@@ -855,7 +855,7 @@ class ScriptsModel extends BaseModel
         $options['url'] = new stdClass();
         $options['url']->name = 'url';
         $options['url']->default = @$this->config->config['default_network_address'] . 'index.php/input/devices';
-        $options['url']->help = 'The address of the Open-AudIT server "submit" page.';
+        $options['url']->help = 'The address of the ' . APP_DISPLAY_NAME . ' server "submit" page.';
         $options['url']->type = 'url';
         $options['url']->values = '';
 

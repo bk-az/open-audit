@@ -7,7 +7,7 @@ $intro = '<p>' . __('The license endpoint allows you to track the number of lice
 <br>
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>Open-AudIT ' . __('uses the data collected from your devices and matches the software installed with the value provided, it counts the matches calculates how many licenses have been used and how many are left. It allows the use of wildcards on the <i>match string</i> field which matches the software.name attribute.') . '</p>';
+<p>' . APP_DISPLAY_NAME . ' ' . __('uses the data collected from your devices and matches the software installed with the value provided, it counts the matches calculates how many licenses have been used and how many are left. It allows the use of wildcards on the <i>match string</i> field which matches the software.name attribute.') . '</p>';
 
 $body = '<h2>' . __('Notes') . '</h2>
 

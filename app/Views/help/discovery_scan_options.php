@@ -9,11 +9,11 @@ $intro = '
 <br>
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>' . __('When a discovery is run, the relevant discovery scan option is chosen and those settings used by Nmap to scan the target devices. If no option set is chosen, the default configuration item (discovery_default_scan_option) is selected and used. Open-AudIT Community will use the default options as per the configuration for all discoveries.') . '</p>
+<p>' . __('When a discovery is run, the relevant discovery scan option is chosen and those settings used by Nmap to scan the target devices. If no option set is chosen, the default configuration item (discovery_default_scan_option) is selected and used. ' . APP_DISPLAY_NAME . ' Community will use the default options as per the configuration for all discoveries.') . '</p>
 
-<p>' . __('Open-AudIT Professional has the ability to choose from a pre-defined list of discovery scan options, per discovery.') . '</p>
+<p>' . __(APP_DISPLAY_NAME . ' Professional has the ability to choose from a pre-defined list of discovery scan options, per discovery.') . '</p>
 
-<p>' . __('Open-AudIT Enterprise has the ability to choose from a pre-defined list of discovery scan options and also to customise individual options per discovery.') . '</p>
+<p>' . __(APP_DISPLAY_NAME . ' Enterprise has the ability to choose from a pre-defined list of discovery scan options and also to customise individual options per discovery.') . '</p>
 
 <p>' . __('The default discovery scan option is the UltraFast set.') . '</p>
 
@@ -24,7 +24,7 @@ $body = '
 <br>
 <h2>' . __('Filtered Ports') . '</h2>
 
-<p>' . __('Networks respond differently depending on how they are configured. Some routers and/or firewalls can respond <i>on behalf</i> of IPs on the other side of their interfaces to the Open-AudIT Server. It is quite common to see Nmap report a probe for SNMP (UDP port 161) to respond as open|filtered for devices that do and do not exist. This is misleading as there is no device at that IP, yet it ends up with a device entry in the database. 99.9% of the time, it is not Open-AudIT, nor even Nmap, but the network causing this issue. Now that we have the options to treat open|filtered ports as either open or closed, we can eliminate a lot of this confusion. Enterprise users even have the option to change this on a per discovery basis (more than just using the Medium (Classic) item, as above).') . '</p>
+<p>' . __('Networks respond differently depending on how they are configured. Some routers and/or firewalls can respond <i>on behalf</i> of IPs on the other side of their interfaces to the ' . APP_DISPLAY_NAME . ' Server. It is quite common to see Nmap report a probe for SNMP (UDP port 161) to respond as open|filtered for devices that do and do not exist. This is misleading as there is no device at that IP, yet it ends up with a device entry in the database. 99.9% of the time, it is not ' . APP_DISPLAY_NAME . ', nor even Nmap, but the network causing this issue. Now that we have the options to treat open|filtered ports as either open or closed, we can eliminate a lot of this confusion. Enterprise users even have the option to change this on a per discovery basis (more than just using the Medium (Classic) item, as above).') . '</p>
 
 <br>
 <h2>' . __('Creating a Discovery Scan Options entry') . '</h2>
@@ -46,7 +46,7 @@ $body = '
         <tr>
             <td>ping</td>
             <td>
-                <p>' . __('Must Respond To Ping. If set, Nmap will fist attempt to send and listen for an ICMP response. If the device does not respond, no further scanning will occur.<br>Previously a device did not have to respond to a ping for Open-AudIT to continue scanning.') . '</p>
+                <p>' . __('Must Respond To Ping. If set, Nmap will fist attempt to send and listen for an ICMP response. If the device does not respond, no further scanning will occur.<br>Previously a device did not have to respond to a ping for ' . APP_DISPLAY_NAME . ' to continue scanning.') . '</p>
             </td>
         </tr>
         <tr>
@@ -57,7 +57,7 @@ $body = '
         </tr>
         <tr>
             <td>open|filtered</td>
-            <td>' . __('An open|filtered port is considered open (and will trigger device detection).<br>Previously, Open-AudIT considered an Nmap response of') . ' &quot;open|filtered&quot; ' . 
+            <td>' . __('An open|filtered port is considered open (and will trigger device detection).<br>Previously, ' . APP_DISPLAY_NAME . ' considered an Nmap response of') . ' &quot;open|filtered&quot; ' . 
             __('as a device responding on this port.<br>This has caused some customers issues where firewalls respond on behalf of a non-existing device, and hence cause false positive device detection. We now have this attribute available to set per scan.') . '</p>
             </td>
         </tr>

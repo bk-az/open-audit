@@ -487,9 +487,9 @@ class OrgsModel extends BaseModel
         $dictionary->attributes->fieldsMeta = $this->db->getFieldData($collection); # The meta data about all fields - name, type, max_length, primary_key, nullable, default
         $dictionary->attributes->update = $this->updateFields($collection); # We MAY update any of these listed fields
 
-        $dictionary->sentence = 'Open-AudIT provides multi-tenancy out of the box!';
+        $dictionary->sentence = APP_DISPLAY_NAME . ' provides multi-tenancy out of the box!';
 
-        $dictionary->about = '<p>Open-AudIT provides multi-tenancy out of the box!<br> <br>Orgs (organisations) in Open-AudIT are a key item. A user has a primary Org as well as a list of Orgs they can access. A user combines this with a list of assigned "Roles" that define what actions they can take on items assigned to the Orgs they have access to. The combination of a users "orgs" and "roles" define what they can and cannot do within Open-AudIT.<br> <br>Most items in Open-AudIT are assigned to an Org. Devices, Locations, Networks, etc.<br> <br>Orgs can have child Orgs. Think of an organisational chart (tree) structure. If a user has access to a specific Org, they also have access to that Orgs descendants. For more information, see this <a href="' . $helpFAQ . '?name=Users, Roles and Orgs">FAQ</a>.</p>';
+        $dictionary->about = '<p>' . APP_DISPLAY_NAME . ' provides multi-tenancy out of the box!<br> <br>Orgs (organisations) in ' . APP_DISPLAY_NAME . ' are a key item. A user has a primary Org as well as a list of Orgs they can access. A user combines this with a list of assigned "Roles" that define what actions they can take on items assigned to the Orgs they have access to. The combination of a users "orgs" and "roles" define what they can and cannot do within ' . APP_DISPLAY_NAME . '.<br> <br>Most items in ' . APP_DISPLAY_NAME . ' are assigned to an Org. Devices, Locations, Networks, etc.<br> <br>Orgs can have child Orgs. Think of an organisational chart (tree) structure. If a user has access to a specific Org, they also have access to that Orgs descendants. For more information, see this <a href="' . $helpFAQ . '?name=Users, Roles and Orgs">FAQ</a>.</p>';
 
         $dictionary->notes = '';
 

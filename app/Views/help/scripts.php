@@ -11,7 +11,7 @@ $intro = '<p>' . __('You can create a script with all the options for any of the
 
 $body = '<h2>' . __('Modifying an Existing Script') . '</h2>
 
-<p>' . __('You are always free to modify the audit scripts themselves to suit your specific requirements. You will need to (re)incorporate those changes whenever you upgrade as they will be overwritten by the default scripts. I would suggest saving a master copy of your modified script, upgrading Open-AudIT, then running a diff between the new default script and your modified script and applying the differences. The audit scripts are native scripts (Windows is PowerShell, all others are Bash). Simple and easy to modify - just make sure to have a copy of your changes before you upgrade.') . '</p>
+<p>' . __('You are always free to modify the audit scripts themselves to suit your specific requirements. You will need to (re)incorporate those changes whenever you upgrade as they will be overwritten by the default scripts. I would suggest saving a master copy of your modified script, upgrading ' . APP_DISPLAY_NAME . ', then running a diff between the new default script and your modified script and applying the differences. The audit scripts are native scripts (Windows is PowerShell, all others are Bash). Simple and easy to modify - just make sure to have a copy of your changes before you upgrade.') . '</p>
 
 <br>
 <h2>' . __('Manually Generating an Audit Result') . '</h2>

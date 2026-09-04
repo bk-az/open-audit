@@ -444,7 +444,7 @@ class Collections extends BaseConfig
         $this->news = new \StdClass();
         $this->news->icon = 'icon-rss';
         $this->news->name = 'News';
-        $this->news->edition = 'Community';
+        $this->news->edition = 'Professional';
         $this->news->orgs = 'u';
         $this->news->actions = new \stdClass();
         $this->news->actions->enterprise = 'crud';

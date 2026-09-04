@@ -98,4 +98,17 @@ if (!empty($_SERVER['HTTP_HOST'])){
     $host = $_SERVER['HTTP_HOST'];
 }
 $base = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https://'.$host.dirname($_SERVER['SCRIPT_NAME']) : 'http://'.$host.dirname($_SERVER['SCRIPT_NAME']);
-defined('BASEURL') || define('BASEURL', $base); 
+defined('BASEURL') || define('BASEURL', $base);
+
+/** User-visible product name (white-label). */
+define('APP_DISPLAY_NAME', 'AS Network Scanner');
+
+/** Commercial vendor name (license / upgrade contact). */
+define('APP_VENDOR_NAME', 'AssetSonar');
+
+/** Vendor marketing / license URL. */
+define('APP_VENDOR_URL', 'https://ezo.io/assetsonar/');
+
+/** Product install / web directory name (mirrors install.sh WEB_ALIAS). */
+define('APP_WEB_ALIAS', 'as-network-scanner');
+

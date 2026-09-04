@@ -707,7 +707,7 @@ class DiscoveryLogModel extends BaseModel
 
         $dictionary->sentence = '';
 
-        $dictionary->about = '<p>Open-AudIT provides multi-tenancy out of the box!<br> <br>Orgs (organisations) in Open-AudIT are a key item. A user has a primary Org as well as a list of Orgs they can access. A user combines this with a list of assigned "Roles" that define what actions they can take on items assigned to the Orgs they have access to. The combination of a users "orgs" and "roles" define what they can and cannot do within Open-AudIT.<br> <br>Most items in Open-AudIT are assigned to an Org. Devices, Locations, Networks, etc.<br> <br>Orgs can have child Orgs. Think of an organisational chart (tree) structure. If a user has access to a specific Org, they also have access to that Orgs descendants.</p>';
+        $dictionary->about = '<p>' . APP_DISPLAY_NAME . ' provides multi-tenancy out of the box!<br> <br>Orgs (organisations) in ' . APP_DISPLAY_NAME . ' are a key item. A user has a primary Org as well as a list of Orgs they can access. A user combines this with a list of assigned "Roles" that define what actions they can take on items assigned to the Orgs they have access to. The combination of a users "orgs" and "roles" define what they can and cannot do within ' . APP_DISPLAY_NAME . '.<br> <br>Most items in ' . APP_DISPLAY_NAME . ' are assigned to an Org. Devices, Locations, Networks, etc.<br> <br>Orgs can have child Orgs. Think of an organisational chart (tree) structure. If a user has access to a specific Org, they also have access to that Orgs descendants.</p>';
 
         $dictionary->notes = '';
 
@@ -723,10 +723,10 @@ class DiscoveryLogModel extends BaseModel
         $dictionary->columns->severity_text = 'Derived from the integer severity.';
         $dictionary->columns->pid = 'The Process Identifier of the running associated discovery.';
         $dictionary->columns->ip = 'The target IP this log entry referrers to (if any).';
-        $dictionary->columns->file = 'The Open-AudIT server code was executed within this file.';
-        $dictionary->columns->function = 'The Open-AudIT server code was executed within this function.';
+        $dictionary->columns->file = 'The ' . APP_DISPLAY_NAME . ' server code was executed within this file.';
+        $dictionary->columns->function = 'The ' . APP_DISPLAY_NAME . ' server code was executed within this function.';
         $dictionary->columns->message = 'A short description of the log entry.';
-        $dictionary->columns->command = 'The command executed upon the target device or Open-AudIT server code executed during discovery.';
+        $dictionary->columns->command = 'The command executed upon the target device or ' . APP_DISPLAY_NAME . ' server code executed during discovery.';
         $dictionary->columns->command_status = 'Did the command complete successfully and return expected data.';
         $dictionary->columns->command_time_to_execute = 'How long did the command take to execute.';
         $dictionary->columns->command_output = 'The result of the command.';

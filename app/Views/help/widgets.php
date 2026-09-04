@@ -7,7 +7,7 @@ $intro = '<p>' . __('Widgets are designed to be used on Dashboards. Enterprise u
 <br>
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>' . __('Attributes are stored for Open-AudIT to use for particular fields, at present all fields are based on the devices, locations, orgs and queries tables. The attributes you can edit are associated with the following columns: Class, Environment, Status & Type.') . '</p>';
+<p>' . __('Attributes are stored for ' . APP_DISPLAY_NAME . ' to use for particular fields, at present all fields are based on the devices, locations, orgs and queries tables. The attributes you can edit are associated with the following columns: Class, Environment, Status & Type.') . '</p>';
 
 $body = '<h2>' . __('Creating Widgets') . '</h2>
 
@@ -15,7 +15,7 @@ $body = '<h2>' . __('Creating Widgets') . '</h2>
 <br>' . __('The SELECT section of your SQL must contain fully qualified columns and specify certain columns.') . '<br>
 <br>' . __('Pie charts must return name or my_name, description or my_description and count.') . '<br>
 <br>' . __('Line charts must return date or my_date, description or my_description and count.') . '<br>
-<br>' . __('The WHERE section of your SQL <em>must</em> contain') . ' <strong>WHERE @filter</strong> ' . __('so Open-AudIT knows to restrict your query to the appropriate Orgs.') . '<br>
+<br>' . __('The WHERE section of your SQL <em>must</em> contain') . ' <strong>WHERE @filter</strong> ' . __('so ' . APP_DISPLAY_NAME . ' knows to restrict your query to the appropriate Orgs.') . '<br>
 <br>' . __('SQL not containing this condition will result in the widget failing to be executed.') . '<br>
 <br>' . __('The SQL cannot contain <strong>WHERE @filter OR</strong>. That SQL will not be executed, however <strong>WHERE @filter AND</strong> queries are allowed.') . '<br>
 <br>' . __('An example widget SQL showing devices counted per location.') . ' .<br>

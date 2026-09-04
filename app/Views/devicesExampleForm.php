@@ -12,7 +12,7 @@ include 'shared/create_functions.php';
                     <div class="row">
                         <p class="fs-2"><?= __('Create Example Devices') ?></p>
                         <br>
-                        <p><?= __('Click the Import button below to populate Open-AudIT with example device data.') ?><br>
+                        <p><?= __('Click the Import button below to populate ' . APP_DISPLAY_NAME . ' with example device data.') ?><br>
                         <br>
                         <form action="<?= url_to('devicesExample') ?>" method="post">
                             <button id="submit" name="submit" type="submit" class="btn btn-success" aria-label="<?= __('Import') ?>"><?= __('Import') ?></button>

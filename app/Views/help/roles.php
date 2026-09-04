@@ -7,7 +7,7 @@ $intro = '<p>' . __('The <i>Roles</i> endpoint allows you to manage the set of p
 <br>
 <h2>' . __('How Does it Work?') . '</h2>
 
-<p>' . __('The primary method for authorization (what a user can do) is now based on the users Roles. Roles are defined as admin, org_admin, reporter, and user by default. Each role has a set of permissions (Create, Read, Update, Delete) for each endpoint. Standard roles as shipped should cover 99.9 percent of use-cases. The ability to define additional roles and edit existing roles is enabled in Open-AudIT Enterprise.') . '</p>
+<p>' . __('The primary method for authorization (what a user can do) is now based on the users Roles. Roles are defined as admin, org_admin, reporter, and user by default. Each role has a set of permissions (Create, Read, Update, Delete) for each endpoint. Standard roles as shipped should cover 99.9 percent of use-cases. The ability to define additional roles and edit existing roles is enabled in ' . APP_DISPLAY_NAME . ' Enterprise.') . '</p>
 
 <p>' . __('For more information, see') . ' <a href="' . url_to('helpFAQ') . '?name=Users, Roles and Orgs">' . __('Users, Roles and Orgs') . '</a>.</p>';
 
