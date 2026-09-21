@@ -518,6 +518,153 @@ if (! function_exists('dns_validate')) {
     }
 }
 
+if (! function_exists('execute_fingerprint_scanner')) {
+    /**
+     * Prefer hostname from fingerprints cache (DHCP sniffer) when credentials
+     * did not provide one. Cache key is MAC (leases change IPs; MAC is stable).
+     */
+    function execute_fingerprint_scanner($device)
+    {
+        if (empty($device) or empty($device->mac_address)) {
+            return $device;
+        }
+        if (!empty($device->hostname)) {
+            return $device;
+        }
+
+        $discoveryLogModel = new \App\Models\DiscoveryLogModel();
+        $log = new \StdClass();
+        $log->ip = !empty($device->ip) ? $device->ip : '';
+        $log->severity = 7;
+        $log->command_status = 'notice';
+        $log->discovery_id = $device->discovery_id;
+        // Where does this id comes from.
+        if (!empty($device->id)) {
+            $log->device_id = $device->id;
+        }
+
+        $db = db_connect();
+        // Match Ruby storage: type DHCP + lowercase colon MAC
+        $mac = strtolower(trim((string) $device->mac_address));
+        $log->message = 'Checking DHCP fingerprint for ' . $mac;
+        $fingerprint_sql = "SELECT data FROM fingerprints WHERE type = 'DHCP' AND host_identifier = ? LIMIT 1";
+        $log->command = $fingerprint_sql;
+        $command_start = microtime(true);
+        try {
+            $row = $db->query($fingerprint_sql, [$mac])->getRow();
+        } catch (Throwable $e) {
+            $log->command_output = $e->getMessage();
+            $log->message = 'DHCP fingerprint lookup failed for ' . $mac;
+            $log->command_time_to_execute = microtime(true) - $command_start;
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+        $log->command_time_to_execute = microtime(true) - $command_start;
+
+        if (empty($row)) {
+            $log->message = 'No DHCP fingerprint for ' . $mac;
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+        $log->command_output = (string) $row->data;
+
+        $data = json_decode($row->data);
+        // Reject empty or IP-looking "names" (not a useful hostname)
+        if (empty($data->name) or filter_var($data->name, FILTER_VALIDATE_IP)) {
+            $log->message = 'DHCP fingerprint for ' . $mac . ' had no usable name';
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+
+        $device->hostname = trim((string) $data->name);
+        $log->message = 'Set hostname from DHCP fingerprint for ' . $log->ip;
+        $discoveryLogModel->create($log);
+
+        return $device;
+    }
+}
+
+if (! function_exists('execute_localname_scanner')) {
+    /**
+     * Resolve hostname via geeklab/localname when credentials did not provide one.
+     * $protocol_type: mdns | netbios | llmnr
+     */
+    function execute_localname_scanner($device, string $protocol_type)
+    {
+        if (empty($device) or empty($device->ip)) {
+            return $device;
+        }
+        if (!empty($device->hostname)) {
+            return $device;
+        }
+        if (!filter_var($device->ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $device;
+        }
+
+        $resolvers = [
+            'mdns' => \Geeklab\Localname\Resolvers\Mdns::class,
+            'netbios' => \Geeklab\Localname\Resolvers\Netbios::class,
+            'llmnr' => \Geeklab\Localname\Resolvers\Llmnr::class,
+        ];
+
+        $discoveryLogModel = new \App\Models\DiscoveryLogModel();
+        $log = new \StdClass();
+        $log->ip = $device->ip;
+        $log->severity = 7;
+        $log->command_status = 'notice';
+        $log->discovery_id = $device->discovery_id;
+        // Where does this id comes from.
+        if (!empty($device->id)) {
+            $log->device_id = $device->id;
+        }
+
+        $label = strtoupper($protocol_type);
+        if (!extension_loaded('sockets')) {
+            $log->message = 'ext-sockets not loaded, skipping ' . $label . ' for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+
+        $log->message = 'Checking ' . $label;
+        $discoveryLogModel->create($log);
+
+        $log->message = 'Checking ' . $label . ' for ' . $device->ip;
+        $log->command = '::resolve(' . $device->ip . ')';
+        $command_start = microtime(true);
+        $resolved_name = '';
+        try {
+            $resolver = new $resolvers[$protocol_type](timeout: 15.0);
+            $result = $resolver->resolve($device->ip);
+            if (!empty($result)) {
+                $resolved_name = trim((string) $result);
+            }
+            $log->command_output = (string) $result;
+        } catch (Throwable $e) {
+            $log->command_output = $e->getMessage();
+            $log->message = $label . ' error for ' . $device->ip;
+            $log->command_time_to_execute = microtime(true) - $command_start;
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+        $log->command_time_to_execute = microtime(true) - $command_start;
+
+        $resolved_name = preg_replace('/\.local$/i', '', $resolved_name);
+
+        if ($resolved_name === '' or filter_var($resolved_name, FILTER_VALIDATE_IP)) {
+            $log->message = 'No ' . $label . ' hostname for ' . $device->ip;
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+
+        $device->hostname = $resolved_name;
+
+        $log->message = 'Set hostname from ' . $label . ' for ' . $device->ip;
+        $discoveryLogModel->create($log);
+
+        return $device;
+    }
+}
+
 /**
  * Test if the passed IP is in an existing network in the database
  *
