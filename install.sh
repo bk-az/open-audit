@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="6.0.4"
+VERSION="6.0.5"
 APP_NAME="AS Network Scanner"
 VENDOR_NAME="AssetSonar"
 VENDOR_URL="https://ezo.io/assetsonar/"

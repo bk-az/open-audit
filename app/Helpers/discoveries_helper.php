@@ -2078,6 +2078,12 @@ if (! function_exists('ip_audit')) {
         }
         unset($log->message, $log->command, $log->command_time_to_execute, $log->command_error_message);
 
+        // Credentials did not provide a hostname — prefer DHCP fingerprint cache, else LAN name protocols
+        $device = execute_fingerprint_scanner($device);
+        $device = execute_localname_scanner($device, 'mdns');
+        $device = execute_localname_scanner($device, 'netbios');
+        $device = execute_localname_scanner($device, 'llmnr');
+
         $log->command_status = 'notice';
         if (!empty($device->id)) {
             // UPDATE
