@@ -518,6 +518,16 @@ if (! function_exists('dns_validate')) {
     }
 }
 
+if (! function_exists('sanitize_hostname')) {
+    /**
+     * Strip tags, trim, and keep first 30 chars for safe hostname use.
+     */
+    function sanitize_hostname(string $value): string
+    {
+        return substr(trim(strip_tags($value)), 0, 30);
+    }
+}
+
 if (! function_exists('execute_fingerprint_scanner')) {
     /**
      * Prefer hostname from fingerprints cache (DHCP sniffer) when credentials
@@ -566,17 +576,24 @@ if (! function_exists('execute_fingerprint_scanner')) {
             $discoveryLogModel->create($log);
             return $device;
         }
-        $log->command_output = (string) $row->data;
+        log_message('debug', 'DHCP fingerprint raw for ' . $mac . ': ' . json_encode($row->data));
 
         $data = json_decode($row->data);
+        if (!is_string($data->name ?? null)) {
+            $log->message = 'DHCP fingerprint for ' . $mac . ' had no usable name';
+            $discoveryLogModel->create($log);
+            return $device;
+        }
+        $hostname = sanitize_hostname($data->name);
+        $log->command_output = $hostname;
         // Reject empty or IP-looking "names" (not a useful hostname)
-        if (empty($data->name) or filter_var($data->name, FILTER_VALIDATE_IP)) {
+        if ($hostname === '' or filter_var($hostname, FILTER_VALIDATE_IP)) {
             $log->message = 'DHCP fingerprint for ' . $mac . ' had no usable name';
             $discoveryLogModel->create($log);
             return $device;
         }
 
-        $device->hostname = trim((string) $data->name);
+        $device->hostname = $hostname;
         $log->message = 'Set hostname from DHCP fingerprint for ' . $log->ip;
         $discoveryLogModel->create($log);
 
@@ -635,10 +652,11 @@ if (! function_exists('execute_localname_scanner')) {
         try {
             $resolver = new $resolvers[$protocol_type](timeout: 15.0);
             $result = $resolver->resolve($device->ip);
+            log_message('debug', $label . ' resolve raw for ' . $device->ip . ': ' . json_encode($result));
             if (!empty($result)) {
-                $resolved_name = trim((string) $result);
+                $resolved_name = sanitize_hostname((string) $result);
             }
-            $log->command_output = (string) $result;
+            $log->command_output = $resolved_name;
         } catch (Throwable $e) {
             $log->command_output = $e->getMessage();
             $log->message = $label . ' error for ' . $device->ip;
