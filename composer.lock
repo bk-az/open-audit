@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f847b25073765f5e5c1fe0398bc694b9",
+    "content-hash": "b965eff777169cce9e819062f8dc742e",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -497,6 +497,53 @@
                 "source": "https://github.com/foxworth42/oauth2-okta/tree/v1.0.5"
             },
             "time": "2024-11-21T01:46:49+00:00"
+        },
+        {
+            "name": "geeklab/localname",
+            "version": "V1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ellisgl/localname.git",
+                "reference": "4f9fceb2e199c13f9bf987c3956d2f3d2a9ceb73"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ellisgl/localname/zipball/4f9fceb2e199c13f9bf987c3956d2f3d2a9ceb73",
+                "reference": "4f9fceb2e199c13f9bf987c3956d2f3d2a9ceb73",
+                "shasum": ""
+            },
+            "require": {
+                "ext-sockets": "*",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.2"
+            },
+            "bin": [
+                "bin/update-oui.php"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Geeklab\\Localname\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-4-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "ellisgl",
+                    "email": "xellisx@gmail.com"
+                }
+            ],
+            "description": "Look up names for ips using mDNS/Netbios/etc.",
+            "support": {
+                "issues": "https://github.com/ellisgl/localname/issues",
+                "source": "https://github.com/ellisgl/localname/tree/V1.1.0"
+            },
+            "time": "2026-07-08T00:38:02+00:00"
         },
         {
             "name": "google/auth",
