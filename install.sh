@@ -919,27 +919,44 @@ if [ "$status" = "install" ]; then
 
     logmsg "Preparing the $APP_NAME database.";
 
+    # Skip seed if schema already present — open-audit.sql DROPs all tables.
+    db_has_schema=0
     RES=0;
     unset OUTPUT;
     if [ -n "$root_password" ]; then
-        OUTPUT="$(mysql -u root -p$root_password $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -p$root_password -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='devices';" 2>&1)"||RES=$?;
     else
-        OUTPUT="$(mysql -u root $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        OUTPUT="$(mysql -u root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='devices';" 2>&1)"||RES=$?;
     fi
-    # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
-    # if command succeeded RES is unset, so default 0
-    # if command failed we may not have OUTPUT, so default ""
-    if [ -n "$root_password" ]; then
-        logmsg "Load database schema for $APP_NAME (exit ${RES})" \
-        "${RES}" \
-        "${OUTPUT:-}";
+    if [ "$RES" = 0 ] && [ "$OUTPUT" = "1" ]; then
+        db_has_schema=1
+    fi
+
+    if [ "$db_has_schema" = "1" ]; then
+        logmsg "Database ${DB_NAME} already has schema (devices table present); skipping seed to preserve existing data."
     else
-        logmsg "Load database schema for $APP_NAME (exit ${RES})" \
-        "${RES}" \
-        "${OUTPUT:-}";
-    fi
-    if [ "$RES" != 0 ]; then
-        logmsg "WARNING - Could not populate the $APP_NAME database. You will need to do this manually."
+        RES=0;
+        unset OUTPUT;
+        if [ -n "$root_password" ]; then
+            OUTPUT="$(mysql -u root -p$root_password $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        else
+            OUTPUT="$(mysql -u root $DB_NAME -e "source $TARGETDIR/other/open-audit.sql" 2>&1)"||RES=$?;
+        fi
+        # echologVerboseError expects parameters: COMMAND (as a string '$*' or '...', not an array '$@'), EXITCODE then COMMANDOUTPUT
+        # if command succeeded RES is unset, so default 0
+        # if command failed we may not have OUTPUT, so default ""
+        if [ -n "$root_password" ]; then
+            logmsg "Load database schema for $APP_NAME (exit ${RES})" \
+            "${RES}" \
+            "${OUTPUT:-}";
+        else
+            logmsg "Load database schema for $APP_NAME (exit ${RES})" \
+            "${RES}" \
+            "${OUTPUT:-}";
+        fi
+        if [ "$RES" != 0 ]; then
+            logmsg "WARNING - Could not populate the $APP_NAME database. You will need to do this manually."
+        fi
     fi
 else
     logmsg "Upgrade of existing $APP_NAME installation, no database initialisation required."
