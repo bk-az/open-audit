@@ -81,8 +81,7 @@ for each arg in objArgs
 next
 
 wscript.echo "--------------------------------------------------"
-wscript.echo "Open-AudIT Windows Client Connectivity Test Script"
-wscript.echo "(c) Firstwave, 2022."
+wscript.echo "Windows Client Connectivity Test Script"
 wscript.echo "--------------------------------------------------"
 
 if (help = "y") then
