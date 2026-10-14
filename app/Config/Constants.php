@@ -103,8 +103,8 @@ defined('BASEURL') || define('BASEURL', $base);
 /** User-visible product name (white-label). */
 define('APP_DISPLAY_NAME', 'AS Network Scanner');
 
-/** Navbar version. Matches ez-version.txt. */
-define('APP_DISPLAY_VERSION', '6.0.6');
+/** Navbar / installer release version */
+define('APP_DISPLAY_VERSION', '7.0.0');
 
 /** Commercial vendor name (license / upgrade contact). */
 define('APP_VENDOR_NAME', 'AssetSonar');
