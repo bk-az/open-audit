@@ -11,7 +11,6 @@ DB_NAME="openaudit"
 DB_USER="openaudit"
 DB_PASS="openauditpassword"
 MYSQL_ROOT_DEFAULT_PASS="as_network_scanner_root"
-SQL_SEED="$INSTALL_DIR/other/open-audit.sql"
 UNATTENDED="n"
 SKIP_DEPENDENCIES="n"
 STAMP=$(date +%Y%m%d-%H%M%S)
