@@ -79,6 +79,8 @@ You may also want to SHIFT+reload your browser page to make sure it retrieves th
 
 We hope you find $APP_NAME useful."
 
+SELINUX_STATUS=$(getenforce 2>/dev/null)
+HTTPD_T_STATUS=$(semanage permissive -l 2>/dev/null | grep httpd_t)
 if [ "$SELINUX_STATUS" = "Enforcing" ] && [ -z "$HTTPD_T_STATUS" ]; then
     logmsg "And one more thing: SELINUX IS ENFORCING with NO Apache exception."
     logmsg "Don't forget to disable SELinux or allow an exception for Apache."

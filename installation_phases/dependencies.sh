@@ -44,7 +44,7 @@ fi
 if [ "$OSFLAVOUR" = "ubuntu" ]; then
     if [ "$OS_MAJOR" -lt 22 ] ; then
         printBanner "Supported OS Warning"
-        logmsg "The minimum supported version of Ubuntu for $APP_NAME is 24, please upgrade your OS before attempting to install $APP_NAME."
+        logmsg "The minimum supported version of Ubuntu for $APP_NAME is 22, please upgrade your OS before attempting to install $APP_NAME."
         logmsg "The installer detected $OSFLAVOUR version $OS_MAJOR."
         if [ -n "$UNATTENDED" ]; then
             exit 1;
@@ -118,7 +118,7 @@ if [ "$is_web_available" -eq 0 ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
 fi
 
 if [ "$is_web_available" -eq 0 ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
-    logmsg "Your system cannot access the web, therefore $MGR will not
+    logmsg "Your system cannot access the web, therefore $APP_NAME will not
     be able to download any missing software packages. If any
     such missing packages are detected and you don't have
     a local source of packages (e.g. an installation DVD) then $APP_NAME
