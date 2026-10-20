@@ -16,7 +16,7 @@ SKIP_DEPENDENCIES="n"
 STAMP=$(date +%Y%m%d-%H%M%S)
 VERSION=$(sed -n "s/.*define('APP_DISPLAY_VERSION', *'\\([^']*\\)').*/\\1/p" ./app/Config/Constants.php | head -n1)
 RELEASE="$INSTALL_DIR/releases/$VERSION"
-LOGFILE="$INSTALL_DIR/as-network-scanner-install-$STAMP.log"
+LOGFILE="/var/log/assetsonar/installation/as-network-scanner-install-$STAMP.log"
 
 if [ -z "$VERSION" ]; then
     echo "Could not read APP_DISPLAY_VERSION from app/Config/Constants.php" >&2
