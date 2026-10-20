@@ -83,15 +83,12 @@ else
 
         if [ "$RES" != 0 ]; then
             printBanner "Database Warning"
-            logmsg "WARNING - Could not create the database. You will have to do this manually."
-            if input_yn "Type y to continue (y/n)? "; then
-                logmsg "Continuing"
-            else
-                logmsg "Exiting"
-                logmsg "Could not create the database. Aborting $status Process."
-                logmsg "Release $RELEASE was staged but is not qualified. Live links were not changed."
-                exit 1;
-            fi
+            logmsg "WARNING - Could not create the database."
+
+            logmsg "Exiting"
+            logmsg "Could not create the database. Aborting $status Process."
+            logmsg "Release $RELEASE was staged but is not qualified. Live links were not changed."
+            exit 1;
         fi
 
         RES=0;
