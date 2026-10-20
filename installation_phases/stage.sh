@@ -49,11 +49,6 @@ if [ "$(readlink -f . 2>/dev/null)" = "$(readlink -f "$INSTALL_DIR" 2>/dev/null)
     exit 1
 fi
 
-if [ -d "$RELEASE" ] && [ "$(readlink -f "$INSTALL_DIR/current" 2>/dev/null)" = "$(readlink -f "$RELEASE")" ]; then
-    logmsg "Release $VERSION is already current. Refusing to restage it."
-    exit 1
-fi
-
 # install.sh lines 623-654. The previous tree was not moved, so it is still
 # $RUNNING_RELEASE_DIR. Do not mv it onto $INSTALL_DIR or $RELEASE.
 if [ -n "$RUNNING_RELEASE_DIR" ]; then

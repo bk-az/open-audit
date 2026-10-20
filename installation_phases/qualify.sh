@@ -170,6 +170,8 @@ else
         if [ "$RES" != 0 ]; then
             logmsg "WARNING - Could not populate the $APP_NAME database. You will need to do this manually."
         fi
+
+        # Also check DB SEED, 
     fi
 fi
 
