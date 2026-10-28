@@ -104,7 +104,7 @@ defined('BASEURL') || define('BASEURL', $base);
 define('APP_DISPLAY_NAME', 'AS Network Scanner');
 
 /** Navbar / installer release version */
-define('APP_DISPLAY_VERSION', '7.0.1');
+define('APP_DISPLAY_VERSION', '7.0.4');
 
 /** Commercial vendor name (license / upgrade contact). */
 define('APP_VENDOR_NAME', 'AssetSonar');

@@ -64,6 +64,14 @@ class App extends BaseConfig
     public string $uriProtocol = 'AUTO';
 
     /**
+     * Characters allowed in a URI path segment.
+     *
+     * Empty disables the check. CodeIgniter 4.7 reads this in Router::__construct().
+     * This config omitted it, so requests were never filtered. Keep '' so existing URLs stay valid.
+     */
+    public string $permittedURIChars = '';
+
+    /**
      * --------------------------------------------------------------------------
      * Default Locale
      * --------------------------------------------------------------------------
