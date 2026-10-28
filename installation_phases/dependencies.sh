@@ -100,19 +100,18 @@ fi
 printBanner "Pre-requisites check and installation"
 
 is_web_available=0
-WEB_CHECK_URL="https://1.1.1.1"
 logmsg "Checking if Web is accessible."
 
 # curl is available even on minimal centos install
 if [ "$SKIP_DEPENDENCIES" = "n" ]; then
-    if type curl >/dev/null 2>&1 && execNoPrint "curl --insecure -Is -m 10 --retry 2 -o /dev/null $WEB_CHECK_URL 2>/dev/null"; then
+    if type curl >/dev/null 2>&1 && execNoPrint "curl --insecure -Is -m 10 --retry 2 -o /dev/null $Internet_Connectivity_Check 2>/dev/null"; then
             logmsg "Web access is OK."
             is_web_available=1
     fi
 fi
 
 if [ "$is_web_available" -eq 0 ] && [ "$SKIP_DEPENDENCIES" = "n" ]; then
-    if type wget >/dev/null 2>&1 && execNoPrint "wget --no-check-certificate -q -T 10 --tries=3 -O /dev/null $WEB_CHECK_URL 2>/dev/null"; then
+    if type wget >/dev/null 2>&1 && execNoPrint "wget --no-check-certificate -q -T 10 --tries=3 -O /dev/null $Internet_Connectivity_Check 2>/dev/null"; then
             logmsg "Web access is OK."
             is_web_available=1
     fi
