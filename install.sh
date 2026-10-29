@@ -16,7 +16,7 @@ SKIP_DEPENDENCIES="n"
 STAMP=$(date +%Y%m%d-%H%M%S)
 VERSION=$(sed -n "s/.*define('APP_DISPLAY_VERSION', *'\\([^']*\\)').*/\\1/p" ./app/Config/Constants.php | head -n1)
 RELEASE="$INSTALL_DIR/releases/$VERSION"
-LOGFILE="$INSTALL_DIR/as-network-scanner-install-$STAMP.log"
+LOGFILE="/var/log/assetsonar/installation/as-network-scanner-install-$STAMP.log"
 
 if [ -z "$VERSION" ]; then
     echo "Could not read APP_DISPLAY_VERSION from app/Config/Constants.php" >&2
@@ -46,22 +46,22 @@ if [ -n "$2" ]; then
     fi
 fi
 
-PHASES=""
-for ARG in "$@"; do
-    case "$ARG" in
-        dependencies|stage|qualify|commit)
-            PHASES="$PHASES $ARG"
-            ;;
-    esac
-done
-if [ -z "$PHASES" ]; then
+if [ -z "$3" ]; then
     PHASES="dependencies stage qualify commit"
+else
+    PHASES=$(printf '%s' "$3" | tr '|' ' ')
 fi
 
 # Log is created here. Phases append to it. Nothing moves it afterwards.
 mkdir -p "$INSTALL_DIR"
 logmsg "Release version $VERSION"
 printBanner "$APP_NAME v$VERSION installation script"
+
+if ! is_release_stageable; then
+    logmsg "Latest Release running"
+    exit 0
+fi
+
 root_password=""
 detect_running_release   # sets RUNNING_RELEASE_DIR; does not move a flat tree
 detect_os                # sets OSFLAVOUR, OS_VERSION, OS_MAJOR/MINOR/PATCH, OS_ISCENTOS
@@ -73,6 +73,14 @@ fi
 logmsg "Install status: $status"
 
 for PHASE in $PHASES; do
-    . ./installation_phases/$PHASE.sh
+    case "$PHASE" in
+        dependencies|stage|qualify|commit)
+            . ./installation_phases/$PHASE.sh
+            ;;
+        *)
+            echo "Unknown phase: $PHASE" >&2
+            exit 1
+            ;;
+    esac
 done
 exit 0
