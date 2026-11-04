@@ -3,6 +3,7 @@
 APP_NAME="AS Network Scanner"
 VENDOR_NAME="AssetSonar"
 VENDOR_URL="https://ezo.io/assetsonar/"
+Internet_Connectivity_Check="https://1.1.1.1"
 INSTALL_DIR="/usr/local/as-network-scanner"
 FALLBACK_INSTALL_DIR="/usr/local/open-audit"
 WEB_ALIAS="as-network-scanner"
