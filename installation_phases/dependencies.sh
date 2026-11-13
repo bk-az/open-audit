@@ -145,7 +145,7 @@ if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJ
         execPrint "dnf -y install https://rpms.remirepo.net/enterprise/remi-release-$OS_MAJOR.rpm 2>&1"
         logmsg "Installing any missing packages."
         execPrint "dnf -y module reset php 2>&1"
-        execPrint "dnf -y module install php:remi-8.2 2>&1"
+        execPrint "dnf -y module install php:remi-8.3 2>&1"
         execPrint "dnf -y install mariadb-server httpd php php-cli php-gd php-intl php-mysqlnd php-ldap php-mbstring php-process php-snmp php-sodium php-xml php-zip nmap zip curl wget sshpass screen samba-client logrotate perl-Time-ParseDate ipmitool net-snmp net-snmp-utils perl-Crypt-CBC libnsl libsodium 2>&1"
         # Redhat does not enable these servers by default
         logmsg "Ensuring MySQL and Apache are enabled and running"
@@ -162,7 +162,7 @@ if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJ
         execPrint "systemctl restart mariadb >/dev/null 2>&1"
 
     else
-        logmsg "You will need to ensure you have installed a PHP version of at least 8.2 and the sodium php extension."
+        logmsg "You will need to ensure you have installed a PHP version of at least 8.3 and the sodium php extension."
         logmsg "The required packages are: mariadb-server httpd php php-cli php-gd php-intl php-mysqlnd php-ldap php-mbstring php-process php-snmp php-sodium php-xml php-zip nmap zip curl wget sshpass screen samba-client logrotate perl-Time-ParseDate ipmitool net-snmp net-snmp-utils perl-Crypt-CBC libnsl libsodium"
     fi
 fi
@@ -173,8 +173,8 @@ if [ "$OS_MAJOR" -eq 8 ] && [ "$OSFLAVOUR" = "redhat" ] && [ "$OS_ISCENTOS" -eq 
 fi
 
 
-# Centos 9
-if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJOR" -eq 9 ] && [ "$OSFLAVOUR" = "redhat" ] && [ "$OS_ISCENTOS" -eq 1 ]; then
+# Centos/Rocky/Alma 9+
+if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJOR" -ge 9 ] && [ "$OSFLAVOUR" = "redhat" ] && [ "$OS_ISCENTOS" -eq 1 ]; then
     if [ -n "$UNATTENDED" ] || input_yn "Enable the repositories and install packages (y/n)? "; then
         logmsg "Enabling Centos/Rocky/Alma optional RPM repo (please wait)."
         execPrint "dnf -y upgrade 2>&1"
@@ -184,7 +184,7 @@ if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJ
         execPrint "/usr/bin/crb enable 2>&1"
         execPrint "dnf -y install https://rpms.remirepo.net/enterprise/remi-release-$OS_MAJOR.rpm 2>&1"
         execPrint "dnf -y module reset php 2>&1"
-        execPrint "dnf -y module install php:remi-8.2 2>&1"
+        execPrint "dnf -y module install php:remi-8.3 2>&1"
         execPrint "dnf -y upgrade 2>&1"
         execPrint "dnf -y install mariadb-server httpd php php-cli php-gd php-intl php-mysqlnd php-ldap php-mbstring php-process php-snmp php-sodium php-xml php-zip nmap zip curl wget sshpass screen samba-client logrotate perl-Time-ParseDate ipmitool net-snmp net-snmp-utils perl-Crypt-CBC libnsl libsodium 2>&1"
         if grep -qF Alma /etc/redhat-release; then
@@ -205,11 +205,11 @@ if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJ
         execPrint "systemctl restart httpd >/dev/null 2>&1"
         execPrint "systemctl restart mariadb >/dev/null 2>&1"
     else
-        logmsg "You will need to ensure you have installed a PHP version of at least 8.2 and the sodium php extension."
+        logmsg "You will need to ensure you have installed a PHP version of at least 8.3 and the sodium php extension."
         logmsg "The required packages are: mariadb-server httpd php php-cli php-gd php-intl php-mysqlnd php-ldap php-mbstring php-process php-snmp php-sodium php-xml php-zip nmap zip curl wget sshpass screen samba-client logrotate perl-Time-ParseDate ipmitool net-snmp perl-Crypt-CBC libnsl libsodium"
     fi
 fi
-if [ "$OS_MAJOR" -eq 9 ] && [ "$OSFLAVOUR" = "redhat" ] && [ "$OS_ISCENTOS" -eq 1 ]; then
+if [ "$OS_MAJOR" -ge 9 ] && [ "$OSFLAVOUR" = "redhat" ] && [ "$OS_ISCENTOS" -eq 1 ]; then
     # SUID on the nmap binary
     logmsg "Setting SUID on Nmap binary"
     execPrint "chmod u+s /usr/bin/nmap"
@@ -329,12 +329,12 @@ php_version=$(php --version | grep "^PHP " | cut -d" " -f2)
 php_major_version=$(echo "$php_version" | cut -d. -f1)
 php_minor_version=$(echo "$php_version" | cut -d. -f2)
 if [ "$php_major_version" -lt 8 ]; then
-    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. Exiting."
+    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.3. Exiting."
     exit 1
 fi
-if [ "$php_major_version" -eq 8 ] && [ "$php_minor_version" -lt 2 ]; then
-    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. Exiting."
+if [ "$php_major_version" -eq 8 ] && [ "$php_minor_version" -lt 3 ]; then
+    logmsg "WARNING - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.3. Exiting."
     exit 1
 fi
-logmsg "INFO - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.2. You are good to go."
+logmsg "INFO - Your PHP is version $php_version. $APP_NAME requires a minimum PHP of 8.3. You are good to go."
 
