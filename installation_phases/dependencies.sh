@@ -289,12 +289,13 @@ fi
 if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJOR" -ge 22 ] && [ "$OSFLAVOUR" = "ubuntu" ]; then
     if [ -n "$UNATTENDED" ] || input_yn "Install packages (y/n)? "; then
         execPrint "apt-get update -qq 2>&1"
-        execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install cron mariadb-server apache2 apache2-utils libapache2-mod-php openssh-client php php-cli php-curl php-gd php-intl php-ldap php-mbstring php-mysql php-snmp php-xml php-zip nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl 2>&1"
+        execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install cron mariadb-server apache2 apache2-utils openssh-client nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl 2>&1"
+        install_apt_php
         # Start / Restart the servers
         execPrint "systemctl restart apache2 >/dev/null 2>&1"
         execPrint "systemctl restart mysql >/dev/null 2>&1"
     else
-        logmsg "You will need to ensure you have installed a PHP version of at least 7.4 and the sodium php extension."
+        logmsg "You will need to ensure you have installed a PHP version of at least 8.3 and the sodium php extension."
         logmsg "The required packages are: cron mariadb-server apache2 apache2-utils libapache2-mod-php openssh-client php php-cli php-curl php-gd php-intl php-ldap php-mbstring php-mysql php-snmp php-xml php-zip nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl"
     fi
 fi
@@ -309,12 +310,13 @@ fi
 if [ "$SKIP_DEPENDENCIES" = "n" ] && [ "$is_web_available" -eq 1 ] && [ "$OS_MAJOR" -ge 12 ] && [ "$OSFLAVOUR" = "debian" ]; then
     if [ -n "$UNATTENDED" ] || input_yn "Install packages (y/n)? "; then
         execPrint "apt-get update -qq 2>&1"
-        execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install cron mariadb-server apache2 apache2-utils libapache2-mod-php openssh-client php php-cli php-curl php-gd php-intl php-ldap php-mbstring php-mysql php-snmp php-xml php-zip nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl 2>&1"
+        execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install cron mariadb-server apache2 apache2-utils openssh-client nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl 2>&1"
+        install_apt_php
         # Start / Restart the servers
         execPrint "systemctl restart apache2 >/dev/null 2>&1"
         execPrint "systemctl restart mysql >/dev/null 2>&1"
     else
-        logmsg "You will need to ensure you have installed a PHP version of at least 7.4 and the sodium php extension."
+        logmsg "You will need to ensure you have installed a PHP version of at least 8.3 and the sodium php extension."
         logmsg "The required packages are: cron mariadb-server apache2 apache2-utils libapache2-mod-php openssh-client php php-cli php-curl php-gd php-intl php-ldap php-mbstring php-mysql php-snmp php-xml php-zip nmap zip wget curl sshpass screen smbclient logrotate ipmitool snmp libcrypt-cbc-perl"
     fi
 fi
@@ -325,7 +327,11 @@ if [ "$OS_MAJOR" -ge 11 ] && [ "$OSFLAVOUR" = "debian" ]; then
 fi
 
 
-php_version=$(php --version | grep "^PHP " | cut -d" " -f2)
+php_version=$(php --version 2>/dev/null | grep "^PHP " | cut -d" " -f2)
+if [ -z "$php_version" ]; then
+    logmsg "WARNING - PHP is not installed. $APP_NAME requires a minimum PHP of 8.3. Exiting."
+    exit 1
+fi
 php_major_version=$(echo "$php_version" | cut -d. -f1)
 php_minor_version=$(echo "$php_version" | cut -d. -f2)
 if [ "$php_major_version" -lt 8 ]; then
