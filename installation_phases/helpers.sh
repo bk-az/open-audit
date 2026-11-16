@@ -217,3 +217,36 @@ detect_os() {
     logmsg "OS_MINOR=${OS_MINOR}"
     logmsg "OS_PATCH=${OS_PATCH}"
 }
+
+# Installs PHP and the extensions the scanner needs on Debian and Ubuntu.
+# Debian 13+ and Ubuntu 24.04+ ship PHP 8.3 or later. Debian 12 (8.2) and Ubuntu 22.04 (8.1)
+# get 8.3 from packages.sury.org, named explicitly: that repository's unversioned php packages install 8.4.
+install_apt_php() {
+    local codename other_php_modules
+    if { [ "$OSFLAVOUR" = "debian" ] && [ "$OS_MAJOR" -ge 13 ]; } || { [ "$OSFLAVOUR" = "ubuntu" ] && [ "$OS_MAJOR" -ge 24 ]; }; then
+        execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install libapache2-mod-php php php-cli php-curl php-gd php-intl php-ldap php-mbstring php-mysql php-snmp php-xml php-zip 2>&1"
+        return 0
+    fi
+
+    logmsg "Adding packages.sury.org for PHP 8.3."
+    codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    execPrint "apt-get -yq install ca-certificates curl 2>&1"
+    execPrint "curl -fsSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb 2>&1"
+    execPrint "dpkg -i /tmp/debsuryorg-archive-keyring.deb 2>&1"
+    execPrint "echo 'deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $codename main' > /etc/apt/sources.list.d/php.list"
+    execPrint "apt-get update -qq 2>&1"
+    if ! execPrint "apt-get -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install libapache2-mod-php8.3 php8.3 php8.3-cli php8.3-curl php8.3-gd php8.3-intl php8.3-ldap php8.3-mbstring php8.3-mysql php8.3-snmp php8.3-xml php8.3-zip 2>&1"; then
+        # Switching Apache below without PHP 8.3 installed would leave a running install with no PHP module.
+        logmsg "WARNING - PHP 8.3 did not install from packages.sury.org. Leaving the current PHP in place."
+        return 1
+    fi
+
+    # An install upgrading from the OS's own PHP still has that version's Apache module enabled,
+    # and libapache2-mod-php8.3 will not enable itself next to it.
+    execPrint "update-alternatives --set php /usr/bin/php8.3"
+    other_php_modules=$(a2query -m 2>/dev/null | sed -n 's/^\(php[.0-9]*\) (enabled.*)/\1/p' | grep -vx 'php8.3' | tr '\n' ' ')
+    if [ -n "$other_php_modules" ]; then
+        execPrint "a2dismod -q $other_php_modules"
+    fi
+    execPrint "a2enmod -q php8.3"
+}
