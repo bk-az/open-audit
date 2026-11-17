@@ -95,18 +95,18 @@ class Logon extends Controller
         if (empty($server_os)) {
             // First time logging on - a new install
             $newsRequested = true;
-            if (php_uname('s') === 'Windows NT') {
-                # The installer does this already for Windows
-                # $command = "%comspec% /c start /b c:\\xampp\\php\\php.exe " . FCPATH . "index.php news execute install";
-                # @exec($command, $output);
-                # pclose(popen($command, 'r'));
-            } elseif (php_uname('s') === 'Darwin') {
-                $command = 'php ' . FCPATH . 'index.php news execute install > /dev/null 2>&1 &';
-                @exec($command, $output);
-            } else {
-                $command = 'nohup php ' . FCPATH . 'index.php news execute install > /dev/null 2>&1 &';
-                @exec($command, $output);
-            }
+            // if (php_uname('s') === 'Windows NT') {
+            //     # The installer does this already for Windows
+            //     # $command = "%comspec% /c start /b c:\\xampp\\php\\php.exe " . FCPATH . "index.php news execute install";
+            //     # @exec($command, $output);
+            //     # pclose(popen($command, 'r'));
+            // } elseif (php_uname('s') === 'Darwin') {
+            //     $command = 'php ' . FCPATH . 'index.php news execute install > /dev/null 2>&1 &';
+            //     @exec($command, $output);
+            // } else {
+            //     $command = 'nohup php ' . FCPATH . 'index.php news execute install > /dev/null 2>&1 &';
+            //     @exec($command, $output);
+            // }
         }
 
         if (empty($subnet)) {

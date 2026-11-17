@@ -1,5 +1,5 @@
 <?php
-$logfile = '/usr/local/as-network-scanner/writable/logs/log-' . date('Y-m-d') . '.log';
+$logfile = '/usr/local/as-network-scanner/current/writable/logs/log-' . date('Y-m-d') . '.log';
 if (php_uname('s') === 'Windows NT') {
     $logfile = 'c:\\xampp\\open-audit\\writable\\logs\\log-' . date('Y-m-d') . '.log';
 }

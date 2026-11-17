@@ -48,16 +48,16 @@
                     html.setAttribute('data-bs-theme', prefers);
 
                     var checkurl = "https://services.opmantek.com/api/versioncheck/Open-AudIT/<?= $config->display_version ?>";
-                    $.getJSON(checkurl, function (data) {
-                        if(data.status === 1){
-                            // console.log("up to date");
-                        } else if (data.status === 0){
-                            // console.log("request fail");
-                        } else {
-                            // console.log("out of date");
-                            $("#default_text").html(<?= json_encode(APP_DISPLAY_NAME) ?> + " " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"<?= APP_VENDOR_URL ?>\"><?= APP_VENDOR_URL ?></a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
-                        }
-                    });
+                    // $.getJSON(checkurl, function (data) {
+                    //     if(data.status === 1){
+                    //         // console.log("up to date");
+                    //     } else if (data.status === 0){
+                    //         // console.log("request fail");
+                    //     } else {
+                    //         // console.log("out of date");
+                    //         $("#default_text").html(<?= json_encode(APP_DISPLAY_NAME) ?> + " " + data.version + " was released on " + data.date + ".<br><?= __('Download your updated version from') ?> <a href=\"<?= APP_VENDOR_URL ?>\"><?= APP_VENDOR_URL ?></a>.<br><?= __('View the release notes on the') ?> <a href=\"" + data.releasenotes + "\">wiki</a>.");
+                    //     }
+                    // });
 
                     <?php if ($config->device_count === 0 or $config->device_count === 1) { ?>
                     $("#username").val("admin");
