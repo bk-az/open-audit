@@ -151,6 +151,12 @@ detect_running_release() {
     fi
 }
 
+is_release_stageable() {
+    local running_release
+    running_release="$(readlink -f "$INSTALL_DIR/current" 2>/dev/null)"
+    [ ! -d "$RELEASE" ] || [ "$running_release" != "$(readlink -f "$RELEASE")" ]
+}
+
 # guesses os and sets $OSFLAVOUR to debian, ubuntu, redhat or '',
 # also sets OS_VERSION, OS_MAJOR, OS_MINOR (and OS_PATCH if it exists),
 # plus OS_ISCENTOS if flavour is redhat.
